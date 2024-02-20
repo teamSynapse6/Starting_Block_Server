@@ -1,0 +1,94 @@
+package com.startingblock.domain.announcement.domain;
+
+import com.startingblock.domain.common.BaseEntity;
+import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "kstartup_announcement")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Getter
+public class KStartUpAnnouncement extends BaseEntity {
+
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "post_sn", nullable = false, unique = true)
+    private Long postSN; // 게시물번호
+
+    @Column(name = "biz_title")
+    private String bizTitle; // 지원사업분류
+
+    @Column(name = "support_type")
+    private String supportType; // 지원분야
+
+    @Column(name = "title")
+    private String title; // 제목
+
+    @Column(name = "area_name")
+    private String areaName; // 지역
+
+    @Column(name = "organization_name")
+    private String organizationName; // 소속
+
+    @Column(name = "post_target")
+    private String postTarget; // 대상
+
+    @Column(name = "post_target_age")
+    private String postTargetAge; // 대상연령
+
+    @Column(name = "post_target_com_age")
+    private String postTargetComAge; // 대상업력
+
+    @Column(name = "start_date")
+    private LocalDateTime startDate; // 접수시작일자
+
+    @Column(name = "end_date")
+    private LocalDateTime endDate; // 접수종료일자
+
+    @Column(name = "insert_date")
+    private LocalDateTime insertDate; // 등록일자
+
+    @Column(name = "detail_url")
+    @Lob
+    private String detailUrl; // 상세 URL
+
+    @Column(name = "prch_cn_adr_no")
+    private String prchCnAdrNo; // 연락처
+
+    @Column(name = "sprv_inst_clss_cd_nm")
+    private String sprvInstClssCdNm; // 기관구분
+
+    @Column(name = "biz_prch_dprt_nm")
+    private String bizPrchDprtNm; // 담당부서
+
+    @Column(name = "blng_gv_dp_cd_nm")
+    private String blngGvDpCdNm; // 소관부처
+
+    @Builder
+    public KStartUpAnnouncement(Long postSN, String bizTitle, String supportType, String title, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String detailUrl, String prchCnAdrNo, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm) {
+        this.postSN = postSN;
+        this.bizTitle = bizTitle;
+        this.supportType = supportType;
+        this.title = title;
+        this.areaName = areaName;
+        this.organizationName = organizationName;
+        this.postTarget = postTarget;
+        this.postTargetAge = postTargetAge;
+        this.postTargetComAge = postTargetComAge;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.insertDate = insertDate;
+        this.detailUrl = detailUrl;
+        this.prchCnAdrNo = prchCnAdrNo;
+        this.sprvInstClssCdNm = sprvInstClssCdNm;
+        this.bizPrchDprtNm = bizPrchDprtNm;
+        this.blngGvDpCdNm = blngGvDpCdNm;
+    }
+
+}
