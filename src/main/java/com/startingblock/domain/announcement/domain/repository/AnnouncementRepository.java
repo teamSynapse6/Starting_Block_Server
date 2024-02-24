@@ -1,7 +1,7 @@
 package com.startingblock.domain.announcement.domain.repository;
 
-import org.springframework.stereotype.Repository;
+import com.startingblock.domain.announcement.domain.Announcement;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-@Repository
-public interface AnnouncementRepository {
+public interface AnnouncementRepository extends JpaRepository<Announcement, Long> , AnnouncementQuerydslRepository {
 }

@@ -1,10 +1,6 @@
 package com.startingblock.global.infrastructure.feign.dto;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Lob;
 import lombok.Data;
-
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -21,40 +17,41 @@ public class KStartUpAnnouncementRes {
         public static class Header {
             private String resultCode;
             private String resultMsg;
-            // Getter와 Setter
         }
 
         @Data
         public static class Body {
             private String pageNo;
             private String totalCount;
-            private List<Item> items;
+            private List<ItemWrapper> items;
             private String numOfRows;
 
             @Data
-            public static class Item {
-                private Long postSN; // 게시물번호
-                private String bizTitle; // 지원사업분류
-                private String supportType; // 지원분야
-                private String title; // 제목
-                private String areaName; // 지역
-                private String organizationName; // 소속
-                private String postTarget; // 대상
-                private String postTargetAge; // 대상연령
-                private String postTargetComAge; // 대상업력
-                private LocalDateTime startDate; // 접수시작일자
-                private LocalDateTime endDate; // 접수종료일자
-                private LocalDateTime insertDate; // 등록일자
-                private String detailUrl; // 상세 URL
-                private String prchCnAdrNo; // 연락처
-                private String sprvInstClssCdNm; // 기관구분
-                private String bizPrchDprtNm; // 담당부서
-                private String blngGvDpCdNm; // 소관부처
+            public static class ItemWrapper {
+                private Item item;
             }
 
+            @Data
+            public static class Item {
+                private String postsn; // 게시물번호
+                private String biztitle; // 지원사업분류
+                private String supporttype; // 지원분야
+                private String title; // 제목
+                private String areaname; // 지역
+                private String organizationname; // 소속
+                private String posttarget; // 대상
+                private String posttargetage; // 대상연령
+                private String posttargetcomage; // 대상업력
+                private String startdate; // 접수시작일자
+                private String enddate; // 접수종료일자)
+                private String insertdate; // 등록일자
+                private String detailurl; // 상세 URL
+                private String prchcnadrno; // 연락처
+                private String sprvinstclsscdnm; // 기관구분
+                private String bizprchdprtnm; // 담당부서
+                private String blnggvdpcdnm; // 소관부처
+            }
         }
-
     }
-
 }
 

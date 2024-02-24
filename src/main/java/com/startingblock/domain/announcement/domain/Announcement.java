@@ -2,24 +2,23 @@ package com.startingblock.domain.announcement.domain;
 
 import com.startingblock.domain.common.BaseEntity;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "kstartup_announcement")
+@Table(name = "announcement")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-public class KStartUpAnnouncement extends BaseEntity {
+@ToString
+public class Announcement extends BaseEntity {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "post_sn", nullable = false, unique = true)
-    private Long postSN; // 게시물번호
+    private String postSN; // 게시물번호
 
     @Column(name = "biz_title")
     private String bizTitle; // 지원사업분류
@@ -54,6 +53,9 @@ public class KStartUpAnnouncement extends BaseEntity {
     @Column(name = "insert_date")
     private LocalDateTime insertDate; // 등록일자
 
+    @Column(name = "non_date")
+    private String nonDate;
+
     @Column(name = "detail_url")
     @Lob
     private String detailUrl; // 상세 URL
@@ -70,8 +72,12 @@ public class KStartUpAnnouncement extends BaseEntity {
     @Column(name = "blng_gv_dp_cd_nm")
     private String blngGvDpCdNm; // 소관부처
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "announcement_type")
+    private AnnouncementType announcementType;
+
     @Builder
-    public KStartUpAnnouncement(Long postSN, String bizTitle, String supportType, String title, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String detailUrl, String prchCnAdrNo, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm) {
+    public Announcement(String postSN, String bizTitle, String supportType, String title, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String nonDate, String detailUrl, String prchCnAdrNo, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm, AnnouncementType announcementType) {
         this.postSN = postSN;
         this.bizTitle = bizTitle;
         this.supportType = supportType;
@@ -84,11 +90,13 @@ public class KStartUpAnnouncement extends BaseEntity {
         this.startDate = startDate;
         this.endDate = endDate;
         this.insertDate = insertDate;
+        this.nonDate = nonDate;
         this.detailUrl = detailUrl;
         this.prchCnAdrNo = prchCnAdrNo;
         this.sprvInstClssCdNm = sprvInstClssCdNm;
         this.bizPrchDprtNm = bizPrchDprtNm;
         this.blngGvDpCdNm = blngGvDpCdNm;
+        this.announcementType = announcementType;
     }
 
 }
