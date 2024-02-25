@@ -33,9 +33,9 @@ import lombok.RequiredArgsConstructor;
 @Service
 public class AuthService {
 
+    private final CustomTokenProviderService customTokenProviderService;
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
-    private final CustomTokenProviderService customTokenProviderService;
     
     private final UserRepository userRepository;
     private final TokenRepository tokenRepository;
@@ -76,7 +76,6 @@ public class AuthService {
         User user = User.builder()
                         .name(signUpRequest.getName())
                         .email(signUpRequest.getEmail())
-                        .password(passwordEncoder.encode(signUpRequest.getPassword()))
                         .provider(Provider.local)
                         .role(Role.ADMIN)
                         .build();
