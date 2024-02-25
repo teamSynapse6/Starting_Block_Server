@@ -3,6 +3,7 @@ package com.startingblock.domain.announcement.application;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
+import com.startingblock.global.config.FeignConfig;
 import com.startingblock.global.infrastructure.feign.BizInfoClient;
 import com.startingblock.global.infrastructure.feign.OpenDataClient;
 import com.startingblock.global.infrastructure.feign.dto.BizInfoAnnouncementRes;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +26,7 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class AnnouncementServiceImpl implements AnnouncementService {
 
+    private final FeignConfig feignConfig;
     private final AnnouncementRepository announcementRepository;
     private final OpenDataClient openDataClient;
     private final BizInfoClient bizInfoClient;
@@ -31,48 +34,65 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     @Override
     @Transactional
     public Void refreshAnnouncements() {
-        KStartUpAnnouncementRes openDataResponse = openDataClient.getAnnouncementList(
-                "kGDrnuZPC2TpPVNJQB6kvqkgvPfZzOlgv%2FkxZa%2FaG58hcYBwWM1QgLZYVBkoxMt6vkU1z4r3E4nIhwH3%2FNDlqw%3D%3D",
+        String OPEN_DATA_SERVICE_KEY = feignConfig.getServiceKey().getOpenData();
+        String BIZ_INFO_SERVICE_KEY = feignConfig.getServiceKey().getBizInfo();
+
+        String nowDate = LocalDate.now().toString().replace("-", "");
+        KStartUpAnnouncementRes openDataResponse = openDataClient.getAnnouncementList( // Open Data API 호출
+                OPEN_DATA_SERVICE_KEY,
                 "1",
                 "1000",
                 "20230101",
-                "20240219",
+                nowDate,
                 "Y",
                 "json"
         );
 
-        BizInfoAnnouncementRes bizInfoResponse = bizInfoClient.getAnnouncementList(
-                "2EZC42",
+        BizInfoAnnouncementRes bizInfoResponse = bizInfoClient.getAnnouncementList( // Biz Info API 호출
+                BIZ_INFO_SERVICE_KEY,
                 "json"
         );
+
+        List<String> postIds = announcementRepository.findAnnouncementPostIds(); // Post ID 중복 체크용
 
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
 
         List<Announcement> openDataAnnouncements = openDataResponse.getResponse().getBody().getItems().stream()
-                .map(itemWrapper -> Announcement.builder()
-                        .postSN(itemWrapper.getItem().getPostsn())
-                        .bizTitle(itemWrapper.getItem().getBiztitle())
-                        .supportType(itemWrapper.getItem().getSupporttype())
-                        .title(itemWrapper.getItem().getTitle())
-                        .areaName(itemWrapper.getItem().getAreaname())
-                        .organizationName(itemWrapper.getItem().getOrganizationname())
-                        .postTarget(itemWrapper.getItem().getPosttarget())
-                        .postTargetComAge(itemWrapper.getItem().getPosttargetcomage())
-                        .startDate(LocalDateTime.parse(itemWrapper.getItem().getStartdate(), dateTimeFormatter))
-                        .endDate(LocalDateTime.parse(itemWrapper.getItem().getEnddate(), dateTimeFormatter))
-                        .insertDate(LocalDateTime.parse(itemWrapper.getItem().getInsertdate(), dateTimeFormatter))
-                        .detailUrl(itemWrapper.getItem().getDetailurl())
-                        .prchCnAdrNo(itemWrapper.getItem().getPrchcnadrno())
-                        .sprvInstClssCdNm(itemWrapper.getItem().getSprvinstclsscdnm())
-                        .bizPrchDprtNm(itemWrapper.getItem().getBizprchdprtnm())
-                        .blngGvDpCdNm(itemWrapper.getItem().getBlnggvdpcdnm())
-                        .announcementType(AnnouncementType.OPEN_DATA)
-                        .build())
+                .map(itemWrapper -> {
+                    if (postIds.contains(itemWrapper.getItem().getPostsn())) {
+                        return null;
+                    }
+
+                    return Announcement.builder()
+                            .postSN(itemWrapper.getItem().getPostsn())
+                            .bizTitle(itemWrapper.getItem().getBiztitle())
+                            .supportType(itemWrapper.getItem().getSupporttype())
+                            .title(itemWrapper.getItem().getTitle())
+                            .areaName(itemWrapper.getItem().getAreaname())
+                            .organizationName(itemWrapper.getItem().getOrganizationname())
+                            .postTarget(itemWrapper.getItem().getPosttarget())
+                            .postTargetComAge(itemWrapper.getItem().getPosttargetcomage())
+                            .startDate(LocalDateTime.parse(itemWrapper.getItem().getStartdate(), dateTimeFormatter))
+                            .endDate(LocalDateTime.parse(itemWrapper.getItem().getEnddate(), dateTimeFormatter))
+                            .insertDate(LocalDateTime.parse(itemWrapper.getItem().getInsertdate(), dateTimeFormatter))
+                            .detailUrl(itemWrapper.getItem().getDetailurl())
+                            .prchCnAdrNo(itemWrapper.getItem().getPrchcnadrno())
+                            .sprvInstClssCdNm(itemWrapper.getItem().getSprvinstclsscdnm())
+                            .bizPrchDprtNm(itemWrapper.getItem().getBizprchdprtnm())
+                            .blngGvDpCdNm(itemWrapper.getItem().getBlnggvdpcdnm())
+                            .announcementType(AnnouncementType.OPEN_DATA)
+                            .build();
+                })
+                .filter(Objects::nonNull)
                 .toList();
 
         List<Announcement> bizInfoAnnouncements = bizInfoResponse.getJsonArray().stream()
                 .map(item -> {
+                    if (postIds.contains(item.getPblancId())) {
+                        return null;
+                    }
+
                     LocalDateTime startDateTime = null, endDateTime = null;
                     String nonDate = null;
 
@@ -110,6 +130,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                             .announcementType(AnnouncementType.BIZ_INFO)
                             .build();
                 })
+                .filter(Objects::nonNull)
                 .toList();
 
         announcementRepository.saveAll(openDataAnnouncements);
