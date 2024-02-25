@@ -3,13 +3,17 @@ package com.startingblock.domain.announcement.application;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
+import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import com.startingblock.global.config.FeignConfig;
+import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.infrastructure.feign.BizInfoClient;
 import com.startingblock.global.infrastructure.feign.OpenDataClient;
 import com.startingblock.global.infrastructure.feign.dto.BizInfoAnnouncementRes;
 import com.startingblock.global.infrastructure.feign.dto.KStartUpAnnouncementRes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,15 +76,16 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                             .areaName(itemWrapper.getItem().getAreaname())
                             .organizationName(itemWrapper.getItem().getOrganizationname())
                             .postTarget(itemWrapper.getItem().getPosttarget())
+                            .postTargetAge(itemWrapper.getItem().getPosttargetage())
                             .postTargetComAge(itemWrapper.getItem().getPosttargetcomage())
                             .startDate(LocalDateTime.parse(itemWrapper.getItem().getStartdate(), dateTimeFormatter))
                             .endDate(LocalDateTime.parse(itemWrapper.getItem().getEnddate(), dateTimeFormatter))
                             .insertDate(LocalDateTime.parse(itemWrapper.getItem().getInsertdate(), dateTimeFormatter))
                             .detailUrl(itemWrapper.getItem().getDetailurl())
-                            .prchCnAdrNo(itemWrapper.getItem().getPrchcnadrno())
-                            .sprvInstClssCdNm(itemWrapper.getItem().getSprvinstclsscdnm())
-                            .bizPrchDprtNm(itemWrapper.getItem().getBizprchdprtnm())
-                            .blngGvDpCdNm(itemWrapper.getItem().getBlnggvdpcdnm())
+                            .prchCnAdrNo(itemWrapper.getItem().getPrchCnadrNo())
+                            .sprvInstClssCdNm(itemWrapper.getItem().getSprvInstClssCdNm())
+                            .bizPrchDprtNm(itemWrapper.getItem().getBizPrchDprtNm())
+                            .blngGvDpCdNm(itemWrapper.getItem().getBlngGvdpCdNm())
                             .announcementType(AnnouncementType.OPEN_DATA)
                             .build();
                 })
@@ -136,6 +141,11 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         announcementRepository.saveAll(openDataAnnouncements);
         announcementRepository.saveAll(bizInfoAnnouncements);
         return null;
+    }
+
+    @Override
+    public Slice<AnnouncementRes> findAnnouncements(final UserPrincipal userPrincipal, Pageable pageable, String businessAge, String region, String supportType, String sort, String search) {
+        return announcementRepository.findAnnouncements(userPrincipal.getId(), pageable, businessAge, region, supportType, sort, search);
     }
 
 }

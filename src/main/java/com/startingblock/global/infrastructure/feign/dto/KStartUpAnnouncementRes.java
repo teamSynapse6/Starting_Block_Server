@@ -46,12 +46,11 @@ public class KStartUpAnnouncementRes {
                 private String enddate; // 접수종료일자)
                 private String insertdate; // 등록일자
                 private String detailurl; // 상세 URL
-                private String prchcnadrno; // 연락처
-                private String sprvinstclsscdnm; // 기관구분
-                private String bizprchdprtnm; // 담당부서
-                private String blnggvdpcdnm; // 소관부처
+                private String prchCnadrNo; // 연락처
+                private String sprvInstClssCdNm; // 기관구분
+                private String bizPrchDprtNm; // 담당부서
+                private String blngGvdpCdNm; // 소관부처
             }
         }
     }
 }
-

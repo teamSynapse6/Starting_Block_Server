@@ -19,30 +19,28 @@ public class User extends BaseEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "name", nullable = false)
     private String name;
 
     @Email
+    @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-    private String imageUrl;
-
-    private String password;
-
     @Enumerated(EnumType.STRING)
+    @Column(name = "provider", nullable = false)
     private Provider provider;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
     private Role role;
 
+    @Column(name = "provider_id", nullable = false, unique = true)
     private String providerId;
 
     @Builder
-    public User(Long id, String name, String email, String imageUrl, String password, Provider provider, Role role, String providerId) {
-        this.id = id;
+    public User(String name, String email, Provider provider, Role role, String providerId) {
         this.name = name;
         this.email = email;
-        this.imageUrl = imageUrl;
-        this.password = password;
         this.provider = provider;
         this.role = role;
         this.providerId = providerId;
@@ -50,10 +48,6 @@ public class User extends BaseEntity {
 
     public void updateName(String name){
         this.name = name;
-    }
-
-    public void updateImageUrl(String imageUrl){
-        this.imageUrl = imageUrl;
     }
 
 }
