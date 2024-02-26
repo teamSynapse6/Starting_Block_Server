@@ -76,6 +76,9 @@ public class Announcement extends BaseEntity {
     @Column(name = "announcement_type")
     private AnnouncementType announcementType;
 
+    @Column(name = "road_map_count")
+    private Integer roadMapCount;
+
     @Builder
     public Announcement(String postSN, String bizTitle, String supportType, String title, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String nonDate, String detailUrl, String prchCnAdrNo, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm, AnnouncementType announcementType) {
         this.postSN = postSN;
@@ -97,6 +100,7 @@ public class Announcement extends BaseEntity {
         this.bizPrchDprtNm = bizPrchDprtNm;
         this.blngGvDpCdNm = blngGvDpCdNm;
         this.announcementType = announcementType;
+        this.roadMapCount = 0;
     }
 
 }

@@ -144,7 +144,8 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     @Override
-    public Slice<AnnouncementRes> findAnnouncements(final UserPrincipal userPrincipal, Pageable pageable, String businessAge, String region, String supportType, String sort, String search) {
+    public Slice<AnnouncementRes> findAnnouncements(final UserPrincipal userPrincipal, final Pageable pageable, final String businessAge, final String region, final String supportType,
+                                                    final String sort, final String search) {
         return announcementRepository.findAnnouncements(userPrincipal.getId(), pageable, businessAge, region, supportType, sort, search);
     }
 
