@@ -1,11 +1,7 @@
 package com.startingblock.global.config.security;
 
-import com.startingblock.global.config.security.handler.CustomSimpleUrlAuthenticationFailureHandler;
-import com.startingblock.global.config.security.handler.CustomSimpleUrlAuthenticationSuccessHandler;
 import com.startingblock.global.config.security.token.CustomAuthenticationEntryPoint;
 import com.startingblock.global.config.security.token.CustomOncePerRequestFilter;
-import com.startingblock.domain.auth.domain.repository.CustomAuthorizationRequestRepository;
-import com.startingblock.domain.auth.application.CustomDefaultOAuth2UserService;
 import com.startingblock.domain.auth.application.CustomUserDetailsService;
 
 import org.springframework.context.annotation.Bean;
@@ -33,10 +29,6 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
     
     private final CustomUserDetailsService customUserDetailsService;
-    private final CustomDefaultOAuth2UserService customOAuth2UserService;
-    private final CustomSimpleUrlAuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
-    private final CustomSimpleUrlAuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
-    private final CustomAuthorizationRequestRepository customAuthorizationRequestRepository;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -82,17 +74,7 @@ public class SecurityConfig {
                         .requestMatchers("/blog/**")
                         .permitAll()
                         .anyRequest()
-                        .authenticated())
-                .oauth2Login(oauth2 -> oauth2
-                        .authorizationEndpoint(authorization -> authorization
-                                .baseUri("/oauth2/authorize")
-                                .authorizationRequestRepository(customAuthorizationRequestRepository))
-                        .redirectionEndpoint(redirection -> redirection
-                                .baseUri("/oauth2/callback/**"))
-                        .userInfoEndpoint(userInfo -> userInfo
-                                .userService(customOAuth2UserService))
-                        .successHandler(oAuth2AuthenticationSuccessHandler)
-                        .failureHandler(oAuth2AuthenticationFailureHandler));
+                        .authenticated());
 
         http.addFilterBefore(customOncePerRequestFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();

@@ -1,33 +1,28 @@
 package com.startingblock.domain.auth.application;
 
-import java.security.Key;
-import java.util.Date;
-
+import com.startingblock.domain.auth.dto.TokenMapping;
 import com.startingblock.global.config.security.OAuth2Config;
 import com.startingblock.global.config.security.token.UserPrincipal;
-import com.startingblock.domain.auth.dto.TokenMapping;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
-
-import lombok.extern.slf4j.Slf4j;
+import java.security.Key;
+import java.util.Date;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class CustomTokenProviderService {
 
-    @Autowired
-    private OAuth2Config oAuth2Config;
-
-    @Autowired
-    private CustomUserDetailsService customUserDetailsService;
+    private final CustomUserDetailsService customUserDetailsService;
+    private final OAuth2Config oAuth2Config;
 
     public TokenMapping refreshToken(Authentication authentication, String refreshToken) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();

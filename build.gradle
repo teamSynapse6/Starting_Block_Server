@@ -39,8 +39,11 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
 
-	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+	runtimeOnly 'com.mysql:mysql-connector-j'
 	runtimeOnly 'com.h2database:h2'
+
+	//외부 API 호출을 위한 라이브러리
+	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign:4.1.0'
 
 	//query dsl
 	implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
