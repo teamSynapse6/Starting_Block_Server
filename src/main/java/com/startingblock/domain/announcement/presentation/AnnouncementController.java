@@ -2,6 +2,7 @@ package com.startingblock.domain.announcement.presentation;
 
 
 import com.startingblock.domain.announcement.application.AnnouncementService;
+import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import com.startingblock.global.config.security.token.CurrentUser;
 import com.startingblock.global.config.security.token.UserPrincipal;
@@ -18,10 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 
 @Tag(name = "Announcements API", description = "Announcements API")
@@ -39,7 +37,8 @@ public class AnnouncementController {
     })
     @GetMapping("/refresh")
     public ResponseEntity<Void> refreshAnnouncements() {
-        return ResponseEntity.ok(announcementService.refreshAnnouncements());
+        announcementService.refreshAnnouncements();
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "공고 조건별 검색(Paging)", description = "공고 조건별 검색(Paging)")
@@ -58,6 +57,18 @@ public class AnnouncementController {
             @Parameter(name = "search", description = "검색어") @RequestParam(required = false) final String search
     ) {
         return ResponseEntity.ok(announcementService.findAnnouncements(userPrincipal, pageable, businessAge, region, supportType, sort, search));
+    }
+
+    @Operation(summary = "공고 상세정보 조회", description = "공고 상세정보 조회")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "공고 상세정보 조회 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = AnnouncementDetailRes.class))}),
+            @ApiResponse(responseCode = "400", description = "공고 상세정보 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/{announcement-id}")
+    public ResponseEntity<AnnouncementDetailRes> findAnnouncementDetailById(
+            @Parameter(name = "공고 ID") @PathVariable(name = "announcement-id") final Long announcementId
+    ) {
+        return ResponseEntity.ok(announcementService.findAnnouncementDetailById(announcementId));
     }
 
 }
