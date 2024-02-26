@@ -29,6 +29,9 @@ public class Announcement extends BaseEntity {
     @Column(name = "title")
     private String title; // 제목
 
+    @Column(name = "content")
+    private String content; // 내용
+
     @Column(name = "area_name")
     private String areaName; // 지역
 
@@ -63,6 +66,9 @@ public class Announcement extends BaseEntity {
     @Column(name = "prch_cn_adr_no")
     private String prchCnAdrNo; // 연락처
 
+    @Column(name = "contact")
+    private String contact; // 이메일
+
     @Column(name = "sprv_inst_clss_cd_nm")
     private String sprvInstClssCdNm; // 기관구분
 
@@ -80,11 +86,12 @@ public class Announcement extends BaseEntity {
     private Integer roadMapCount;
 
     @Builder
-    public Announcement(String postSN, String bizTitle, String supportType, String title, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String nonDate, String detailUrl, String prchCnAdrNo, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm, AnnouncementType announcementType) {
+    public Announcement(String postSN, String bizTitle, String supportType, String title, String content, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String nonDate, String detailUrl, String prchCnAdrNo, String contact, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm, AnnouncementType announcementType, Integer roadMapCount) {
         this.postSN = postSN;
         this.bizTitle = bizTitle;
         this.supportType = supportType;
         this.title = title;
+        this.content = content;
         this.areaName = areaName;
         this.organizationName = organizationName;
         this.postTarget = postTarget;
@@ -96,6 +103,7 @@ public class Announcement extends BaseEntity {
         this.nonDate = nonDate;
         this.detailUrl = detailUrl;
         this.prchCnAdrNo = prchCnAdrNo;
+        this.contact = contact;
         this.sprvInstClssCdNm = sprvInstClssCdNm;
         this.bizPrchDprtNm = bizPrchDprtNm;
         this.blngGvDpCdNm = blngGvDpCdNm;
