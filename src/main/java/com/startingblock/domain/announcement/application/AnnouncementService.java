@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 @Service
 public interface AnnouncementService {
 
-    void refreshAnnouncements();
+    void refreshAnnouncements(UserPrincipal userPrincipal);
     Slice<AnnouncementRes> findAnnouncements(UserPrincipal userPrincipal, Pageable pageable, String businessAge, String region, String supportType, String sort, String search);
     AnnouncementDetailRes findAnnouncementDetailById(Long announcementId);
 

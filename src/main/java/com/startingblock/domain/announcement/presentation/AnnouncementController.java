@@ -36,8 +36,10 @@ public class AnnouncementController {
             @ApiResponse(responseCode = "400", description = "공고 새로고침 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @GetMapping("/refresh")
-    public ResponseEntity<Void> refreshAnnouncements() {
-        announcementService.refreshAnnouncements();
+    public ResponseEntity<Void> refreshAnnouncements(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        announcementService.refreshAnnouncements(userPrincipal);
         return ResponseEntity.noContent().build();
     }
 
