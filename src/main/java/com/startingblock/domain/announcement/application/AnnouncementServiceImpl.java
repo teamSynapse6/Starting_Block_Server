@@ -3,7 +3,9 @@ package com.startingblock.domain.announcement.application;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
+import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
+import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.global.config.FeignConfig;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.infrastructure.feign.BizInfoClient;
@@ -37,7 +39,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
     @Override
     @Transactional
-    public Void refreshAnnouncements() {
+    public void refreshAnnouncements() {
         String OPEN_DATA_SERVICE_KEY = feignConfig.getServiceKey().getOpenData();
         String BIZ_INFO_SERVICE_KEY = feignConfig.getServiceKey().getBizInfo();
 
@@ -140,7 +142,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
         announcementRepository.saveAll(openDataAnnouncements);
         announcementRepository.saveAll(bizInfoAnnouncements);
-        return null;
     }
 
     @Override
@@ -149,4 +150,10 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         return announcementRepository.findAnnouncements(userPrincipal.getId(), pageable, businessAge, region, supportType, sort, search);
     }
 
+    @Override
+    public AnnouncementDetailRes findAnnouncementDetailById(Long announcementId) {
+        Announcement announcement = announcementRepository.findById(announcementId)
+                .orElseThrow(InvalidAnnouncementException::new);
+        return null;
+    }
 }

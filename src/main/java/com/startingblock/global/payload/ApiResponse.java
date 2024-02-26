@@ -14,13 +14,18 @@ public class ApiResponse {
     
     @Schema( type = "object", example = "information", description="restful의 정보를 감싸 표현합니다. object형식으로 표현합니다.")
     private Object information;
-    
-    public ApiResponse(){};
 
     @Builder
     public ApiResponse(boolean check, Object information) {
         this.check = check;
         this.information = information;
+    }
+
+    public static ApiResponse ok(Object response) {
+        return ApiResponse.builder()
+                .check(true)
+                .information(response)
+                .build();
     }
 
 }
