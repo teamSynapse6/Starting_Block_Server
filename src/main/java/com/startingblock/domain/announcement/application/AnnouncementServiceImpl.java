@@ -154,6 +154,8 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     public AnnouncementDetailRes findAnnouncementDetailById(Long announcementId) {
         Announcement announcement = announcementRepository.findById(announcementId)
                 .orElseThrow(InvalidAnnouncementException::new);
-        return null;
+
+        return AnnouncementDetailRes.of(announcement);
     }
+
 }

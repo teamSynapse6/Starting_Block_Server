@@ -50,13 +50,13 @@ public class AnnouncementController {
     public ResponseEntity<Slice<AnnouncementRes>> findAnnouncements(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(name = "pageable", description = "조회 할 페이지와 페이지 크기를 입력해주세요(sort는 무시해도 됩니다. + Page는 0번부터 시작)") final Pageable pageable,
-            @Parameter(name = "businessAge", description = "사업자형태") @RequestParam(required = false) final String businessAge,
+            @Parameter(name = "postTarget", description = "사업자형태") @RequestParam(required = false) final String postTarget,
             @Parameter(name = "region", description = "지역") @RequestParam(required = false) final String region,
             @Parameter(name = "supportType", description = "지원 분야") @RequestParam(required = false) final String supportType,
-            @Parameter(name = "sort", description = "최신순, 로드맵에 저장 많은 순") @RequestParam(required = false) final String sort,
+            @Parameter(name = "sorting", description = "최신순, 로드맵에 저장 많은 순") @RequestParam(required = false) final String sorting,
             @Parameter(name = "search", description = "검색어") @RequestParam(required = false) final String search
     ) {
-        return ResponseEntity.ok(announcementService.findAnnouncements(userPrincipal, pageable, businessAge, region, supportType, sort, search));
+        return ResponseEntity.ok(announcementService.findAnnouncements(userPrincipal, pageable, postTarget, region, supportType, sorting, search));
     }
 
     @Operation(summary = "공고 상세정보 조회", description = "공고 상세정보 조회")
