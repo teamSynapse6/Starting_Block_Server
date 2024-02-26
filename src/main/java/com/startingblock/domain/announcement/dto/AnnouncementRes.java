@@ -11,12 +11,12 @@ public class AnnouncementRes {
     private Long announcementId;
     private String departmentName;
     private String title;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private String startDate;
+    private String endDate;
     private Boolean isBookmarked;
 
     @QueryProjection
-    public AnnouncementRes(Long announcementId, String departmentName, String title, LocalDateTime startDate, LocalDateTime endDate, Boolean isBookmarked) {
+    public AnnouncementRes(Long announcementId, String departmentName, String title, String startDate, String endDate, Boolean isBookmarked) {
         this.announcementId = announcementId;
         this.departmentName = departmentName;
         this.title = title;

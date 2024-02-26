@@ -8,6 +8,7 @@ import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.payload.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,9 +20,9 @@ import org.springframework.data.domain.Slice;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 
 @Tag(name = "Announcements API", description = "Announcements API")
 @RequestMapping("/api/v1/announcements")
@@ -43,19 +44,19 @@ public class AnnouncementController {
 
     @Operation(summary = "공고 조건별 검색(Paging)", description = "공고 조건별 검색(Paging)")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "공고 조건별 검색 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = AnnouncementRes.class))}),
+            @ApiResponse(responseCode = "200", description = "공고 조건별 검색 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AnnouncementRes.class)))}),
             @ApiResponse(responseCode = "400", description = "공고 조건별 검색 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @GetMapping("/list")
     public ResponseEntity<Slice<AnnouncementRes>> findAnnouncements(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
-            @Parameter(name = "pagingCondition", description = "조회 할 페이지와 페이지 크기를 입력해주세요(sort는 무시해도 됩니다. + Page는 0번부터 시작)") final Pageable pageable,
-            @Parameter(name = "businessAge", description = "사업자형태") final String businessAge,
-            @Parameter(name = "region", description = "지역") final String region,
-            @Parameter(name = "supportType", description = "지원 분야") final String supportType,
-            @Parameter(name = "sort", description = "최신순, 로드맵에 저장 많은 순") final String sort,
-            @Parameter(name = "search", description = "검색어") final String search
-            ) {
+            @Parameter(name = "pageable", description = "조회 할 페이지와 페이지 크기를 입력해주세요(sort는 무시해도 됩니다. + Page는 0번부터 시작)") final Pageable pageable,
+            @Parameter(name = "businessAge", description = "사업자형태") @RequestParam(required = false) final String businessAge,
+            @Parameter(name = "region", description = "지역") @RequestParam(required = false) final String region,
+            @Parameter(name = "supportType", description = "지원 분야") @RequestParam(required = false) final String supportType,
+            @Parameter(name = "sort", description = "최신순, 로드맵에 저장 많은 순") @RequestParam(required = false) final String sort,
+            @Parameter(name = "search", description = "검색어") @RequestParam(required = false) final String search
+    ) {
         return ResponseEntity.ok(announcementService.findAnnouncements(userPrincipal, pageable, businessAge, region, supportType, sort, search));
     }
 
