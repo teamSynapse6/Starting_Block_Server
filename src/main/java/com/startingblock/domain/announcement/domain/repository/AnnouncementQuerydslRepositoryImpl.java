@@ -109,12 +109,12 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     private OrderSpecifier<?> announcementOrderBy(final String sort) {
-        if (sort == null) return announcement.insertDate.desc();
+        if (sort == null) return announcement.startDate.desc();
 
         return switch (sort) {
             case "로드맵에 저장 많은 순" -> announcement.roadMapCount.desc();
             case "최신순" -> announcement.startDate.desc().nullsLast();
-            default -> announcement.insertDate.desc();
+            default -> announcement.startDate.desc();
         };
     }
 

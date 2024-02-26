@@ -6,6 +6,8 @@ import com.startingblock.domain.announcement.domain.repository.AnnouncementRepos
 import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
+import com.startingblock.domain.announcement.exception.PermissionDeniedException;
+import com.startingblock.domain.user.domain.Role;
 import com.startingblock.global.config.FeignConfig;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.infrastructure.feign.BizInfoClient;
@@ -39,7 +41,10 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
     @Override
     @Transactional
-    public void refreshAnnouncements() {
+    public void refreshAnnouncements(UserPrincipal userPrincipal) {
+        if(userPrincipal.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals(Role.ADMIN.getValue())))
+            throw new PermissionDeniedException();
+
         String OPEN_DATA_SERVICE_KEY = feignConfig.getServiceKey().getOpenData();
         String BIZ_INFO_SERVICE_KEY = feignConfig.getServiceKey().getBizInfo();
 
@@ -115,6 +120,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                         }
                     } catch (DateTimeParseException e) {
                         nonDate = item.getReqstBeginEndDe();
+                        startDateTime = LocalDateTime.parse(item.getCreatPnttm(), dateTimeFormatter);
                     }
 
                     return Announcement.builder()
@@ -154,6 +160,8 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     public AnnouncementDetailRes findAnnouncementDetailById(Long announcementId) {
         Announcement announcement = announcementRepository.findById(announcementId)
                 .orElseThrow(InvalidAnnouncementException::new);
-        return null;
+
+        return AnnouncementDetailRes.of(announcement);
     }
+
 }
