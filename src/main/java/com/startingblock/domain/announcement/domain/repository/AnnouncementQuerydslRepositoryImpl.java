@@ -17,7 +17,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.startingblock.domain.announcement.domain.QAnnouncement.*;
-import static com.startingblock.domain.roadmap.domain.QRoadMapAnnouncement.*;
+import static com.startingblock.domain.roadmap.domain.QRoadmapAnnouncement.*;
 
 @RequiredArgsConstructor
 public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslRepository {
@@ -42,11 +42,11 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                                 announcement.title,
                                 Expressions.stringTemplate("COALESCE({0}, {1})", announcement.startDate.stringValue(), announcement.nonDate),
                                 Expressions.stringTemplate("COALESCE({0}, {1})", announcement.endDate.stringValue(), announcement.nonDate),
-                                roadMapAnnouncement.announcement.id.isNotNull()
+                                roadmapAnnouncement.announcement.id.isNotNull()
                         )
                 )
                 .from(announcement)
-                .leftJoin(roadMapAnnouncement).on(announcement.id.eq(roadMapAnnouncement.announcement.id).and(roadMapAnnouncement.roadMap.user.id.eq(userId)))
+                .leftJoin(roadmapAnnouncement).on(announcement.id.eq(roadmapAnnouncement.announcement.id).and(roadmapAnnouncement.roadmap.user.id.eq(userId)))
                 .where(
                         announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이전이거나, 비기한이 없는 공고
                         announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이후이거나, 비기한이 없는 공고
@@ -112,7 +112,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
         if (sort == null) return announcement.startDate.desc();
 
         return switch (sort) {
-            case "로드맵에 저장 많은 순" -> announcement.roadMapCount.desc();
+            case "로드맵에 저장 많은 순" -> announcement.roadmapCount.desc();
             case "최신순" -> announcement.startDate.desc().nullsLast();
             default -> announcement.startDate.desc();
         };

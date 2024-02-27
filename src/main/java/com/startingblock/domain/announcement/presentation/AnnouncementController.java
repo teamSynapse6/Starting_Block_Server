@@ -68,7 +68,7 @@ public class AnnouncementController {
     })
     @GetMapping("/{announcement-id}")
     public ResponseEntity<AnnouncementDetailRes> findAnnouncementDetailById(
-            @Parameter(name = "공고 ID") @PathVariable(name = "announcement-id") final Long announcementId
+            @Parameter(name = "announcement-id", required = true) @PathVariable(name = "announcement-id") final Long announcementId
     ) {
         return ResponseEntity.ok(announcementService.findAnnouncementDetailById(announcementId));
     }

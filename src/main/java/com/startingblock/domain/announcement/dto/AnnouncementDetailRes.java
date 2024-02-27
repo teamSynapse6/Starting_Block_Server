@@ -40,7 +40,7 @@ public class AnnouncementDetailRes {
                 .link(announcement.getDetailUrl())
                 .region(announcement.getAreaName())
                 .postTarget(announcement.getPostTarget())
-                .saved(announcement.getRoadMapCount())
+                .saved(announcement.getRoadmapCount())
                 .classification(announcement.getAnnouncementType().toString())
                 .contact(announcement.getContact())
                 .build();
