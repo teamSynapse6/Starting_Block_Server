@@ -22,10 +22,11 @@ public class SwaggerConfig {
     @Bean
     public OpenAPI openAPI(@Value("OpenAPI") String appVersion) {
         Server prodServer = new Server().url("https://api.startingblock.co.kr").description("운영 서버");
+        Server localServer = new Server().url("http://localhost:8080").description("로컬 서버");
         Info info = new Info().title("StartingBlock API").version(appVersion)
                 .description("StartingBlock API 입니다.")
                 .termsOfService("https://www.startingblock.co.kr")
-                .contact(new Contact().name("Shall We").email("synapse.startingblock@gmail.com"))
+                .contact(new Contact().name("Starting Block").email("synapse.startingblock@gmail.com"))
                 .license(new License().name("Apache License Version 2.0")
                         .url("http://www.apache.org/licenses/LICENSE-2.0"));
 

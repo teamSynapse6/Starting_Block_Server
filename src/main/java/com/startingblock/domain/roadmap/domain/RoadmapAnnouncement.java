@@ -8,25 +8,25 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "road_map_announcement")
+@Table(name = "roadmap_announcement")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-public class RoadMapAnnouncement {
+public class RoadmapAnnouncement {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "road_map_id", nullable = false)
-    private RoadMap roadMap;
+    @JoinColumn(name = "roadmap_id", nullable = false)
+    private Roadmap roadmap;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "announcement_id", nullable = false)
     private Announcement announcement;
 
     @Builder
-    public RoadMapAnnouncement(RoadMap roadMap, Announcement announcement) {
-        this.roadMap = roadMap;
+    public RoadmapAnnouncement(Roadmap roadmap, Announcement announcement) {
+        this.roadmap = roadmap;
         this.announcement = announcement;
     }
 

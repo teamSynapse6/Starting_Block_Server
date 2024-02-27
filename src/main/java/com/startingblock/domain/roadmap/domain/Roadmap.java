@@ -11,16 +11,16 @@ import lombok.NoArgsConstructor;
 import static jakarta.persistence.GenerationType.IDENTITY;
 
 @Entity
-@Table(name = "road_map")
+@Table(name = "roadmap")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-public class RoadMap extends BaseEntity {
+public class Roadmap extends BaseEntity {
 
     @Id @GeneratedValue(strategy = IDENTITY)
     private Long id;
 
-    @Column(name = "content")
-    private String content;
+    @Column(name = "title", nullable = false)
+    private String title;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -30,7 +30,7 @@ public class RoadMap extends BaseEntity {
     private Integer sequence;
 
     public void updateContent(String content) {
-        this.content = content;
+        this.title = content;
     }
 
     public void updateSequence(Integer sequence) {
@@ -38,8 +38,8 @@ public class RoadMap extends BaseEntity {
     }
 
     @Builder
-    public RoadMap(String content, User user, Integer sequence) {
-        this.content = content;
+    public Roadmap(String title, User user, Integer sequence) {
+        this.title = title;
         this.user = user;
         this.sequence = sequence;
     }

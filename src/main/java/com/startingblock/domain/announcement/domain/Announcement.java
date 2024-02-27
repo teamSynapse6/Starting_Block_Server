@@ -82,11 +82,19 @@ public class Announcement extends BaseEntity {
     @Column(name = "announcement_type")
     private AnnouncementType announcementType;
 
-    @Column(name = "road_map_count")
-    private Integer roadMapCount;
+    @Column(name = "roadmap_count")
+    private Integer roadmapCount;
+
+    public void addRoadmapCount() {
+        this.roadmapCount++;
+    }
+
+    public void subtractRoadmapCount() {
+        this.roadmapCount--;
+    }
 
     @Builder
-    public Announcement(String postSN, String bizTitle, String supportType, String title, String content, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String nonDate, String detailUrl, String prchCnAdrNo, String contact, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm, AnnouncementType announcementType, Integer roadMapCount) {
+    public Announcement(String postSN, String bizTitle, String supportType, String title, String content, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String nonDate, String detailUrl, String prchCnAdrNo, String contact, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm, AnnouncementType announcementType) {
         this.postSN = postSN;
         this.bizTitle = bizTitle;
         this.supportType = supportType;
@@ -108,7 +116,7 @@ public class Announcement extends BaseEntity {
         this.bizPrchDprtNm = bizPrchDprtNm;
         this.blngGvDpCdNm = blngGvDpCdNm;
         this.announcementType = announcementType;
-        this.roadMapCount = 0;
+        this.roadmapCount = 0;
     }
 
 }
