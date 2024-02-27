@@ -1,12 +1,14 @@
 package com.startingblock.domain.roadmap.presentation;
 
 import com.startingblock.domain.roadmap.application.RoadmapService;
+import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
 import com.startingblock.global.config.security.token.CurrentUser;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.payload.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -16,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Tag(name = "RoadMaps API", description = "RoadMaps API")
 @RequestMapping("/api/v1/roadmaps")
 @RestController
@@ -23,6 +27,18 @@ import org.springframework.web.bind.annotation.*;
 public class RoadmapController {
 
     private final RoadmapService roadmapService;
+
+    @Operation(summary = "로드맵 리스트 조회", description = "로드맵 리스트 조회")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "로드맵 리스트 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RoadmapDetailRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "로드맵 리스트 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping
+    public ResponseEntity<List<RoadmapDetailRes>> findRoadmaps(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(roadmapService.findRoadmaps(userPrincipal));
+    }
 
     @Operation(summary = "로드맵 초기 등록", description = "로드맵 초기 등록")
     @ApiResponses(value = {

@@ -7,6 +7,7 @@ import com.startingblock.domain.roadmap.domain.Roadmap;
 import com.startingblock.domain.roadmap.domain.RoadmapAnnouncement;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapAnnouncementRepository;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapRepository;
+import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
 import com.startingblock.domain.roadmap.exception.AlreadyExistsRoadmapException;
 import com.startingblock.domain.roadmap.exception.EmptyRoadmapException;
@@ -96,4 +97,8 @@ public class RoadmapServiceImpl implements RoadmapService {
         roadmapAnnouncementRepository.delete(roadmapAnnouncement);
     }
 
+    @Override
+    public List<RoadmapDetailRes> findRoadmaps(UserPrincipal userPrincipal) {
+        return roadmapRepository.findRoadmapsByUserId(userPrincipal.getId());
+    }
 }
