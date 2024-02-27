@@ -1,8 +1,6 @@
 package com.startingblock.domain.roadmap.domain.repository;
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.startingblock.domain.roadmap.domain.QRoadmap;
-import com.startingblock.domain.roadmap.domain.Roadmap;
 import com.startingblock.domain.roadmap.dto.QRoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +15,7 @@ public class RoadmapQuerydslRepositoryImpl implements RoadmapQuerydslRepository 
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<RoadmapDetailRes> findRoadmapsByUserId(Long userId) {
+    public List<RoadmapDetailRes> findRoadmapsByUserId(final Long userId) {
         return queryFactory
                 .select(
                         new QRoadmapDetailRes(

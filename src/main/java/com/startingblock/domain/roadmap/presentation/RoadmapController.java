@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "RoadMaps API", description = "RoadMaps API")
+@Tag(name = "Roadmaps API", description = "Roadmaps API")
 @RequestMapping("/api/v1/roadmaps")
 @RestController
 @RequiredArgsConstructor
