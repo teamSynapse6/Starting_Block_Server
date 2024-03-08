@@ -7,11 +7,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public interface AnnouncementService {
 
     void refreshAnnouncements(UserPrincipal userPrincipal);
     Slice<AnnouncementRes> findAnnouncements(UserPrincipal userPrincipal, Pageable pageable, String businessAge, String region, String supportType, String sort, String search);
-    AnnouncementDetailRes findAnnouncementDetailById(Long announcementId);
+    AnnouncementDetailRes findAnnouncementDetailById(UserPrincipal userPrincipal, Long announcementId);
+    List<AnnouncementRes> findThreeRandomAnnouncement(UserPrincipal userPrincipal);
 
 }
