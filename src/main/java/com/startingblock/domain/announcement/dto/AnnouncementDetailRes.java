@@ -1,16 +1,15 @@
 package com.startingblock.domain.announcement.dto;
 
+import com.querydsl.core.annotations.QueryProjection;
 import com.startingblock.domain.announcement.domain.Announcement;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
 @Data
-@AllArgsConstructor
-@Builder
 public class AnnouncementDetailRes {
 
     private Long id;
+    private Boolean isBookmarked;
     private String organization;
     private String title;
     private String content;
@@ -21,7 +20,6 @@ public class AnnouncementDetailRes {
     private String supportType;
     private String link;
     private String region;
-    private String postTarget;
     private Integer saved;
     private String classification;
     private String contact;
@@ -39,11 +37,30 @@ public class AnnouncementDetailRes {
                 .supportType(announcement.getSupportType())
                 .link(announcement.getDetailUrl())
                 .region(announcement.getAreaName())
-                .postTarget(announcement.getPostTarget())
                 .saved(announcement.getRoadmapCount())
                 .classification(announcement.getAnnouncementType().toString())
                 .contact(announcement.getContact())
                 .build();
+    }
+
+    @Builder
+    @QueryProjection
+    public AnnouncementDetailRes(Long id, Boolean isBookmarked, String organization, String title, String content, String startDate, String endDate, String target, String targetAge, String supportType, String link, String region, Integer saved, String classification, String contact) {
+        this.id = id;
+        this.isBookmarked = isBookmarked;
+        this.organization = organization;
+        this.title = title;
+        this.content = content;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.target = target;
+        this.targetAge = targetAge;
+        this.supportType = supportType;
+        this.link = link;
+        this.region = region;
+        this.saved = saved;
+        this.classification = classification;
+        this.contact = contact;
     }
 
 }

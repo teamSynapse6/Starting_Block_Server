@@ -4,7 +4,9 @@ import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
+import com.startingblock.domain.announcement.dto.QAnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.QAnnouncementRes;
 import com.startingblock.domain.common.Status;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,62 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .select(announcement.postSN)
                 .from(announcement)
                 .fetch();
+    }
+
+    @Override
+    public List<AnnouncementRes> findThreeRandomAnnouncement(Long userId) {
+        return queryFactory
+                .select(
+                        new QAnnouncementRes(
+                                announcement.id,
+                                announcement.bizPrchDprtNm,
+                                announcement.title,
+                                Expressions.stringTemplate("COALESCE({0}, {1})", announcement.startDate.stringValue(), announcement.nonDate),
+                                Expressions.stringTemplate("COALESCE({0}, {1})", announcement.endDate.stringValue(), announcement.nonDate),
+                                roadmapAnnouncement.announcement.id.isNotNull()
+                ))
+                .from(announcement)
+                .leftJoin(roadmapAnnouncement).on(announcement.id.eq(roadmapAnnouncement.announcement.id).and(roadmapAnnouncement.roadmap.user.id.eq(userId)))
+                .where(
+                        announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이전이거나, 비기한이 없는 공고
+                        announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이후이거나, 비기한이 없는 공고
+                        announcement.status.eq(Status.ACTIVE)
+                )
+                .distinct()
+                .orderBy(Expressions.numberTemplate(Double.class, "function('rand')").asc())
+                .limit(3)
+                .fetch();
+    }
+
+    @Override
+    public AnnouncementDetailRes findAnnouncementDetail(Long userId, Long announcementId) {
+        return queryFactory
+                .select(
+                        new QAnnouncementDetailRes(
+                                announcement.id,
+                                roadmapAnnouncement.announcement.id.isNotNull(),
+                                announcement.bizPrchDprtNm,
+                                announcement.title,
+                                announcement.content,
+                                announcement.startDate.stringValue(),
+                                announcement.endDate.stringValue(),
+                                announcement.postTarget,
+                                announcement.postTargetComAge,
+                                announcement.supportType,
+                                announcement.detailUrl,
+                                announcement.areaName,
+                                announcement.roadmapCount,
+                                announcement.announcementType.stringValue(),
+                                announcement.contact
+                        )
+                )
+                .from(announcement)
+                .leftJoin(roadmapAnnouncement).on(announcement.id.eq(roadmapAnnouncement.announcement.id).and(roadmapAnnouncement.roadmap.user.id.eq(userId)))
+                .where(
+                        announcement.id.eq(announcementId),
+                        announcement.status.eq(Status.ACTIVE)
+                )
+                .fetchOne();
     }
 
     @Override
