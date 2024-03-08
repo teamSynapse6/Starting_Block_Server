@@ -8,6 +8,9 @@ import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.announcement.exception.PermissionDeniedException;
 import com.startingblock.domain.user.domain.Role;
+import com.startingblock.domain.user.domain.User;
+import com.startingblock.domain.user.domain.repository.UserRepository;
+import com.startingblock.domain.user.exception.InvalidUserException;
 import com.startingblock.global.config.FeignConfig;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.infrastructure.feign.BizInfoClient;
@@ -33,6 +36,7 @@ import java.util.Objects;
 @Slf4j
 @Transactional(readOnly = true)
 public class AnnouncementServiceImpl implements AnnouncementService {
+    private final UserRepository userRepository;
 
     private final FeignConfig feignConfig;
     private final AnnouncementRepository announcementRepository;
@@ -157,11 +161,18 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     @Override
-    public AnnouncementDetailRes findAnnouncementDetailById(Long announcementId) {
-        Announcement announcement = announcementRepository.findById(announcementId)
-                .orElseThrow(InvalidAnnouncementException::new);
+    public AnnouncementDetailRes findAnnouncementDetailById(UserPrincipal userPrincipal, Long announcementId) {
+        AnnouncementDetailRes announcementDetail = announcementRepository.findAnnouncementDetail(userPrincipal.getId(), announcementId);
 
-        return AnnouncementDetailRes.of(announcement);
+        if(announcementDetail == null)
+            throw new InvalidAnnouncementException();
+
+        return announcementDetail;
+    }
+
+    @Override
+    public List<AnnouncementRes> findThreeRandomAnnouncement(UserPrincipal userPrincipal) {
+        return announcementRepository.findThreeRandomAnnouncement(userPrincipal.getId());
     }
 
 }

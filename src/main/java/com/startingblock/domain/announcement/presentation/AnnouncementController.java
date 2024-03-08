@@ -21,6 +21,8 @@ import org.springframework.data.domain.Slice;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 
 @Tag(name = "Announcements API", description = "Announcements API")
 @RequestMapping("/api/v1/announcements")
@@ -68,9 +70,22 @@ public class AnnouncementController {
     })
     @GetMapping("/{announcement-id}")
     public ResponseEntity<AnnouncementDetailRes> findAnnouncementDetailById(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(name = "announcement-id", required = true) @PathVariable(name = "announcement-id") final Long announcementId
     ) {
-        return ResponseEntity.ok(announcementService.findAnnouncementDetailById(announcementId));
+        return ResponseEntity.ok(announcementService.findAnnouncementDetailById(userPrincipal, announcementId));
+    }
+
+    @Operation(summary = "공고 랜덤 3개 조회", description = "공고 랜덤 3개 조회")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "공고 랜덤 3개 조회 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = AnnouncementDetailRes.class))}),
+            @ApiResponse(responseCode = "400", description = "공고 랜덤 3개 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/random")
+    public ResponseEntity<List<AnnouncementRes>> findThreeRandomAnnouncement(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(announcementService.findThreeRandomAnnouncement(userPrincipal));
     }
 
 }
