@@ -78,7 +78,7 @@ public class AnnouncementController {
 
     @Operation(summary = "공고 랜덤 3개 조회", description = "공고 랜덤 3개 조회")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "공고 랜덤 3개 조회 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = AnnouncementDetailRes.class))}),
+            @ApiResponse(responseCode = "200", description = "공고 랜덤 3개 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AnnouncementRes.class)))}),
             @ApiResponse(responseCode = "400", description = "공고 랜덤 3개 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @GetMapping("/random")
