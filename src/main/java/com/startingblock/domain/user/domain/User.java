@@ -1,12 +1,6 @@
 package com.startingblock.domain.user.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 
 import com.startingblock.domain.common.BaseEntity;
@@ -16,42 +10,37 @@ import lombok.NoArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
+@Table(name="user")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class User extends BaseEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "name", nullable = false)
     private String name;
 
     @Email
+    @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-    private String imageUrl;
-
-    @Column(nullable = false)
-    private Boolean emailVerified = false;
-
-    private String password;
-
     @Enumerated(EnumType.STRING)
+    @Column(name = "provider", nullable = false)
     private Provider provider;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
     private Role role;
 
+    @Column(name = "provider_id", nullable = false, unique = true)
     private String providerId;
 
     @Builder
-    public User(Long id, String name, String email, String imageUrl, Boolean emailVerified, String password, Provider provider, Role role, String providerId) {
-        this.id = id;
+    public User(String name, String email, Provider provider, Role role, String providerId) {
         this.name = name;
         this.email = email;
-        this.imageUrl = imageUrl;
-        this.emailVerified = emailVerified;
-        this.password = password;
         this.provider = provider;
         this.role = role;
         this.providerId = providerId;
@@ -61,7 +50,4 @@ public class User extends BaseEntity {
         this.name = name;
     }
 
-    public void updateImageUrl(String imageUrl){
-        this.imageUrl = imageUrl;
-    }
 }
