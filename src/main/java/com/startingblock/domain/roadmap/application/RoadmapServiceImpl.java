@@ -10,14 +10,12 @@ import com.startingblock.domain.roadmap.domain.repository.RoadmapAnnouncementRep
 import com.startingblock.domain.roadmap.domain.repository.RoadmapRepository;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
-import com.startingblock.domain.roadmap.exception.AlreadyExistsRoadmapException;
-import com.startingblock.domain.roadmap.exception.EmptyRoadmapException;
-import com.startingblock.domain.roadmap.exception.InvalidAnnouncementRoadmapException;
-import com.startingblock.domain.roadmap.exception.RoadmapMismatchUserException;
+import com.startingblock.domain.roadmap.exception.*;
 import com.startingblock.domain.user.domain.User;
 import com.startingblock.domain.user.domain.repository.UserRepository;
 import com.startingblock.domain.user.exception.InvalidUserException;
 import com.startingblock.global.config.security.token.UserPrincipal;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +28,7 @@ import java.util.Objects;
 @Transactional(readOnly = true)
 public class RoadmapServiceImpl implements RoadmapService {
 
+    private final EntityManager entityManager;
     private final UserRepository userRepository;
     private final RoadmapRepository roadmapRepository;
     private final AnnouncementRepository announcementRepository;
@@ -60,6 +59,43 @@ public class RoadmapServiceImpl implements RoadmapService {
             throw new EmptyRoadmapException();
 
         roadmapRepository.saveAll(roadmaps);
+    }
+
+    @Override
+    @Transactional
+    public List<RoadmapDetailRes> deleteRoadmap(UserPrincipal userPrincipal, Long roadmapId) {
+        Roadmap roadmap = roadmapRepository.findRoadmapById(roadmapId)
+                .orElseThrow(InvalidRoadmapException::new);
+
+        Integer deletedSequence = roadmap.getSequence();
+        RoadmapStatus deletedRoadmapStatus = roadmap.getRoadmapStatus();
+
+        // 삭제하는 Roadmap에 속한 RoadmapAnnouncement bulk delete
+        roadmapAnnouncementRepository.bulkDeleteByRoadmapId(roadmapId);
+
+        // 삭제하는 Roadmap
+        roadmapRepository.delete(roadmap);
+
+        // 삭제 후 sequence bulk update
+        roadmapRepository.bulkUpdateSequencesAfterDeletion(deletedSequence, userPrincipal.getId());
+
+        // DB와 영속성 컨텍스트 동기화
+        entityManager.clear();
+
+        List<Roadmap> updatedRoadmaps = roadmapRepository.findRoadmapsByUserId(userPrincipal.getId());
+        if(updatedRoadmaps.isEmpty())
+            throw new EmptyRoadmapException();
+
+        Roadmap afterDeletionRoadmap;
+        if(updatedRoadmaps.get(deletedSequence) == null)
+            throw new NotExistsNextRoadmapException();
+
+        afterDeletionRoadmap = updatedRoadmaps.get(deletedSequence);
+
+        if(deletedRoadmapStatus.equals(RoadmapStatus.IN_PROGRESS))
+            afterDeletionRoadmap.updateRoadmapStatus(RoadmapStatus.IN_PROGRESS);
+
+        return RoadmapDetailRes.toRoadmapDetailResList(updatedRoadmaps);
     }
 
     @Override
@@ -107,7 +143,7 @@ public class RoadmapServiceImpl implements RoadmapService {
 
     @Override
     public List<RoadmapDetailRes> findRoadmaps(final UserPrincipal userPrincipal) {
-        return roadmapRepository.findRoadmapsByUserId(userPrincipal.getId());
+        return roadmapRepository.findRoadmapDetailResponsesByUserId(userPrincipal.getId());
     }
 
 }

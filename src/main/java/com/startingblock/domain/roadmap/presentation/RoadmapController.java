@@ -54,6 +54,19 @@ public class RoadmapController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "로드맵 단계 삭제", description = "로드맵 단계 삭제")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "로드맵 단계 삭제 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RoadmapDetailRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "로드맵 단계 삭제 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @DeleteMapping("/{roadmap-id}")
+    public ResponseEntity<List<RoadmapDetailRes>> deleteRoadmap(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "roadmapId", description = "로드맵 ID") @PathVariable(name = "roadmap-id") final Long roadmapId
+    ) {
+        return ResponseEntity.ok(roadmapService.deleteRoadmap(userPrincipal, roadmapId));
+    }
+
     @Operation(summary = "로드맵에 공고 저장", description = "로드맵에 공고 저장")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "로드맵에 공고 저장 성공", content = {@Content(mediaType = "application/json")}),
@@ -74,7 +87,7 @@ public class RoadmapController {
             @ApiResponse(responseCode = "200", description = "로드맵에 공고 삭제 성공", content = {@Content(mediaType = "application/json")}),
             @ApiResponse(responseCode = "400", description = "로드맵에 공고 삭제 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
-    @DeleteMapping("/{roadmap-id}")
+    @DeleteMapping("/{roadmap-id}/announcement")
     public ResponseEntity<Void> deleteRoadmapAnnouncement(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(name = "roadmap-id", description = "로드맵 ID") @PathVariable(name = "roadmap-id") final Long roadmapId,

@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+
 import static jakarta.persistence.GenerationType.IDENTITY;
 
 @Entity
@@ -25,6 +26,7 @@ public class Roadmap extends BaseEntity {
     @Column(name = "sequence")
     private Integer sequence;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "roadmap_status", nullable = false)
     private RoadmapStatus roadmapStatus;
 
