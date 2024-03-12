@@ -5,6 +5,7 @@ import com.startingblock.domain.announcement.domain.repository.AnnouncementRepos
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.roadmap.domain.Roadmap;
 import com.startingblock.domain.roadmap.domain.RoadmapAnnouncement;
+import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapAnnouncementRepository;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapRepository;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
@@ -41,11 +42,18 @@ public class RoadmapServiceImpl implements RoadmapService {
                 .orElseThrow(InvalidUserException::new);
 
         List<Roadmap> roadmaps = roadMapRegisterReq.getRoadmaps().stream()
-                .map(roadmapReq -> Roadmap.builder()
-                        .title(roadmapReq.getTitle())
-                        .sequence(roadmapReq.getSequence())
-                        .user(user)
-                        .build())
+                .map(roadmapReq -> {
+                    RoadmapStatus status = RoadmapStatus.NOT_STARTED;
+                    if (roadmapReq.getSequence().equals(0))
+                        status = RoadmapStatus.IN_PROGRESS;
+
+                    return Roadmap.builder()
+                            .title(roadmapReq.getTitle())
+                            .sequence(roadmapReq.getSequence())
+                            .roadmapStatus(status)
+                            .user(user)
+                            .build();
+                })
                 .toList();
 
         if (roadmaps.isEmpty())
