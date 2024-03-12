@@ -14,5 +14,6 @@ public interface RoadmapService {
     void addRoadmapAnnouncement(UserPrincipal userPrincipal, Long roadmapId, Long announcementId);
     void deleteRoadmapAnnouncement(UserPrincipal userPrincipal, Long roadmapId, Long announcementId);
     List<RoadmapDetailRes> findRoadmaps(UserPrincipal userPrincipal);
+    List<RoadmapDetailRes> deleteRoadmap(UserPrincipal userPrincipal, Long roadmapId);
 
 }
