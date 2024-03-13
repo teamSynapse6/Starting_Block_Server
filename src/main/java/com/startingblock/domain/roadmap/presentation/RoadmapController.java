@@ -1,6 +1,7 @@
 package com.startingblock.domain.roadmap.presentation;
 
 import com.startingblock.domain.roadmap.application.RoadmapService;
+import com.startingblock.domain.roadmap.dto.RoadmapAddReq;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
 import com.startingblock.global.config.security.token.CurrentUser;
@@ -16,6 +17,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -46,12 +48,11 @@ public class RoadmapController {
             @ApiResponse(responseCode = "400", description = "로드맵 초기 등록 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @PostMapping
-    public ResponseEntity<Void> registerRoadMap(
+    public ResponseEntity<List<RoadmapDetailRes>> registerRoadMap(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(name = "roadMapRegisterReq", description = "로드맵 초기 등록 정보") @RequestBody final RoadmapRegisterReq roadMapRegisterReq
     ) {
-        roadmapService.registerRoadmaps(userPrincipal, roadMapRegisterReq);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(roadmapService.registerRoadmaps(userPrincipal, roadMapRegisterReq));
     }
 
     @Operation(summary = "로드맵 단계 삭제", description = "로드맵 단계 삭제")
@@ -67,12 +68,25 @@ public class RoadmapController {
         return ResponseEntity.ok(roadmapService.deleteRoadmap(userPrincipal, roadmapId));
     }
 
+    @Operation(summary = "로드맵 단계 추가", description = "로드맵 단계 추가")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "로드맵 단계 추가 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RoadmapDetailRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "로드맵 단계 추가 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @PostMapping("/add")
+    public ResponseEntity<List<RoadmapDetailRes>> addRoadmap(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(description = "RoadmapAddReq Schema 확인") @RequestBody final RoadmapAddReq roadmapAddReq
+            ) {
+        return ResponseEntity.ok(roadmapService.addRoadmap(userPrincipal, roadmapAddReq));
+    }
+
     @Operation(summary = "로드맵에 공고 저장", description = "로드맵에 공고 저장")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "로드맵에 공고 저장 성공", content = {@Content(mediaType = "application/json")}),
             @ApiResponse(responseCode = "400", description = "로드맵에 공고 저장 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
-    @PostMapping("/{roadmap-id}")
+    @PostMapping("/{roadmap-id}/announcement")
     public ResponseEntity<Void> addRoadmapAnnouncement(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(name = "roadmap-id", description = "로드맵 ID") @PathVariable(name = "roadmap-id") final Long roadmapId,
