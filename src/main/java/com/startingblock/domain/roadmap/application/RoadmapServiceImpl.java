@@ -8,6 +8,7 @@ import com.startingblock.domain.roadmap.domain.RoadmapAnnouncement;
 import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapAnnouncementRepository;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapRepository;
+import com.startingblock.domain.roadmap.dto.RoadmapAddReq;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
 import com.startingblock.domain.roadmap.exception.*;
@@ -20,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -36,9 +39,13 @@ public class RoadmapServiceImpl implements RoadmapService {
 
     @Override
     @Transactional
-    public void registerRoadmaps(final UserPrincipal userPrincipal, final RoadmapRegisterReq roadMapRegisterReq) {
+    public List<RoadmapDetailRes> registerRoadmaps(final UserPrincipal userPrincipal, final RoadmapRegisterReq roadMapRegisterReq) {
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(InvalidUserException::new);
+
+        boolean roadmapCheck = roadmapRepository.existsByUser(user);
+        if (roadmapCheck)
+            throw new RegistrationCompletedException();
 
         List<Roadmap> roadmaps = roadMapRegisterReq.getRoadmaps().stream()
                 .map(roadmapReq -> {
@@ -59,11 +66,16 @@ public class RoadmapServiceImpl implements RoadmapService {
             throw new EmptyRoadmapException();
 
         roadmapRepository.saveAll(roadmaps);
+
+        List<Roadmap> registeredRoadmaps = roadmapRepository.findRoadmapsByUserId(userPrincipal.getId());
+
+        registeredRoadmaps.sort(Comparator.comparing(Roadmap::getSequence));
+        return RoadmapDetailRes.toRoadmapDetailResList(registeredRoadmaps);
     }
 
     @Override
     @Transactional
-    public List<RoadmapDetailRes> deleteRoadmap(UserPrincipal userPrincipal, Long roadmapId) {
+    public List<RoadmapDetailRes> deleteRoadmap(final UserPrincipal userPrincipal, final Long roadmapId) {
         Roadmap roadmap = roadmapRepository.findRoadmapById(roadmapId)
                 .orElseThrow(InvalidRoadmapException::new);
 
@@ -83,19 +95,57 @@ public class RoadmapServiceImpl implements RoadmapService {
         entityManager.clear();
 
         List<Roadmap> updatedRoadmaps = roadmapRepository.findRoadmapsByUserId(userPrincipal.getId());
-        if(updatedRoadmaps.isEmpty())
-            throw new EmptyRoadmapException();
 
-        Roadmap afterDeletionRoadmap;
-        if(updatedRoadmaps.get(deletedSequence) == null)
-            throw new NotExistsNextRoadmapException();
+        if (deletedSequence.equals(updatedRoadmaps.size()))
+            return RoadmapDetailRes.toRoadmapDetailResList(updatedRoadmaps);
 
-        afterDeletionRoadmap = updatedRoadmaps.get(deletedSequence);
+        updatedRoadmaps.sort(Comparator.comparing(Roadmap::getSequence));
 
-        if(deletedRoadmapStatus.equals(RoadmapStatus.IN_PROGRESS))
+        Roadmap afterDeletionRoadmap = updatedRoadmaps.get(deletedSequence);
+
+        if (deletedRoadmapStatus.equals(RoadmapStatus.IN_PROGRESS))
             afterDeletionRoadmap.updateRoadmapStatus(RoadmapStatus.IN_PROGRESS);
 
         return RoadmapDetailRes.toRoadmapDetailResList(updatedRoadmaps);
+    }
+
+    @Override
+    @Transactional
+    public List<RoadmapDetailRes> addRoadmap(final UserPrincipal userPrincipal, final RoadmapAddReq roadmapAddReq) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        List<Roadmap> roadmaps = roadmapRepository.findRoadmapsByUserId(userPrincipal.getId());
+
+        if(roadmaps.isEmpty()) {
+            Roadmap newRoadmap = Roadmap.builder()
+                    .title(roadmapAddReq.getTitle())
+                    .sequence(0)
+                    .roadmapStatus(RoadmapStatus.IN_PROGRESS)
+                    .user(user)
+                    .build();
+
+            roadmapRepository.save(newRoadmap);
+            return RoadmapDetailRes.toRoadmapDetailResList(List.of(newRoadmap));
+        }
+
+        roadmaps.sort(Comparator.comparing(Roadmap::getSequence));
+        Roadmap lastRoadmap = roadmaps.get(roadmaps.size() - 1);
+
+        RoadmapStatus roadmapStatus = RoadmapStatus.NOT_STARTED;
+        if (lastRoadmap.getRoadmapStatus().equals(RoadmapStatus.COMPLETED))
+            roadmapStatus = RoadmapStatus.IN_PROGRESS;
+
+        Roadmap newRoadmap = Roadmap.builder()
+                .title(roadmapAddReq.getTitle())
+                .sequence(lastRoadmap.getSequence() + 1)
+                .roadmapStatus(roadmapStatus)
+                .user(user)
+                .build();
+        roadmapRepository.save(newRoadmap);
+
+        roadmaps.add(newRoadmap);
+        return RoadmapDetailRes.toRoadmapDetailResList(roadmaps);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.startingblock.domain.roadmap.domain.repository;
 
 import com.startingblock.domain.roadmap.domain.Roadmap;
+import com.startingblock.domain.user.domain.User;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -12,6 +13,8 @@ public interface RoadmapRepository extends JpaRepository<Roadmap, Long>, Roadmap
 
     @EntityGraph(attributePaths = {"user"})
     Optional<Roadmap> findRoadmapById(Long roadmapId);
+
+    boolean existsByUser(User user);
 
     @Modifying
     @Query("update Roadmap r set r.sequence = r.sequence - 1 where r.sequence > :deletedSequence and r.user.id = :userId")

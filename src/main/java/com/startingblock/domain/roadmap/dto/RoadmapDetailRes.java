@@ -6,6 +6,7 @@ import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Data
@@ -25,7 +26,7 @@ public class RoadmapDetailRes {
         this.sequence = sequence;
     }
 
-    public static List<RoadmapDetailRes> toRoadmapDetailResList(List<Roadmap> roadmaps) {
+    public static List<RoadmapDetailRes> toRoadmapDetailResList(final List<Roadmap> roadmaps) {
         return roadmaps.stream()
                 .map(roadmap -> RoadmapDetailRes.builder()
                         .roadmapId(roadmap.getId())
