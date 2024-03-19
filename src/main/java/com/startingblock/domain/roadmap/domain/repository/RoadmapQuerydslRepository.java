@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface RoadmapQuerydslRepository {
 
-    List<RoadmapDetailRes> findRoadmapsByUserId(Long userId);
+    List<RoadmapDetailRes> findRoadmapDetailResponsesByUserId(Long userId);
+    List<Roadmap> findRoadmapsByUserId(Long userId);
 
 }
