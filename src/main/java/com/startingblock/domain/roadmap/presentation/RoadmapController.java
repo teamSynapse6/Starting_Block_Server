@@ -94,6 +94,19 @@ public class RoadmapController {
         return ResponseEntity.ok(roadmapService.leapCurrentRoadmap(userPrincipal));
     }
 
+    @Operation(summary = "로드맵 단계 추가", description = "로드맵 단계 추가")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "로드맵 단계 추가 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = RoadmapDetailRes.class))}),
+            @ApiResponse(responseCode = "400", description = "로드맵 단계 추가 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @PostMapping("/add")
+    public ResponseEntity<List<RoadmapDetailRes>> addRoadmap(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "roadmapTitle", description = "추가할 로드맵 이름") @RequestParam(name = "roadmapTitle") final String roadmapTitle
+    ) {
+        return ResponseEntity.ok(roadmapService.addRoadmap(userPrincipal, roadmapTitle));
+    }
+
     @Operation(summary = "로드맵 단계 삭제", description = "로드맵 단계 삭제")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "로드맵 단계 삭제 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RoadmapDetailRes.class)))}),

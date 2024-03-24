@@ -209,4 +209,33 @@ public class RoadmapServiceImpl implements RoadmapService {
         return RoadmapDetailRes.toRoadmapDetailResList(roadmaps);
     }
 
+    @Override
+    @Transactional
+    public List<RoadmapDetailRes> addRoadmap(UserPrincipal userPrincipal, String roadmapTitle) {
+        List<Roadmap> roadmaps = roadmapRepository.findRoadmapsByUserId(userPrincipal.getId());
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        RoadmapStatus status = RoadmapStatus.NOT_STARTED;
+        int maxSequence = roadmaps.size() - 1;
+
+        if (!roadmaps.isEmpty()) {
+            Roadmap lastRoadmap = roadmaps.get(maxSequence);
+            if (lastRoadmap.getRoadmapStatus().equals(RoadmapStatus.COMPLETED))
+                status = RoadmapStatus.IN_PROGRESS;
+        }
+
+        Roadmap newRoadmap = Roadmap.builder()
+                .title(roadmapTitle)
+                .sequence(maxSequence + 1)
+                .roadmapStatus(status)
+                .user(user)
+                .build();
+
+        roadmapRepository.save(newRoadmap);
+        roadmaps.add(newRoadmap);
+
+        return RoadmapDetailRes.toRoadmapDetailResList(roadmaps);
+    }
+
 }
