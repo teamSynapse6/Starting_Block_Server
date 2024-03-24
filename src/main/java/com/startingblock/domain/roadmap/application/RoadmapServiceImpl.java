@@ -8,6 +8,7 @@ import com.startingblock.domain.roadmap.domain.RoadmapAnnouncement;
 import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapAnnouncementRepository;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapRepository;
+import com.startingblock.domain.roadmap.dto.AnnouncementSavedRoadmapRes;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
 import com.startingblock.domain.roadmap.exception.*;
@@ -63,7 +64,7 @@ public class RoadmapServiceImpl implements RoadmapService {
 
     @Override
     @Transactional
-    public List<RoadmapDetailRes> deleteRoadmap(UserPrincipal userPrincipal, Long roadmapId) {
+    public List<RoadmapDetailRes> deleteRoadmap(final UserPrincipal userPrincipal, final  Long roadmapId) {
         Roadmap roadmap = roadmapRepository.findRoadmapById(roadmapId)
                 .orElseThrow(InvalidRoadmapException::new);
 
@@ -144,6 +145,11 @@ public class RoadmapServiceImpl implements RoadmapService {
     @Override
     public List<RoadmapDetailRes> findRoadmaps(final UserPrincipal userPrincipal) {
         return roadmapRepository.findRoadmapDetailResponsesByUserId(userPrincipal.getId());
+    }
+
+    @Override
+    public List<AnnouncementSavedRoadmapRes> findAnnouncementSavedRoadmap(UserPrincipal userPrincipal, Long announcementId) {
+        return roadmapRepository.findAnnouncementSavedRoadmap(announcementId, userPrincipal.getId());
     }
 
 }
