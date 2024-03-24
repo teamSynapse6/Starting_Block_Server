@@ -26,7 +26,7 @@ public class RoadmapDetailRes {
         this.sequence = sequence;
     }
 
-    public static List<RoadmapDetailRes> toRoadmapDetailResList(final List<Roadmap> roadmaps) {
+    public static List<RoadmapDetailRes> toRoadmapDetailResList(List<Roadmap> roadmaps) {
         return roadmaps.stream()
                 .map(roadmap -> RoadmapDetailRes.builder()
                         .roadmapId(roadmap.getId())
@@ -34,6 +34,7 @@ public class RoadmapDetailRes {
                         .roadmapStatus(roadmap.getRoadmapStatus())
                         .sequence(roadmap.getSequence())
                         .build())
+                .sorted(Comparator.comparing(RoadmapDetailRes::getSequence))
                 .toList();
     }
 
