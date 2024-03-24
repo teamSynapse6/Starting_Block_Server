@@ -11,6 +11,7 @@ import com.startingblock.domain.roadmap.domain.repository.RoadmapRepository;
 import com.startingblock.domain.roadmap.dto.AnnouncementSavedRoadmapRes;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
+import com.startingblock.domain.roadmap.dto.SwapRoadmapReq;
 import com.startingblock.domain.roadmap.exception.*;
 import com.startingblock.domain.user.domain.User;
 import com.startingblock.domain.user.domain.repository.UserRepository;
@@ -21,8 +22,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
@@ -84,17 +88,17 @@ public class RoadmapServiceImpl implements RoadmapService {
         entityManager.clear();
 
         List<Roadmap> updatedRoadmaps = roadmapRepository.findRoadmapsByUserId(userPrincipal.getId());
-        if(updatedRoadmaps.isEmpty())
-            throw new EmptyRoadmapException();
 
-        Roadmap afterDeletionRoadmap;
-        if(updatedRoadmaps.get(deletedSequence) == null)
-            throw new NotExistsNextRoadmapException();
+        if(!updatedRoadmaps.isEmpty()) {
+            Roadmap afterDeletionRoadmap;
+            if (updatedRoadmaps.get(deletedSequence) == null)
+                throw new NotExistsNextRoadmapException();
 
-        afterDeletionRoadmap = updatedRoadmaps.get(deletedSequence);
+            afterDeletionRoadmap = updatedRoadmaps.get(deletedSequence);
 
-        if(deletedRoadmapStatus.equals(RoadmapStatus.IN_PROGRESS))
-            afterDeletionRoadmap.updateRoadmapStatus(RoadmapStatus.IN_PROGRESS);
+            if (deletedRoadmapStatus.equals(RoadmapStatus.IN_PROGRESS))
+                afterDeletionRoadmap.updateRoadmapStatus(RoadmapStatus.IN_PROGRESS);
+        }
 
         return RoadmapDetailRes.toRoadmapDetailResList(updatedRoadmaps);
     }
@@ -148,8 +152,42 @@ public class RoadmapServiceImpl implements RoadmapService {
     }
 
     @Override
-    public List<AnnouncementSavedRoadmapRes> findAnnouncementSavedRoadmap(UserPrincipal userPrincipal, Long announcementId) {
+    public List<AnnouncementSavedRoadmapRes> findAnnouncementSavedRoadmap(final UserPrincipal userPrincipal, final Long announcementId) {
         return roadmapRepository.findAnnouncementSavedRoadmap(announcementId, userPrincipal.getId());
+    }
+
+    @Override
+    @Transactional
+    public List<RoadmapDetailRes> swapRoadmap(final UserPrincipal userPrincipal, final SwapRoadmapReq swapRoadmapReq) {
+        List<Roadmap> roadmaps = roadmapRepository.findRoadmapsByUserId(userPrincipal.getId());
+
+        ConcurrentHashMap<Long, Roadmap> roadmapMap = new ConcurrentHashMap<>();
+        for (Roadmap roadmap : roadmaps) {
+            roadmapMap.put(roadmap.getId(), roadmap);
+        }
+
+        List<Long> swapRoadmapIds = swapRoadmapReq.getRoadmapIds();
+
+        int swapIdx = 0;
+        for(Long roadmapId : swapRoadmapIds) {
+            roadmapMap.get(roadmapId).updateSequence(swapIdx++);
+        }
+
+        roadmaps.sort(Comparator.comparing(Roadmap::getSequence));
+
+        boolean isInProgressAppeared = false;
+        for (Roadmap roadmap : roadmaps) {
+            if(roadmap.getRoadmapStatus().equals(RoadmapStatus.IN_PROGRESS)) {
+                isInProgressAppeared = true;
+                continue;
+            }
+
+            if(!isInProgressAppeared) {
+                roadmap.updateRoadmapStatus(RoadmapStatus.COMPLETED);
+            }
+        }
+
+        return RoadmapDetailRes.toRoadmapDetailResList(roadmaps);
     }
 
 }

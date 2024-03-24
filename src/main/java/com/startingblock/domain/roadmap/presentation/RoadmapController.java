@@ -4,6 +4,7 @@ import com.startingblock.domain.roadmap.application.RoadmapService;
 import com.startingblock.domain.roadmap.dto.AnnouncementSavedRoadmapRes;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
+import com.startingblock.domain.roadmap.dto.SwapRoadmapReq;
 import com.startingblock.global.config.security.token.CurrentUser;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.payload.ErrorResponse;
@@ -68,6 +69,19 @@ public class RoadmapController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "로드맵 순서 변경", description = "로드맵 순서 변경(COMPLETED 상태인 로드맵까지 모두 순서 반영해서 보내주시면 됩니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "로드맵 순서 변경 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = RoadmapDetailRes.class))}),
+            @ApiResponse(responseCode = "400", description = "로드맵 순서 변경 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @PostMapping("/swap")
+    public ResponseEntity<List<RoadmapDetailRes>> swapRoadMap(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(description = "SwapRoadmapReq Schema 확인") @RequestBody final SwapRoadmapReq swapRoadmapReq
+    ) {
+        return ResponseEntity.ok(roadmapService.swapRoadmap(userPrincipal, swapRoadmapReq));
+    }
+
     @Operation(summary = "로드맵 단계 삭제", description = "로드맵 단계 삭제")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "로드맵 단계 삭제 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RoadmapDetailRes.class)))}),
@@ -96,10 +110,10 @@ public class RoadmapController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "로드맵에 공고 삭제", description = "로드맵에 공고 삭제")
+    @Operation(summary = "로드맵의 공고 삭제", description = "로드맵의 공고 삭제")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "로드맵에 공고 삭제 성공", content = {@Content(mediaType = "application/json")}),
-            @ApiResponse(responseCode = "400", description = "로드맵에 공고 삭제 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+            @ApiResponse(responseCode = "200", description = "로드맵의 공고 삭제 성공", content = {@Content(mediaType = "application/json")}),
+            @ApiResponse(responseCode = "400", description = "로드맵의 공고 삭제 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @DeleteMapping("/{roadmap-id}/announcement")
     public ResponseEntity<Void> deleteRoadmapAnnouncement(
