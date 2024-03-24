@@ -57,7 +57,7 @@ public class RoadmapController {
 
     @Operation(summary = "로드맵 초기 등록", description = "로드맵 초기 등록")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "로드맵 초기 등록 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = RoadmapRegisterReq.class))}),
+            @ApiResponse(responseCode = "200", description = "로드맵 초기 등록 성공"),
             @ApiResponse(responseCode = "400", description = "로드맵 초기 등록 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @PostMapping
@@ -71,7 +71,7 @@ public class RoadmapController {
 
     @Operation(summary = "로드맵 순서 변경", description = "로드맵 순서 변경(COMPLETED 상태인 로드맵까지 모두 순서 반영해서 보내주시면 됩니다.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "로드맵 순서 변경 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = RoadmapDetailRes.class))}),
+            @ApiResponse(responseCode = "200", description = "로드맵 순서 변경 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RoadmapDetailRes.class)))}),
             @ApiResponse(responseCode = "400", description = "로드맵 순서 변경 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @PostMapping("/swap")
@@ -84,7 +84,7 @@ public class RoadmapController {
 
     @Operation(summary = "로드맵 현재 단계 도약", description = "로드맵 현재 단계 도약")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "로드맵 현재 단계 도약 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = RoadmapDetailRes.class))}),
+            @ApiResponse(responseCode = "200", description = "로드맵 현재 단계 도약 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RoadmapDetailRes.class)))}),
             @ApiResponse(responseCode = "400", description = "로드맵 현재 단계 도약 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @PostMapping("/leap")
@@ -96,7 +96,7 @@ public class RoadmapController {
 
     @Operation(summary = "로드맵 단계 추가", description = "로드맵 단계 추가")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "로드맵 단계 추가 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = RoadmapDetailRes.class))}),
+            @ApiResponse(responseCode = "200", description = "로드맵 단계 추가 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RoadmapDetailRes.class)))}),
             @ApiResponse(responseCode = "400", description = "로드맵 단계 추가 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @PostMapping("/add")
