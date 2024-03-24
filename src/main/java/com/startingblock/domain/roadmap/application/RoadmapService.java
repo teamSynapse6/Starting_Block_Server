@@ -19,5 +19,6 @@ public interface RoadmapService {
     List<RoadmapDetailRes> deleteRoadmap(UserPrincipal userPrincipal, Long roadmapId);
     List<AnnouncementSavedRoadmapRes> findAnnouncementSavedRoadmap(UserPrincipal userPrincipal, Long announcementId);
     List<RoadmapDetailRes> swapRoadmap(UserPrincipal userPrincipal, SwapRoadmapReq swapRoadmapReq);
+    List<RoadmapDetailRes> leapCurrentRoadmap(UserPrincipal userPrincipal);
 
 }

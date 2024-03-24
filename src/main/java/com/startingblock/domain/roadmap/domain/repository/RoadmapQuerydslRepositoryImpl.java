@@ -43,6 +43,7 @@ public class RoadmapQuerydslRepositoryImpl implements RoadmapQuerydslRepository 
         return queryFactory
                 .selectFrom(roadmap)
                 .where(roadmap.user.id.eq(userId))
+                .orderBy(roadmap.sequence.asc())
                 .fetch();
     }
 

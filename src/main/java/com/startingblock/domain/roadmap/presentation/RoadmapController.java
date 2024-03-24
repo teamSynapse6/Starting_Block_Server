@@ -61,7 +61,7 @@ public class RoadmapController {
             @ApiResponse(responseCode = "400", description = "로드맵 초기 등록 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @PostMapping
-    public ResponseEntity<Void> registerRoadMap(
+    public ResponseEntity<Void> registerRoadmap(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(name = "roadMapRegisterReq", description = "로드맵 초기 등록 정보") @RequestBody final RoadmapRegisterReq roadMapRegisterReq
     ) {
@@ -75,11 +75,23 @@ public class RoadmapController {
             @ApiResponse(responseCode = "400", description = "로드맵 순서 변경 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @PostMapping("/swap")
-    public ResponseEntity<List<RoadmapDetailRes>> swapRoadMap(
+    public ResponseEntity<List<RoadmapDetailRes>> swapRoadmap(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(description = "SwapRoadmapReq Schema 확인") @RequestBody final SwapRoadmapReq swapRoadmapReq
     ) {
         return ResponseEntity.ok(roadmapService.swapRoadmap(userPrincipal, swapRoadmapReq));
+    }
+
+    @Operation(summary = "로드맵 현재 단계 도약", description = "로드맵 현재 단계 도약")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "로드맵 현재 단계 도약 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = RoadmapDetailRes.class))}),
+            @ApiResponse(responseCode = "400", description = "로드맵 현재 단계 도약 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @PostMapping("/leap")
+    public ResponseEntity<List<RoadmapDetailRes>> leapCurrentRoadmap(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(roadmapService.leapCurrentRoadmap(userPrincipal));
     }
 
     @Operation(summary = "로드맵 단계 삭제", description = "로드맵 단계 삭제")

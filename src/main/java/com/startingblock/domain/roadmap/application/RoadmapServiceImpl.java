@@ -89,11 +89,8 @@ public class RoadmapServiceImpl implements RoadmapService {
 
         List<Roadmap> updatedRoadmaps = roadmapRepository.findRoadmapsByUserId(userPrincipal.getId());
 
-        if(!updatedRoadmaps.isEmpty()) {
+        if(!updatedRoadmaps.isEmpty() && updatedRoadmaps.size() > deletedSequence) {
             Roadmap afterDeletionRoadmap;
-            if (updatedRoadmaps.get(deletedSequence) == null)
-                throw new NotExistsNextRoadmapException();
-
             afterDeletionRoadmap = updatedRoadmaps.get(deletedSequence);
 
             if (deletedRoadmapStatus.equals(RoadmapStatus.IN_PROGRESS))
@@ -184,6 +181,28 @@ public class RoadmapServiceImpl implements RoadmapService {
 
             if(!isInProgressAppeared) {
                 roadmap.updateRoadmapStatus(RoadmapStatus.COMPLETED);
+            }
+        }
+
+        return RoadmapDetailRes.toRoadmapDetailResList(roadmaps);
+    }
+
+    @Override
+    @Transactional
+    public List<RoadmapDetailRes> leapCurrentRoadmap(final UserPrincipal userPrincipal) {
+        List<Roadmap> roadmaps = roadmapRepository.findRoadmapsByUserId(userPrincipal.getId());
+
+        boolean isInProgressAppeared = false;
+        for (Roadmap roadmap : roadmaps) {
+            if (roadmap.getRoadmapStatus().equals(RoadmapStatus.IN_PROGRESS)) {
+                roadmap.updateRoadmapStatus(RoadmapStatus.COMPLETED);
+                isInProgressAppeared = true;
+                continue;
+            }
+
+            if(isInProgressAppeared) {
+                roadmap.updateRoadmapStatus(RoadmapStatus.IN_PROGRESS);
+                break;
             }
         }
 
