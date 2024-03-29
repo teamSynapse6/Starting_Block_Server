@@ -1,7 +1,5 @@
 package com.startingblock.domain.question.presentation;
 
-import com.startingblock.domain.auth.dto.AuthRes;
-import com.startingblock.domain.auth.dto.SignInReq;
 import com.startingblock.domain.question.application.QuestionFindService;
 import com.startingblock.domain.question.application.QuestionService;
 import com.startingblock.domain.question.dto.QuestionRequestDto;

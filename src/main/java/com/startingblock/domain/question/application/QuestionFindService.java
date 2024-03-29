@@ -29,7 +29,9 @@ public class QuestionFindService {
         return questionRepository.findQuestionListByAnnouncementId(announcementId);
     }
 
-//    // TODO: 질문 상세 조회
+    // TODO: 나의 질문 조회
+
+    // TODO: 질문 상세 조회
 //    public List<> findDetail(final Long questionId) {
 //
 //    }
