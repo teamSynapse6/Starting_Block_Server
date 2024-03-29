@@ -52,13 +52,21 @@ public class Heart extends BaseEntity {
     @JoinColumn(name = "reply_id")
     private Reply reply;
 
+    public void updateQuestion(final Question question) {
+        this.question = question;
+    }
+
+    public void updateAnswer(final Answer answer) {
+        this.answer = answer;
+    }
+
+    public void updateReply(final Reply reply) {
+        this.reply = reply;
+    }
 
     @Builder
-    public Heart(final HeartType heartType, final User user, final Question question, final Answer answer, final Reply reply) {
+    public Heart(final HeartType heartType, final User user) {
         this.heartType = heartType;
         this.user = user;
-        this.question = question;
-        this.answer = answer;
-        this.reply = reply;
     }
 }

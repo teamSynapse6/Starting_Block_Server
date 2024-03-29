@@ -16,10 +16,10 @@ public class QuestionResponseDto {
         @Schema(type = "Integer", example = "6", description = "답변의 개수입니다.")
         private Integer answerCount;
 
-        public QuestionListResponse(String content, Long answerCount, Long heartCount) {
+        public QuestionListResponse(String content, Long heartCount, Long answerCount) {
             this.content = content;
-            this.answerCount = answerCount != null ? answerCount.intValue() : 0;
             this.heartCount = heartCount != null ? heartCount.intValue() : 0;
+            this.answerCount = answerCount != null ? answerCount.intValue() : 0;
         }
     }
 
