@@ -55,8 +55,22 @@ public class QuestionController {
     })
     @GetMapping(value = "/{announcement-id}")
     public ResponseEntity<?> findByAnnouncement(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(description = "공고의 ID입니다.", required = true) @Valid @PathVariable(name = "announcement-id") final Long announcementId
     ) {
-        return ResponseEntity.ok(questionFindService.findByAnnouncement(announcementId));
+        return ResponseEntity.ok(questionFindService.findByAnnouncement(userPrincipal, announcementId));
+    }
+
+    @Operation(summary = "질문 상세 조회", description = "질문 상세 조회하기")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "질문 상세 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = QuestionResponseDto.QuestionDetailResponse.class)))}),
+            @ApiResponse(responseCode = "400", description = "질문 상세 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping(value = "/detail/{question-id}")
+    public ResponseEntity<?> findDetail(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(description = "질문의 ID입니다.", required = true) @Valid @PathVariable(name = "question-id") final Long questionId
+    ) {
+        return ResponseEntity.ok(questionFindService.findDetail(userPrincipal, questionId));
     }
 }

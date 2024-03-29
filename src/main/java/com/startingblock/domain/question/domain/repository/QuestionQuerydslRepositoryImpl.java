@@ -1,6 +1,7 @@
 package com.startingblock.domain.question.domain.repository;
 
 import com.querydsl.core.types.Projections;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.startingblock.domain.heart.domain.HeartType;
 import com.startingblock.domain.question.domain.QQuestion;
@@ -17,22 +18,36 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<QuestionResponseDto.QuestionListResponse> findQuestionListByAnnouncementId(Long announcementId) {
+    public List<QuestionResponseDto.QuestionListResponse> findQuestionListByAnnouncementId(Long userId, Long announcementId) {
         QQuestion question = QQuestion.question;
         QHeart heart = QHeart.heart;
+        QHeart subHeart = new QHeart("subHeart");
         QAnswer answer = QAnswer.answer;
 
         return queryFactory
                 .select(Projections.constructor(QuestionResponseDto.QuestionListResponse.class,
+                        question.id,
                         question.content,
-                        heart.id.count(),
-                        answer.id.count()))
+                        JPAExpressions.select(subHeart.count())
+                                .from(subHeart)
+                                .where(subHeart.question.eq(question),
+                                        subHeart.heartType.eq(HeartType.QUESTION)),
+                        JPAExpressions.select(answer.count())
+                                .from(answer)
+                                .where(answer.question.eq(question)),
+                        JPAExpressions.selectOne()
+                                .from(subHeart)
+                                .where(subHeart.question.eq(question),
+                                        subHeart.user.id.eq(userId),
+                                        subHeart.heartType.eq(HeartType.QUESTION))
+                                .exists()
+                ))
                 .from(question)
-                .leftJoin(heart).on(heart.question.eq(question).and(heart.heartType.eq(HeartType.QUESTION)))
+                .leftJoin(heart).on(heart.question.eq(question))
                 .leftJoin(answer).on(answer.question.eq(question))
                 .where(question.announcement.id.eq(announcementId))
                 .groupBy(question.id)
-                .orderBy(heart.id.count().desc(), answer.id.count().desc(), question.createdAt.desc())
+                .orderBy(heart.count().desc(), answer.count().desc(), question.createdAt.desc())
                 .fetch();
     }
 }

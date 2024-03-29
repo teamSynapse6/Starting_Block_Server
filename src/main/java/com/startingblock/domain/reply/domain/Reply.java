@@ -1,6 +1,7 @@
 package com.startingblock.domain.reply.domain;
 
 import com.startingblock.domain.answer.domain.Answer;
+import com.startingblock.domain.common.BaseEntity;
 import com.startingblock.domain.user.domain.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,7 +22,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "reply")
-public class Reply {
+public class Reply extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface QuestionQuerydslRepository {
 
-    List<QuestionResponseDto.QuestionListResponse> findQuestionListByAnnouncementId(Long announcementId);
+    List<QuestionResponseDto.QuestionListResponse> findQuestionListByAnnouncementId(Long userId, Long announcementId);
 }
