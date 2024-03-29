@@ -1,8 +1,14 @@
 package com.startingblock.domain.heart.domain.repository;
 
+import com.startingblock.domain.answer.domain.Answer;
 import com.startingblock.domain.heart.domain.Heart;
+import com.startingblock.domain.reply.domain.Reply;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface HeartRepository extends JpaRepository<Heart, Long> {
+import java.util.List;
 
+public interface HeartRepository extends JpaRepository<Heart, Long> {
+    List<Heart> findAllByAnswer(final Answer answer);
+
+    List<Heart> findAllByReply(final Reply reply);
 }

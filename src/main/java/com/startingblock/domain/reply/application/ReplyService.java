@@ -3,6 +3,8 @@ package com.startingblock.domain.reply.application;
 import com.startingblock.domain.answer.domain.Answer;
 import com.startingblock.domain.answer.domain.repository.AnswerRepository;
 import com.startingblock.domain.answer.exception.InvalidAnswerException;
+import com.startingblock.domain.heart.domain.Heart;
+import com.startingblock.domain.heart.domain.repository.HeartRepository;
 import com.startingblock.domain.reply.domain.Reply;
 import com.startingblock.domain.reply.domain.repository.ReplyRepository;
 import com.startingblock.domain.reply.dto.ReplyRequestDto;
@@ -16,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -24,6 +28,7 @@ public class ReplyService {
     private final ReplyRepository replyRepository;
     private final UserRepository userRepository;
     private final AnswerRepository answerRepository;
+    private final HeartRepository heartRepository;
 
     // TODO: 답글 쓰기
     @Transactional
@@ -49,7 +54,10 @@ public class ReplyService {
         Reply reply = replyRepository.findById(replyId)
                 .orElseThrow(InvalidReplyException::new);
         DefaultAssert.isTrue(reply.getUser().equals(user), "나의 댓글만 삭제할 수 있습니다.");
-
+        // 하트 삭제
+        List<Heart> hearts = heartRepository.findAllByReply(reply);
+        heartRepository.deleteAll(hearts);
+        // 답글 삭제
         replyRepository.delete(reply);
     }
 }

@@ -15,6 +15,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,6 +41,20 @@ public class AnswerController {
             @Parameter(description = "Schemas의 AnswerRequest를 참고해주세요.", required = true) @Valid @RequestBody final AnswerRequestDto.AnswerRequest dto
     ) {
         answerService.send(userPrincipal, dto);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "답변 삭제", description = "답변 삭제")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "답변 삭제 성공"),
+            @ApiResponse(responseCode = "400", description = "답변 삭제 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @DeleteMapping(value = "/cancel/{answer-id}")
+    public ResponseEntity<?> cancel(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(description = "답변의 ID입니다.", required = true) @Valid @PathVariable(value = "answer-id") Long answerId
+    ) {
+        answerService.cancel(userPrincipal, answerId);
         return ResponseEntity.noContent().build();
     }
 }
