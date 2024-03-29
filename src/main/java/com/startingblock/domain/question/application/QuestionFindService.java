@@ -28,4 +28,9 @@ public class QuestionFindService {
 
         return questionRepository.findQuestionListByAnnouncementId(announcementId);
     }
+
+//    // TODO: 질문 상세 조회
+//    public List<> findDetail(final Long questionId) {
+//
+//    }
 }

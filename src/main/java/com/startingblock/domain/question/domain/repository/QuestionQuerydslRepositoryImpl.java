@@ -23,7 +23,7 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
         QAnswer answer = QAnswer.answer;
 
         return queryFactory
-                .select(Projections.fields(QuestionResponseDto.QuestionListResponse.class,
+                .select(Projections.constructor(QuestionResponseDto.QuestionListResponse.class,
                         question.content,
                         heart.id.count(),
                         answer.id.count()))
