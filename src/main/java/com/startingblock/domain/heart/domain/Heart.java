@@ -1,7 +1,9 @@
-package com.startingblock.domain.Answer.domain;
+package com.startingblock.domain.heart.domain;
 
-import com.startingblock.domain.question.domain.QAType;
+import com.startingblock.domain.answer.domain.Answer;
+import com.startingblock.domain.common.BaseEntity;
 import com.startingblock.domain.question.domain.Question;
+import com.startingblock.domain.reply.domain.Reply;
 import com.startingblock.domain.user.domain.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -19,36 +21,44 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+
 @Entity
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
-@Table(name = "answer")
-public class Answer {
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(name = "heart")
+public class Heart extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "content")
-    private String content;
-
     @Enumerated(EnumType.STRING)
-    @Column(name = "answer_type")
-    private QAType answerType;
+    @Column(name = "heart_type")
+    private HeartType heartType;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "question_id", nullable = false)
+    @JoinColumn(name = "question_id")
     private Question question;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "answer_id")
+    private Answer answer;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reply_id")
+    private Reply reply;
+
+
     @Builder
-    public Answer(final String content, final QAType answerType, final User user, final Question question) {
-        this.content = content;
-        this.answerType = answerType;
+    public Heart(final HeartType heartType, final User user, final Question question, final Answer answer, final Reply reply) {
+        this.heartType = heartType;
         this.user = user;
         this.question = question;
+        this.answer = answer;
+        this.reply = reply;
     }
 }

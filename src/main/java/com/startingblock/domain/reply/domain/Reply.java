@@ -1,10 +1,9 @@
-package com.startingblock.domain.Heart.domain;
+package com.startingblock.domain.reply.domain;
 
+import com.startingblock.domain.answer.domain.Answer;
 import com.startingblock.domain.user.domain.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -21,24 +20,28 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "heart")
-public class Heart {
+@Table(name = "reply")
+public class Reply {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "heart_type")
-    private HeartType heartType;
+    @Column(name = "content")
+    private String content;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", updatable = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "answer_id", nullable = false)
+    private Answer answer;
+
     @Builder
-    public Heart(final HeartType heartType, final User user) {
-        this.heartType = heartType;
+    public Reply(final String content, final User user, final Answer answer) {
+        this.content = content;
         this.user = user;
+        this.answer = answer;
     }
 }

@@ -1,5 +1,7 @@
 package com.startingblock.domain.question.domain;
 
+import com.startingblock.domain.announcement.domain.Announcement;
+import com.startingblock.domain.common.BaseEntity;
 import com.startingblock.domain.user.domain.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,7 +23,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "question")
-public class Question {
+public class Question extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,6 +47,10 @@ public class Question {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "announcement_id", nullable = false)
+    private Announcement announcement;
+
     public void changeIsAnswerd() {
         this.isAnswerd = true;
     }
@@ -53,11 +59,12 @@ public class Question {
     }
 
     @Builder
-    public Question(final String content, final QAType questionType, final User user) {
+    public Question(final String content, final QAType questionType, final User user, final Announcement announcement) {
         this.content = content;
         this.questionType = questionType;
         this.isAnswerd = false;
         this.isNew = true;
         this.user = user;
+        this.announcement = announcement;
     }
 }

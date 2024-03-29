@@ -1,9 +1,13 @@
-package com.startingblock.domain.Reply.domain;
+package com.startingblock.domain.answer.domain;
 
-import com.startingblock.domain.Answer.domain.Answer;
+import com.startingblock.domain.common.BaseEntity;
+import com.startingblock.domain.question.domain.QAType;
+import com.startingblock.domain.question.domain.Question;
 import com.startingblock.domain.user.domain.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -16,12 +20,11 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-
 @Entity
-@Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "reply")
-public class Reply {
+@Getter
+@Table(name = "answer")
+public class Answer extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,18 +33,23 @@ public class Reply {
     @Column(name = "content")
     private String content;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "answer_type")
+    private QAType answerType;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", updatable = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "answer_id", updatable = false)
-    private Answer answer;
+    @JoinColumn(name = "question_id", nullable = false)
+    private Question question;
 
     @Builder
-    public Reply(final String content, final User user, final Answer answer) {
+    public Answer(final String content, final QAType answerType, final User user, final Question question) {
         this.content = content;
+        this.answerType = answerType;
         this.user = user;
-        this.answer = answer;
+        this.question = question;
     }
 }
