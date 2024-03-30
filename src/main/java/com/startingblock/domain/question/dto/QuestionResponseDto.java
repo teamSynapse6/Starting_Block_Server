@@ -50,11 +50,14 @@ public class QuestionResponseDto {
         @Schema(type = "LocalDateTime", example = "2024-03-29 18:26:35.337633", description = "질문 생성일자입니다.")
         private LocalDateTime createdAt;
 
+        @Schema(type = "Integer", example = "16", description = "궁금해요의 개수입니다.")
+        private Integer heartCount;
+
         @Schema(type = "Boolean", example = "true", description = "내가 하트를 눌렀는지 여부입니다.")
         private Boolean isMyHeart;
 
-        @Schema(type = "Integer", example = "16", description = "궁금해요의 개수입니다.")
-        private Integer heartCount;
+        @Schema(type = "Long", example = "1", description = "내 질문 하트의 ID입니다.", nullable = true)
+        private Long heartId;
 
         private AnswerResponseDto.ContactAnswerResponse contactAnswer;
 

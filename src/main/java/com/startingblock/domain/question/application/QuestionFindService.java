@@ -1,11 +1,11 @@
 package com.startingblock.domain.question.application;
 
-import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.answer.domain.repository.AnswerRepository;
-import com.startingblock.domain.answer.dto.AnswerResponseDto;
+import com.startingblock.domain.heart.domain.Heart;
 import com.startingblock.domain.heart.domain.repository.HeartRepository;
+import com.startingblock.domain.heart.exception.NotExistsHeartException;
 import com.startingblock.domain.question.domain.QAType;
 import com.startingblock.domain.question.domain.Question;
 import com.startingblock.domain.question.domain.repository.QuestionRepository;
@@ -25,7 +25,6 @@ import java.util.List;
 public class QuestionFindService {
 
     private final QuestionRepository questionRepository;
-    private final UserRepository userRepository;
     private final AnnouncementRepository announcementRepository;
     private final AnswerRepository answerRepository;
     private final HeartRepository heartRepository;
@@ -43,13 +42,16 @@ public class QuestionFindService {
     public QuestionResponseDto.QuestionDetailResponse findDetail(final UserPrincipal userPrincipal, final Long questionId) {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(InvalidQuestionException::new);
+        Heart heart = heartRepository.findByUserIdAndQuestionId(userPrincipal.getId(), questionId)
+                .orElseThrow(NotExistsHeartException::new);
 
         return QuestionResponseDto.QuestionDetailResponse.builder()
                 .userName(question.getUser().getName())
                 .content(question.getContent())
                 .createdAt(question.getCreatedAt())
-                .isMyHeart(heartRepository.existsByQuestionIdAndUserId(questionId, userPrincipal.getId()))
                 .heartCount(heartRepository.countByQuestionId(questionId))
+                .isMyHeart(heartRepository.existsByQuestionIdAndUserId(questionId, userPrincipal.getId()))
+                .heartId(heart.getId())
                 .contactAnswer(answerRepository.findContactAnswer(questionId))
                 .answerCount(answerRepository.countByQuestionIdAndAnswerType(questionId, QAType.GENERAL))
                 .answerList(answerRepository.findAnswerList(questionId, userPrincipal.getId()))

@@ -6,6 +6,7 @@ import com.startingblock.domain.reply.domain.Reply;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface HeartRepository extends JpaRepository<Heart, Long> {
     List<Heart> findAllByAnswer(final Answer answer);
@@ -15,4 +16,6 @@ public interface HeartRepository extends JpaRepository<Heart, Long> {
     Integer countByQuestionId(Long questionId);
 
     Boolean existsByQuestionIdAndUserId(Long questionId, Long userId);
+
+    Optional<Heart> findByUserIdAndQuestionId(Long userId, Long questionId);
 }

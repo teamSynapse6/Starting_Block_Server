@@ -66,7 +66,10 @@ public class AnswerQuerydslRepositoryImpl implements AnswerQuerydslRepository {
                         JPAExpressions.selectOne()
                                 .from(heart)
                                 .where(isHeartedByUser)
-                                .exists()))
+                                .exists(),
+                        JPAExpressions.select(heart.id.max())
+                                .from(heart)
+                                .where(heart.user.id.eq(userId).and(heart.answer.id.eq(answer.id)))))
                 .from(answer)
                 .join(answer.user, user)
                 .where(answer.question.id.eq(questionId))
