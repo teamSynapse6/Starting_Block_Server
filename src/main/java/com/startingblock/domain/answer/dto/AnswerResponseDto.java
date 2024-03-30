@@ -49,16 +49,20 @@ public class AnswerResponseDto {
         @Schema(type = "Boolean", example = "true", description = "내가 하트를 눌렀는지 여부입니다.")
         private Boolean isMyHeart;
 
+        @Schema(type = "Long", example = "1", description = "내 답변 하트의 ID입니다.", nullable = true)
+        private Long heartId;
+
         @Setter
         private List<ReplyResponseDto.ReplyResponse> replyResponse;
 
-        public AnswerListResponse(final Long answerId, final String userName, final String content, final LocalDateTime createdAt, final Long heartCount, final Boolean isMyHeart) {
+        public AnswerListResponse(final Long answerId, final String userName, final String content, final LocalDateTime createdAt, final Long heartCount, final Boolean isMyHeart, final Long heartId) {
             this.answerId = answerId;
             this.userName = userName;
             this.content = content;
             this.createdAt = createdAt;
             this.heartCount = heartCount != null ? heartCount.intValue() : 0;
             this.isMyHeart = isMyHeart;
+            this.heartId = heartId;
         }
     }
 }

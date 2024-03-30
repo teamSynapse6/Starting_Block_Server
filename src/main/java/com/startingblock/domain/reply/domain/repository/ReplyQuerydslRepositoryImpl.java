@@ -24,15 +24,21 @@ public class ReplyQuerydslRepositoryImpl implements ReplyQuerydslRepository {
 
         return queryFactory
                 .select(Projections.constructor(ReplyResponseDto.ReplyResponse.class,
+                        reply.id,
                         user.name,
                         reply.content,
                         reply.createdAt,
+                        JPAExpressions.select(heart.count())
+                                .from(heart)
+                                .where(heart.reply.id.eq(reply.id)),
                         JPAExpressions.selectOne()
                                 .from(heart)
                                 .where(heart.reply.id.eq(reply.id)
                                         .and(heart.user.id.eq(userId)))
-                                .exists()
-                ))
+                                .exists(),
+                        JPAExpressions.select(heart.id.max())
+                                .from(heart)
+                                .where(heart.user.id.eq(userId).and(heart.reply.id.eq(reply.id)))))
                 .from(reply)
                 .join(reply.user, user)
                 .where(reply.answer.id.eq(answerId))
