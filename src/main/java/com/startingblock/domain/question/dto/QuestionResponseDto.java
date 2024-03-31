@@ -19,21 +19,30 @@ public class QuestionResponseDto {
         @Schema(type = "String", example = "개별 멘토링 진행시..", description = "질문의 내용입니다.")
         private String content;
 
-        @Schema(type = "Integer", example = "16", description = "궁금해요의 개수입니다.")
-        private Integer heartCount;
-
         @Schema(type = "Integer", example = "6", description = "답변의 개수입니다.")
         private Integer answerCount;
+
+        @Schema(type = "Boolean", example = "true", description = "담당처 답변이 달렸는지 여부입니다.")
+        private Boolean isHaveContactAnswer;
+
+        @Schema(type = "Integer", example = "16", description = "궁금해요의 개수입니다.")
+        private Integer heartCount;
 
         @Schema(type = "Boolean", example = "true", description = "내가 하트를 눌렀는지 여부입니다.")
         private Boolean isMyHeart;
 
-        public QuestionListResponse(final Long questionId, final String content, final Long heartCount, final Long answerCount, final Boolean isMyHeart) {
+        @Schema(type = "Long", example = "1", description = "내 질문 하트의 ID입니다.", nullable = true)
+        private Long heartId;
+
+        public QuestionListResponse(final Long questionId, final String content, final Long answerCount, final Boolean isHaveContactAnswer,
+                                    final Long heartCount, final Boolean isMyHeart, final Long heartId) {
             this.questionId = questionId;
             this.content = content;
-            this.heartCount = heartCount != null ? heartCount.intValue() : 0;
             this.answerCount = answerCount != null ? answerCount.intValue() : 0;
+            this.isHaveContactAnswer = isHaveContactAnswer;
+            this.heartCount = heartCount != null ? heartCount.intValue() : 0;
             this.isMyHeart = isMyHeart;
+            this.heartId = heartId;
         }
     }
 

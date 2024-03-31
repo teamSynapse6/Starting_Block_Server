@@ -4,6 +4,7 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.startingblock.domain.heart.domain.HeartType;
+import com.startingblock.domain.question.domain.QAType;
 import com.startingblock.domain.question.domain.QQuestion;
 import com.startingblock.domain.heart.domain.QHeart;
 import com.startingblock.domain.answer.domain.QAnswer;
@@ -28,20 +29,27 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
                 .select(Projections.constructor(QuestionResponseDto.QuestionListResponse.class,
                         question.id,
                         question.content,
+                        JPAExpressions.select(answer.count())
+                                .from(answer)
+                                .where(answer.question.eq(question)),
+                        JPAExpressions.selectOne()
+                                .from(answer)
+                                .where(answer.question.eq(question),
+                                        answer.answerType.eq(QAType.CONTACT))
+                                .exists(),
                         JPAExpressions.select(subHeart.count())
                                 .from(subHeart)
                                 .where(subHeart.question.eq(question),
                                         subHeart.heartType.eq(HeartType.QUESTION)),
-                        JPAExpressions.select(answer.count())
-                                .from(answer)
-                                .where(answer.question.eq(question)),
                         JPAExpressions.selectOne()
                                 .from(subHeart)
                                 .where(subHeart.question.eq(question),
                                         subHeart.user.id.eq(userId),
                                         subHeart.heartType.eq(HeartType.QUESTION))
-                                .exists()
-                ))
+                                .exists(),
+                        JPAExpressions.select(subHeart.id.max())
+                                .from(subHeart)
+                                .where(subHeart.user.id.eq(userId).and(subHeart.question.id.eq(question.id)))))
                 .from(question)
                 .leftJoin(heart).on(heart.question.eq(question))
                 .leftJoin(answer).on(answer.question.eq(question))
