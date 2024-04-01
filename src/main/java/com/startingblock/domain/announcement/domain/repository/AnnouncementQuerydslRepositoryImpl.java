@@ -4,11 +4,9 @@ import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
-import com.startingblock.domain.announcement.dto.AnnouncementRes;
-import com.startingblock.domain.announcement.dto.QAnnouncementDetailRes;
-import com.startingblock.domain.announcement.dto.QAnnouncementRes;
+import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.common.Status;
+import com.startingblock.domain.roadmap.domain.QRoadmap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -19,6 +17,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.startingblock.domain.announcement.domain.QAnnouncement.*;
+import static com.startingblock.domain.roadmap.domain.QRoadmap.*;
 import static com.startingblock.domain.roadmap.domain.QRoadmapAnnouncement.*;
 
 @RequiredArgsConstructor
@@ -124,6 +123,30 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
         List<AnnouncementRes> announcements = hasNext ? announcementResList.subList(0, pageable.getPageSize()) : announcementResList;
 
         return new SliceImpl<>(announcements, pageable, hasNext);
+    }
+
+    @Override
+    public List<RoadmapAnnouncementRes> findAnnouncementsByRoadmapId(final Long userId, final Long roadmapId) {
+        return queryFactory
+                .select(
+                        new QRoadmapAnnouncementRes(
+                                announcement.id,
+                                announcement.title,
+                                announcement.postTarget,
+                                announcement.content,
+                                roadmapAnnouncement.announcement.id.isNotNull()
+                        )
+                )
+                .from(roadmap)
+                .leftJoin(roadmapAnnouncement).on(roadmap.id.eq(roadmapAnnouncement.roadmap.id))
+                .leftJoin(announcement).on(roadmapAnnouncement.announcement.id.eq(announcement.id))
+                .where(
+                        roadmap.id.eq(roadmapId),
+                        roadmap.user.id.eq(userId),
+                        announcement.status.eq(Status.ACTIVE)
+                )
+                .distinct()
+                .fetch();
     }
 
     private BooleanExpression businessAgeExpression(final String businessAge) {

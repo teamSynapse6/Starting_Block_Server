@@ -1,5 +1,7 @@
 package com.startingblock.domain.roadmap.presentation;
 
+import com.startingblock.domain.announcement.dto.AnnouncementRes;
+import com.startingblock.domain.announcement.dto.RoadmapAnnouncementRes;
 import com.startingblock.domain.roadmap.application.RoadmapService;
 import com.startingblock.domain.roadmap.dto.AnnouncementSavedRoadmapRes;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
@@ -40,6 +42,19 @@ public class RoadmapController {
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
     ) {
         return ResponseEntity.ok(roadmapService.findRoadmaps(userPrincipal));
+    }
+
+    @Operation(summary = "로드맵의 공고 리스트 조회", description = "로드맵의 공고 리스트 조회")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "로드맵의 공고 리스트 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AnnouncementRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "로드맵의 공고 리스트 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/{roadmap-id}")
+    public ResponseEntity<List<RoadmapAnnouncementRes>> findAnnouncementsOfRoadmap(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @PathVariable(name = "roadmap-id") final Long roadmapId
+    ) {
+        return ResponseEntity.ok(roadmapService.findAnnouncementsOfRoadmap(userPrincipal, roadmapId));
     }
 
     @Operation(summary = "공고가 저장된 로드맵 조회", description = "공고가 저장된 로드맵 조회")

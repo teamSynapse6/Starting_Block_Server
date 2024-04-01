@@ -2,6 +2,8 @@ package com.startingblock.domain.roadmap.application;
 
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
+import com.startingblock.domain.announcement.dto.AnnouncementRes;
+import com.startingblock.domain.announcement.dto.RoadmapAnnouncementRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.roadmap.domain.Roadmap;
 import com.startingblock.domain.roadmap.domain.RoadmapAnnouncement;
@@ -236,6 +238,11 @@ public class RoadmapServiceImpl implements RoadmapService {
         roadmaps.add(newRoadmap);
 
         return RoadmapDetailRes.toRoadmapDetailResList(roadmaps);
+    }
+
+    @Override
+    public List<RoadmapAnnouncementRes> findAnnouncementsOfRoadmap(final UserPrincipal userPrincipal, final Long roadmapId) {
+        return announcementRepository.findAnnouncementsByRoadmapId(userPrincipal.getId(), roadmapId);
     }
 
 }
