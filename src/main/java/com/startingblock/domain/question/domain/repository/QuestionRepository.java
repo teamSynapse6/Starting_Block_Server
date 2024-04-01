@@ -9,4 +9,6 @@ import java.util.List;
 public interface QuestionRepository extends JpaRepository<Question, Long>, QuestionQuerydslRepository {
 
     List<Question> findByQuestionTypeAndIsAnswerd(QAType type, Boolean isAnswered);
+
+    List<Question> findByAnnouncementIdAndQuestionTypeAndIsAnswerdAndIsNew(Long announcementId, QAType type, Boolean isAnswerd, Boolean isNew);
 }
