@@ -1,6 +1,5 @@
 package com.startingblock.domain.announcement.domain.repository;
 
-import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
@@ -8,13 +7,11 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.common.Status;
-import com.startingblock.domain.roadmap.domain.QRoadmap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -37,7 +34,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
-    public List<AnnouncementRes> findThreeRandomAnnouncement(Long userId) {
+    public List<AnnouncementRes> findThreeRandomAnnouncement(final Long userId) {
         return queryFactory
                 .select(
                         new QAnnouncementRes(
@@ -62,7 +59,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
-    public AnnouncementDetailRes findAnnouncementDetail(Long userId, Long announcementId) {
+    public AnnouncementDetailRes findAnnouncementDetail(final Long userId, final Long announcementId) {
         return queryFactory
                 .select(
                         new QAnnouncementDetailRes(
@@ -129,13 +126,15 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
-    public List<Announcement> findOffCampusAnnouncementsByRoadmapId(Long userId, Long roadmapId) {
+    public List<Announcement> findOffCampusAnnouncementsByRoadmapId(final Long userId, final Long roadmapId) {
         return queryFactory
                 .select(announcement)
                 .from(roadmap)
                 .leftJoin(roadmapAnnouncement).on(roadmap.id.eq(roadmapAnnouncement.roadmap.id))
                 .leftJoin(announcement).on(roadmapAnnouncement.announcement.id.eq(announcement.id))
                 .where(
+                        announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이전이거나, 비기한이 없는 공고
+                        announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이후이거나, 비기한이 없는 공고
                         roadmap.id.eq(roadmapId),
                         roadmap.user.id.eq(userId)
                 )
