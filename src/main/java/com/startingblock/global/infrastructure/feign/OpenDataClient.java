@@ -2,6 +2,7 @@ package com.startingblock.global.infrastructure.feign;
 
 import com.startingblock.global.config.FeignConfig;
 import com.startingblock.global.infrastructure.feign.dto.KStartUpAnnouncementRes;
+import com.startingblock.global.infrastructure.feign.dto.NewKStartUpAnnouncementRes;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,5 +20,11 @@ public interface OpenDataClient {
                                                 @RequestParam("endDate") String endDate,
                                                 @RequestParam("openYn") String openYn,
                                                 @RequestParam("dataType") String dataType);
+
+    @GetMapping("/B552735/kisedKstartupService/getAnnouncementInformation")
+    NewKStartUpAnnouncementRes getNewAnnouncementList(@RequestParam("serviceKey") String serviceKey,
+                                                     @RequestParam("page") String page,
+                                                     @RequestParam("perPage") String perPage,
+                                                     @RequestParam("returnType") String returnType);
 
 }

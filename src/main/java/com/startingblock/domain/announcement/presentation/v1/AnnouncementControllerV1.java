@@ -1,4 +1,4 @@
-package com.startingblock.domain.announcement.presentation;
+package com.startingblock.domain.announcement.presentation.v1;
 
 
 import com.startingblock.domain.announcement.application.AnnouncementService;
@@ -24,24 +24,24 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 
-@Tag(name = "Announcements API", description = "Announcements API")
+@Tag(name = "Announcements V1 API", description = "Announcements V1 API")
 @RequestMapping("/api/v1/announcements")
 @RestController
 @RequiredArgsConstructor
-public class AnnouncementController {
+public class AnnouncementControllerV1 {
 
     private final AnnouncementService announcementService;
 
-    @Operation(summary = "공고 새로고침", description = "공고 새로고침")
+    @Operation(summary = "공고 수동 새로고침", description = "공고 수동 새로고침")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "공고 새로고침 성공", content = {@Content(mediaType = "application/json")}),
-            @ApiResponse(responseCode = "400", description = "공고 새로고침 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+            @ApiResponse(responseCode = "200", description = "공고 수동 새로고침 성공", content = {@Content(mediaType = "application/json")}),
+            @ApiResponse(responseCode = "400", description = "공고 수동 새로고침 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @GetMapping("/refresh")
     public ResponseEntity<Void> refreshAnnouncements(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
     ) {
-        announcementService.refreshAnnouncements(userPrincipal);
+        announcementService.refreshAnnouncementsV1(userPrincipal);
         return ResponseEntity.noContent().build();
     }
 

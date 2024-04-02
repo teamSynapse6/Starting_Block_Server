@@ -8,15 +8,13 @@ import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.announcement.exception.PermissionDeniedException;
 import com.startingblock.domain.user.domain.Role;
-import com.startingblock.domain.user.domain.User;
-import com.startingblock.domain.user.domain.repository.UserRepository;
-import com.startingblock.domain.user.exception.InvalidUserException;
 import com.startingblock.global.config.FeignConfig;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.infrastructure.feign.BizInfoClient;
 import com.startingblock.global.infrastructure.feign.OpenDataClient;
 import com.startingblock.global.infrastructure.feign.dto.BizInfoAnnouncementRes;
 import com.startingblock.global.infrastructure.feign.dto.KStartUpAnnouncementRes;
+import com.startingblock.global.infrastructure.feign.dto.NewKStartUpAnnouncementRes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +26,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -36,7 +35,6 @@ import java.util.Objects;
 @Slf4j
 @Transactional(readOnly = true)
 public class AnnouncementServiceImpl implements AnnouncementService {
-    private final UserRepository userRepository;
 
     private final FeignConfig feignConfig;
     private final AnnouncementRepository announcementRepository;
@@ -45,7 +43,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
     @Override
     @Transactional
-    public void refreshAnnouncements(UserPrincipal userPrincipal) {
+    public void refreshAnnouncementsV1(final UserPrincipal userPrincipal) {
         if(userPrincipal.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals(Role.ADMIN.getValue())))
             throw new PermissionDeniedException();
 
@@ -152,6 +150,68 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
         announcementRepository.saveAll(openDataAnnouncements);
         announcementRepository.saveAll(bizInfoAnnouncements);
+    }
+
+    @Override
+    public void refreshAnnouncementsV2(final UserPrincipal userPrincipal) {
+        final int perPage = 2000; // 페이지 당 공고 수 설정
+        int totalPages; // 전체 페이지 수
+        List<Announcement> allAnnouncements = new ArrayList<>();
+
+        NewKStartUpAnnouncementRes firstPageResponse = openDataClient.getNewAnnouncementList(
+                feignConfig.getServiceKey().getOpenData(),
+                "1",
+                String.valueOf(1),
+                "json"
+        );
+
+        int totalAnnouncements = firstPageResponse.getTotalCount();
+        totalPages = (int) Math.ceil((double) totalAnnouncements / perPage);
+
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        LocalDate now = LocalDate.now();
+
+        for (int page = 1; page <= totalPages; page++) {
+            NewKStartUpAnnouncementRes response = openDataClient.getNewAnnouncementList(
+                    feignConfig.getServiceKey().getOpenData(),
+                    String.valueOf(page),
+                    String.valueOf(perPage),
+                    "json"
+            );
+
+            List<Announcement> announcements = response.getData().stream()
+                    .map(item -> {
+                        LocalDate endDate = LocalDate.parse(item.getPbancRcptEndDt(), dateFormatter);
+                        if (endDate.isBefore(now)) {
+                            return null;
+                        }
+
+                        return Announcement.builder()
+                                .postSN(item.getId())
+                                .bizTitle(item.getBizPbancNm())
+                                .supportType(item.getSuptBizClsfc())
+                                .title(item.getBizPbancNm())
+                                .content(item.getPbancCtnt())
+                                .areaName(item.getSuptRegin())
+                                .organizationName(item.getPbancNtrpNm())
+                                .postTarget(item.getAplyTrgt())
+                                .postTargetAge(item.getBizTrgtAge())
+                                .postTargetComAge(item.getBizEnyy())
+                                .startDate(LocalDateTime.parse(item.getPbancRcptBgngDt(), dateTimeFormatter))
+                                .endDate(LocalDateTime.parse(item.getPbancRcptEndDt(), dateTimeFormatter))
+                                .detailUrl(item.getDetlPgUrl())
+                                .prchCnAdrNo(item.getPrchCnplNo())
+                                .sprvInstClssCdNm(item.getSprvInst())
+                                .bizPrchDprtNm(item.getBizPrchDprtNm())
+                                .announcementType(AnnouncementType.OPEN_DATA)
+                                .build();
+                    })
+                    .toList();
+            allAnnouncements.addAll(announcements);
+        }
+
+        log.info("전체 공고 수: {}", allAnnouncements.size());
     }
 
     @Override

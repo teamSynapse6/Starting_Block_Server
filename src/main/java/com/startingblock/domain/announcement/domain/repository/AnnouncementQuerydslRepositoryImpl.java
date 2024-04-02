@@ -1,6 +1,5 @@
 package com.startingblock.domain.announcement.domain.repository;
 
-import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
@@ -8,13 +7,11 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.common.Status;
-import com.startingblock.domain.roadmap.domain.QRoadmap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
