@@ -1,9 +1,11 @@
 package com.startingblock.domain.announcement.domain.repository;
 
+import com.querydsl.core.types.Expression;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.common.Status;
 import com.startingblock.domain.roadmap.domain.QRoadmap;
@@ -12,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -126,26 +129,16 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
-    public List<RoadmapAnnouncementRes> findAnnouncementsByRoadmapId(final Long userId, final Long roadmapId) {
+    public List<Announcement> findAnnouncementsByRoadmapId(Long userId, Long roadmapId) {
         return queryFactory
-                .select(
-                        new QRoadmapAnnouncementRes(
-                                announcement.id,
-                                announcement.title,
-                                announcement.postTarget,
-                                announcement.content,
-                                roadmapAnnouncement.announcement.id.isNotNull()
-                        )
-                )
+                .select(announcement)
                 .from(roadmap)
                 .leftJoin(roadmapAnnouncement).on(roadmap.id.eq(roadmapAnnouncement.roadmap.id))
                 .leftJoin(announcement).on(roadmapAnnouncement.announcement.id.eq(announcement.id))
                 .where(
                         roadmap.id.eq(roadmapId),
-                        roadmap.user.id.eq(userId),
-                        announcement.status.eq(Status.ACTIVE)
+                        roadmap.user.id.eq(userId)
                 )
-                .distinct()
                 .fetch();
     }
 
