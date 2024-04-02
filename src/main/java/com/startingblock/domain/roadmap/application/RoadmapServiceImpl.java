@@ -2,7 +2,6 @@ package com.startingblock.domain.roadmap.application;
 
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
-import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import com.startingblock.domain.announcement.dto.RoadmapAnnouncementRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.roadmap.domain.Roadmap;
@@ -24,7 +23,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -213,7 +211,7 @@ public class RoadmapServiceImpl implements RoadmapService {
 
     @Override
     @Transactional
-    public List<RoadmapDetailRes> addRoadmap(UserPrincipal userPrincipal, String roadmapTitle) {
+    public List<RoadmapDetailRes> addRoadmap(final UserPrincipal userPrincipal, final String roadmapTitle) {
         List<Roadmap> roadmaps = roadmapRepository.findRoadmapsByUserId(userPrincipal.getId());
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(InvalidUserException::new);
