@@ -23,6 +23,6 @@ public interface RoadmapService {
     List<RoadmapDetailRes> swapRoadmap(UserPrincipal userPrincipal, SwapRoadmapReq swapRoadmapReq);
     List<RoadmapDetailRes> leapCurrentRoadmap(UserPrincipal userPrincipal);
     List<RoadmapDetailRes> addRoadmap(UserPrincipal userPrincipal, String roadmapTitle);
-    List<RoadmapAnnouncementRes> findAnnouncementsOfRoadmap(UserPrincipal userPrincipal, Long roadmapId);
+    List<RoadmapAnnouncementRes> findOffCampusAnnouncementsOfRoadmap(UserPrincipal userPrincipal, Long roadmapId);
 
 }

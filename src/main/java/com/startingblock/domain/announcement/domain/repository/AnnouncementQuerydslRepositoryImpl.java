@@ -129,7 +129,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
-    public List<Announcement> findAnnouncementsByRoadmapId(Long userId, Long roadmapId) {
+    public List<Announcement> findOffCampusAnnouncementsByRoadmapId(Long userId, Long roadmapId) {
         return queryFactory
                 .select(announcement)
                 .from(roadmap)
