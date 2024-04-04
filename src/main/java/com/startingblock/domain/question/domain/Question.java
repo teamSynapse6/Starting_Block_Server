@@ -36,11 +36,11 @@ public class Question extends BaseEntity {
     @Column(name = "question_type")
     private QAType questionType;
 
-    // 문의처 답변이 달리면 changeIsAnswerd() 호출, 문의처 질문 다음에 답하기에 활용하기 위함.
+    // 문의처 답변이 달리면 changeIsAnswerd() 호출, 문의처 질문에 활용하기 위함.
     @Column(name = "is_answerd")
     private Boolean isAnswerd;
 
-    // 보냈었는지, 처음 보내는지 체크 / 질문 전송 시에 changeIsNew() 호출
+    // 답변완료 or 다음에 답하기 누르면 false로 변경 / isAnswerd==false && isNew==false 이면 재전송 질문
     @Column(name = "is_new")
     private Boolean isNew;
 
@@ -55,6 +55,7 @@ public class Question extends BaseEntity {
     public void changeIsAnswerd() {
         this.isAnswerd = true;
     }
+
     public void changeIsNew() {
         this.isNew = false;
     }
