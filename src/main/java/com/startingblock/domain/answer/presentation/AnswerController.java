@@ -30,17 +30,17 @@ public class AnswerController {
 
     private final AnswerService answerService;
 
-    @Operation(summary = "답변하기", description = "답변하기")
+    @Operation(summary = "답변하기(사용자)", description = "답변하기(사용자)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "답변 성공"),
             @ApiResponse(responseCode = "400", description = "답변 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @PostMapping(value = "/send")
-    public ResponseEntity<?> send(
+    public ResponseEntity<?> sendGeneralAnswer(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(description = "Schemas의 AnswerRequest를 참고해주세요.", required = true) @Valid @RequestBody final AnswerRequestDto.AnswerRequest dto
     ) {
-        answerService.send(userPrincipal, dto);
+        answerService.sendGeneralAnswer(userPrincipal, dto);
         return ResponseEntity.noContent().build();
     }
 
