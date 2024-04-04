@@ -1,5 +1,6 @@
 package com.startingblock.domain.announcement.domain.repository;
 
+import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import org.springframework.data.domain.Pageable;
@@ -13,5 +14,6 @@ public interface AnnouncementQuerydslRepository {
     Slice<AnnouncementRes> findAnnouncements(Long userId, Pageable pageable, String businessAge, String region, String supportType, String sort, String search);
     AnnouncementDetailRes findAnnouncementDetail(Long userId, Long announcementId);
     List<AnnouncementRes> findThreeRandomAnnouncement(Long userId);
+    List<Announcement> findOffCampusAnnouncementsByRoadmapId(Long userId, Long roadmapId);
 
 }
