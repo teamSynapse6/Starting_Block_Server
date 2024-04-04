@@ -1,5 +1,6 @@
 package com.startingblock.domain.question.application;
 
+import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.answer.domain.repository.AnswerRepository;
@@ -15,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,6 +55,36 @@ public class QuestionFindService {
                 .contactAnswer(answerRepository.findContactAnswer(questionId))
                 .answerCount(answerRepository.countByQuestionIdAndAnswerType(questionId, QAType.GENERAL))
                 .answerList(answerRepository.findAnswerList(questionId, userPrincipal.getId()))
+                .build();
+    }
+
+    // TODO: 웹 - 공고별 질문 리스트 조회
+    public QuestionResponseDto.QuestionListResponseForWeb findByAnnouncementForWeb(final Long announcementId) {
+        Announcement announcement = announcementRepository.findById(announcementId)
+                .orElseThrow(InvalidAnnouncementException::new);
+
+        List<Question> oldQuestionList = questionRepository.findByAnnouncementIdAndQuestionTypeAndIsAnswerdAndIsNew(announcementId, QAType.CONTACT, false, false);
+        List<Question> newQuestionList = questionRepository.findByAnnouncementIdAndQuestionTypeAndIsAnswerdAndIsNew(announcementId, QAType.CONTACT, false, true);
+        List<QuestionResponseDto.QuestionSimpleResponse> oldQuestions = new ArrayList<>();
+        List<QuestionResponseDto.QuestionSimpleResponse> newQuestions = new ArrayList<>();
+
+        for (Question question : oldQuestionList) {
+            oldQuestions.add(QuestionResponseDto.QuestionSimpleResponse.builder()
+                    .questionId(question.getId())
+                    .content(question.getContent())
+                    .build());
+        }
+        for (Question question : newQuestionList) {
+            newQuestions.add(QuestionResponseDto.QuestionSimpleResponse.builder()
+                    .questionId(question.getId())
+                    .content(question.getContent())
+                    .build());
+        }
+        return QuestionResponseDto.QuestionListResponseForWeb.builder()
+                .announcementName(announcement.getTitle())
+                .detailUrl(announcement.getDetailUrl())
+                .oldQuestions(oldQuestions)
+                .newQuestions(newQuestions)
                 .build();
     }
 }

@@ -73,4 +73,16 @@ public class QuestionController {
     ) {
         return ResponseEntity.ok(questionFindService.findDetail(userPrincipal, questionId));
     }
+
+    @Operation(summary = "웹 공고별 질문 조회", description = "웹 공고별 질문 리스트 조회하기")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "웹 공고별 질문 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = QuestionResponseDto.QuestionListResponseForWeb.class)))}),
+            @ApiResponse(responseCode = "400", description = "웹 공고별 질문 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping(value = "/web/{announcement-id}")
+    public ResponseEntity<?> findByAnnouncementForWeb(
+            @Parameter(description = "공고의 ID입니다.", required = true) @Valid @PathVariable(name = "announcement-id") final Long announcementId
+    ) {
+        return ResponseEntity.ok(questionFindService.findByAnnouncementForWeb(announcementId));
+    }
 }
