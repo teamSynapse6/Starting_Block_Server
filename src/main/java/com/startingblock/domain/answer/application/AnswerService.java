@@ -34,30 +34,59 @@ public class AnswerService {
     private final HeartRepository heartRepository;
     private final ReplyRepository replyRepository;
 
-    // TODO: 답변 달기
+    // TODO: 답변 달기 (사용자)
     @Transactional
-    public void send(final UserPrincipal userPrincipal, final AnswerRequestDto.AnswerRequest dto) {
+    public void sendGeneralAnswer(final UserPrincipal userPrincipal, final AnswerRequestDto.AnswerRequest dto) {
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(InvalidUserException::new);
         Question question = questionRepository.findById(dto.getQuestionId())
                 .orElseThrow(InvalidQuestionException::new);
 
-        // 답변의 isContact가 true인 경우, 질문의 타입이 CONTACT 여야함.
-        if (dto.getIsContact()) {
-            DefaultAssert.isTrue(question.getQuestionType() == QAType.CONTACT, "문의처 질문이 아닙니다.");
-        }
-
         Answer answer = Answer.builder()
                 .content(dto.getContent())
                 .user(user)
                 .question(question)
-                .answerType(dto.getIsContact() ? QAType.CONTACT : QAType.GENERAL)
+                .answerType(QAType.GENERAL)
                 .build();
-
-        if (dto.getIsContact()) {
-            question.changeIsAnswerd();
-        }
         answerRepository.save(answer);
+    }
+
+    // TODO: 답변 달기 (담당자)
+    @Transactional
+    public void sendContactAnswer(final AnswerRequestDto.AnswerRequest dto) {
+        createContactAnswer(dto);
+    }
+
+    // TODO: 모든 답변 완료 (담당자)
+    @Transactional
+    public void sendContactAnswerAll(final AnswerRequestDto.AnswerListRequest dto) {
+        for (AnswerRequestDto.AnswerRequest answerRequest : dto.getQuestions()) {
+            createContactAnswer(answerRequest);
+        }
+    }
+
+    @Transactional
+    public void createContactAnswer(final AnswerRequestDto.AnswerRequest dto) {
+        Question question = questionRepository.findById(dto.getQuestionId())
+                .orElseThrow(InvalidQuestionException::new);
+        // 문의처 질문이 아닌 경우 조기 리턴
+        if (question.getQuestionType() != QAType.CONTACT){
+            return;
+        }
+        // 답변 완료 / 다음에 답하기 모두 isNew를 false로 바꿔준다.
+        question.changeIsNew();
+        // 답변 완료
+        if (dto.getContent() != null) {
+            // 담당자의 답변이 달리면 (!= null) question의 isAnswerd를 true로 바꿔준다.
+            question.changeIsAnswerd();
+            Answer answer = Answer.builder()
+                    .content(dto.getContent())
+                    .user(null) // 담당자는 null
+                    .question(question)
+                    .answerType(QAType.CONTACT)
+                    .build();
+            answerRepository.save(answer);
+        }
     }
 
     // TODO: 답변 삭제

@@ -1,0 +1,181 @@
+<!DOCTYPE html
+        PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>이메일</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+
+<body>
+<!-- OUTERMOST CONTAINER TABLE -->
+<table border="0" cellpadding="0" cellspacing="0" width="100%" id="bodyTable">
+    <tr>
+        <td>
+
+            <!-- 600px CONTENTS CONTAINER TABLE -->
+            <table align="center" border="0" cellpadding="0" cellspacing="0"
+                   style="width:100%; background-color:#ffffff;">
+                <tbody>
+                <tr>
+                    <td align="center">
+                        <div style="max-width:600px; margin:0 auto">
+
+                            <!-- 스타팅블록 제목 -->
+                            <table align="left" border="0" cellspacing="0" cellpadding="0" width="100%"
+                                   style="margin-top: 30px; margin-bottom: 17px; box-sizing: border-box; border-spacing: 0; border-collapse: collapse; font-family: Pretendard;">
+                                <tbody>
+                                <tr style="box-sizing: border-box; font-family: Pretendard;">
+                                    <td align="center"
+                                        style="box-sizing: border-box; text-align: center; font-family: Pretendard; padding: 0px;">
+                                        <img src="https://postfiles.pstatic.net/MjAyNDAyMTFfMjIy/MDAxNzA3NjYyMDQ5NjEz.UdcN8300k-DecS8Bu0qaiaz3eQngD9oBZ4f7ymUIzOMg.8VaLb0YSoyb-4bNs2XLa6e6wF79WbVVazSEQ4beiGDsg.PNG.syb_mju/logo_startingblock.png?type=w966"
+                                             width="142" height="25" alt="스타팅블록"
+                                             style="box-sizing: border-box; display: block; font-family: Pretendard; border-style: none;">
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+
+                            <!-- light blue 컨테이너 -->
+                            <table align="center" border="0" cellpadding="0" cellspacing="0"
+                                   style="max-width:600px;width:100%;font-family:Pretendard; padding: 16px; background-color: #F6F7FB; margin-bottom: 30px; -webkit-text-size-adjust:100%;text-align:left">
+                                <tbody>
+                                <tr>
+                                    <td height="64px" style="font-size: 0; line-height: 0;">&nbsp;</td>
+                                </tr>
+
+                                <tr>
+                                    <td align="center" style="color: #3D4144;
+                                            font-size: 24px;
+                                            font-family: Pretendard;
+                                            font-weight: 600;
+                                            line-height: 32px;">
+                                        <div>
+                                            <span th:text="${announcement}"></span>
+                                            담당자님,<br> 공고에 대한 문의가 있습니다.
+                                        </div>
+                                    </td>
+
+                                </tr>
+
+                                <tr>
+                                    <td height="16px" style="font-size: 0; line-height: 0;">&nbsp;</td>
+                                </tr>
+
+                                <tr>
+                                    <td align="center" style="color: #3D4144;
+                                        font-size: 16px;
+                                        font-family: Pretendard;
+                                        font-weight: 400;
+                                        line-height: 22px;">
+                                        질문자들이 기다리고 있습니다.<br>
+                                        빠른 답장은 이들에게 큰 힘이 됩니다:)</td>
+                                </tr>
+
+                                <tr>
+                                    <td height="48px" style="font-size: 0; line-height: 0;">&nbsp;</td>
+                                </tr>
+
+                                <tr>
+                                    <td
+                                            style="background-color: #ffffff; padding-top:20px; padding-bottom:43px; padding-left:16px; padding-right:16px;">
+                                        <table align="center" border="0" cellpadding="0" cellspacing="0"
+                                               width="100%" style="font-family:Pretendard;">
+                                            <tbody>
+                                            <tr>
+                                                <td style="color: #3D4144;
+                                                            font-size: 14px;
+                                                            font-family: Pretendard;
+                                                            font-weight: 400;
+                                                            line-height: 20px;">
+                                                    담당자님께 중복된 유사 질문을 제외한 해당 공고 질문 리스트를 발송하였습니다.<br>
+                                                    이는 중복된 많은 유사 질문들로 인한 담당자님의 피로도를 낮추고자 합니다.</td>
+                                            </tr>
+                                            <tr>
+                                                <td height="22px" style="font-size: 0; line-height: 0;">
+                                                    &nbsp;</td>
+                                            </tr>
+
+                                            <tr>
+                                                <td align="center">
+                                                    <a th:href="@{${link}}" target="_blank"
+                                                       style="width: 208px; height: 48px; background-color: #5E8BFF; box-sizing: border-box; color: #ffffff; text-decoration: none; position: relative; display: inline-block; font-size: 14px; font-weight: 500; line-height: 20px; font-family: Pretendard; padding-top: 14px; padding-bottom: 14px; padding-left: 66px; padding-right: 65px;">
+                                                        답변하러 가기</a>
+                                                </td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td height="40px" style="font-size: 0; line-height: 0;">&nbsp;</td>
+                                </tr>
+
+                                <tr>
+                                    <td style="text-align: left; padding-left:16px; padding-right:16px;color: #3D4144;
+                                                font-size: 14px;
+                                                font-weight: 400;
+                                                line-height: 20px; box-sizing: border-box; font-family: Pretendard;">
+                                        저희 스타팅블록은 대학생 창업자들을 위한 창업 헬퍼 서비스입니다.<br>
+                                        맞춤 정부 지원사업을 추천하고, 정부 지원사업에 대한 궁금증을 해결해 주고자 합니다.<br>
+                                        문의처 담당자님의 노고에 감사하며, 창업자분들의 어려움 해결에 더 노력하겠습니다.
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td height="24px" style="font-size: 0; line-height: 0;">&nbsp;</td>
+                                </tr>
+
+                                <tr>
+                                    <td style="text-align: left; padding-left:16px; padding-right:16px; color: #707479;
+                                        font-size: 14px;
+                                        font-weight: 400;
+                                        line-height: 20px; box-sizing: border-box; font-family: Pretendard">
+                                        감사합니다.<br>
+                                        스타팅블록 팀 드림
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td height="16px" style="font-size: 0; line-height: 0;">&nbsp;</td>
+                                </tr>
+
+                                <!-- sns -->
+                                <tr>
+                                    <td style="width:32px;font-family:Pretendard; padding-left:16px;">
+                                        <a href="https://www.facebook.com/withstartingblock?mibextid=LQQJ4d"
+                                           style="margin-right: 12px; box-sizing: border-box; display: inline-block; overflow: hidden; line-height: 1; vertical-align: middle; border-radius: 2px; font-family: Pretendard !important; border-style: none;"
+                                           target="_blank" rel="noreferrer noopener"><img
+                                                style="border: 0;display: block;"
+                                                src="https://postfiles.pstatic.net/MjAyNDAyMTFfMTUx/MDAxNzA3NjYyMDQ5NjE0.bsFhK-h77gop9IZumOGQ9033qzQVF-xDWSPsJG7VfFog.nZWaEtbna8JXzdfLLqLpca9_sj9wJf273ouMzjryE8sg.PNG.syb_mju/logo_facebook.png?type=w966"
+                                                alt="Facebook" width="32px" height="32px"
+                                                loading="lazy"></a>
+
+                                        <a style="box-sizing: border-box; display: inline-block; overflow: hidden; line-height: 1; vertical-align: middle; border-radius: 2px; font-family: Pretendard !important; border-style: none;"
+                                           href="https://www.instagram.com/startingblock_?igsh=YjUxZHh6OTNnZDVp&utm_source=qr"
+                                           rel="noreferrer noopener" target="_blank"><img
+                                                style="border: 0;display: block;"
+                                                src="https://postfiles.pstatic.net/MjAyNDAyMTFfMjUy/MDAxNzA3NjYyMDQ5NjE0.zTGQklN27iU5uvgtqV6g0xcrTij37xZLeZhyRvDPVWkg.wjgBy2nBst8oEKsnsZzSyVSGk_ovAe6jZOR3hnZyuu8g.PNG.syb_mju/logo_instagram.png?type=w966"
+                                                alt="Instagram" width="32px" height="32px"
+                                                loading="lazy"></a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td height="48px" style="font-size: 0; line-height: 0;">&nbsp;</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+
+        </td>
+    </tr>
+</table>
+</body>
+
+</html>

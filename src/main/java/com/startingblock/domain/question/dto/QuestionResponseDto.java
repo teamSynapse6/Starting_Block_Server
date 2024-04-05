@@ -75,4 +75,30 @@ public class QuestionResponseDto {
 
         private List<AnswerResponseDto.AnswerListResponse> answerList;
     }
+
+    @Getter
+    @Builder
+    public static class QuestionListResponseForWeb {
+
+        @Schema(type = "String", example = "예비 창업 패키지", description = "공고의 이름입니다.")
+        private String announcementName;
+
+        @Schema(type = "String", example = "www.naver.com", description = "공고의 상세 주소입니다.")
+        private String detailUrl;
+
+        private List<QuestionSimpleResponse> oldQuestions;
+
+        private List<QuestionSimpleResponse> newQuestions;
+    }
+
+    @Getter
+    @Builder
+    public static class QuestionSimpleResponse {
+
+        @Schema(type = "Long", example = "1", description = "질문의 ID입니다.")
+        private Long questionId;
+
+        @Schema(type = "String", example = "개별 멘토링 진행시..", description = "질문의 내용입니다.")
+        private String content;
+    }
 }
