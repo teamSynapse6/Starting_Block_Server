@@ -42,7 +42,7 @@ public class AnswerQuerydslRepositoryImpl implements AnswerQuerydslRepository {
                 .where(question.id.eq(questionId)
                         .and(question.questionType.eq(QAType.CONTACT))
                         .and(answer.answerType.eq(QAType.CONTACT)))
-                .fetchOne();
+                .fetchFirst();
     }
 
     @Override
@@ -57,6 +57,10 @@ public class AnswerQuerydslRepositoryImpl implements AnswerQuerydslRepository {
         List<AnswerResponseDto.AnswerListResponse> answers = queryFactory
                 .select(Projections.constructor(AnswerResponseDto.AnswerListResponse.class,
                         answer.id,
+                        JPAExpressions.selectOne()
+                                .from(answer)
+                                .where(answer.user.id.eq(userId))
+                                .exists(),
                         user.name,
                         answer.content,
                         answer.createdAt,

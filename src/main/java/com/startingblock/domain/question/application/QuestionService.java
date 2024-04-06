@@ -56,7 +56,7 @@ public class QuestionService {
     }
 
 //    @Scheduled(cron = "0 * * * * *") // 매분 0초마다 실행 (테스트)
-    @Scheduled(cron = "0 0 9 * * *") // 매일 오전 9시에 실행
+//    @Scheduled(cron = "0 0 9 * * *") // 매일 오전 9시에 실행
     public void sendContactEmail() throws MessagingException, UnsupportedEncodingException {
 
         LocalDate today = LocalDate.now();
@@ -83,7 +83,7 @@ public class QuestionService {
             MailRequestDto mail = MailRequestDto.builder()
                     .email(announcement.getContact())
                     .announcement(announcement.getTitle())
-                    .link(announcement.getDetailUrl()) // 추후 스타팅블록 웹사이트 링크로 변경 필요
+                    .link("https://www.startingblock.co.kr/questions/" + announcement.getId())
                     .build();
             mailService.sendEmailToReceiver(mail);
         }
