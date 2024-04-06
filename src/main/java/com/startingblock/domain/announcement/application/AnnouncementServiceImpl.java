@@ -13,12 +13,12 @@ import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.infrastructure.feign.BizInfoClient;
 import com.startingblock.global.infrastructure.feign.OpenDataClient;
 import com.startingblock.global.infrastructure.feign.dto.BizInfoAnnouncementRes;
-import com.startingblock.global.infrastructure.feign.dto.KStartUpAnnouncementRes;
 import com.startingblock.global.infrastructure.feign.dto.NewKStartUpAnnouncementRes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,63 +43,81 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
     @Override
     @Transactional
+    @Async
     public void refreshAnnouncementsV1(final UserPrincipal userPrincipal) {
-        if(userPrincipal.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals(Role.ADMIN.getValue())))
+        if (userPrincipal.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals(Role.ADMIN.getValue())))
             throw new PermissionDeniedException();
 
         String OPEN_DATA_SERVICE_KEY = feignConfig.getServiceKey().getOpenData();
         String BIZ_INFO_SERVICE_KEY = feignConfig.getServiceKey().getBizInfo();
 
-        String nowDate = LocalDate.now().toString().replace("-", "");
-        KStartUpAnnouncementRes openDataResponse = openDataClient.getAnnouncementList( // Open Data API 호출
-                OPEN_DATA_SERVICE_KEY,
-                "1",
-                "1000",
-                "20230101",
-                nowDate,
-                "Y",
-                "json"
-        );
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+        LocalDate now = LocalDate.now();
+
+        List<String> postIds = announcementRepository.findAnnouncementPostIds(); // Post ID 중복 체크용
+        List<String> openDataPostIds = new ArrayList<>();
+
+        final int perPage = 2000; // 페이지 당 공고 수 설정
+
+        List<Announcement> openDataAnnouncements = new ArrayList<>();
+        for (int page = 1; page <= 2; page++) {
+            NewKStartUpAnnouncementRes response = openDataClient.getNewAnnouncementList(
+                    OPEN_DATA_SERVICE_KEY,
+                    String.valueOf(page),
+                    String.valueOf(perPage),
+                    "json"
+            );
+
+            List<Announcement> announcements = response.getData().stream()
+                    .map(item -> {
+                        if (item.getPbancRcptBgngDt() == null || item.getPbancRcptEndDt() == null) {
+                            return null;
+                        }
+
+                        LocalDate startDate = LocalDate.parse(item.getPbancRcptBgngDt(), dateFormatter);
+                        LocalDate endDate = LocalDate.parse(item.getPbancRcptEndDt(), dateFormatter);
+                        if (endDate.isBefore(now)) {
+                            return null;
+                        }
+
+                        String postSn = item.getDetlPgUrl().split("pbancSn=")[1];
+                        if (postIds.contains(postSn) || openDataPostIds.contains(postSn)) {
+                            return null;
+                        }
+
+                        openDataPostIds.add(postSn);
+
+                        return Announcement.builder()
+                                .postSN(postSn)
+                                .bizTitle(item.getBizPbancNm())
+                                .supportType(item.getSuptBizClsfc())
+                                .title(item.getBizPbancNm())
+                                .content(item.getPbancCtnt())
+                                .areaName(item.getSuptRegin())
+                                .organizationName(item.getPbancNtrpNm())
+                                .postTarget(item.getAplyTrgt())
+                                .postTargetAge(item.getBizTrgtAge())
+                                .postTargetComAge(item.getBizEnyy())
+                                .startDate(startDate.atStartOfDay())
+                                .endDate(endDate.atStartOfDay())
+                                .detailUrl(item.getDetlPgUrl())
+                                .prchCnAdrNo(item.getPrchCnplNo())
+                                .sprvInstClssCdNm(item.getSprvInst())
+                                .bizPrchDprtNm(item.getBizPrchDprtNm())
+                                .announcementType(AnnouncementType.OPEN_DATA)
+                                .build();
+                    })
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+            openDataAnnouncements.addAll(announcements);
+        }
 
         BizInfoAnnouncementRes bizInfoResponse = bizInfoClient.getAnnouncementList( // Biz Info API 호출
                 BIZ_INFO_SERVICE_KEY,
                 "json"
         );
-
-        List<String> postIds = announcementRepository.findAnnouncementPostIds(); // Post ID 중복 체크용
-
-        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
-
-        List<Announcement> openDataAnnouncements = openDataResponse.getResponse().getBody().getItems().stream()
-                .map(itemWrapper -> {
-                    if (postIds.contains(itemWrapper.getItem().getPostsn())) {
-                        return null;
-                    }
-
-                    return Announcement.builder()
-                            .postSN(itemWrapper.getItem().getPostsn())
-                            .bizTitle(itemWrapper.getItem().getBiztitle())
-                            .supportType(itemWrapper.getItem().getSupporttype())
-                            .title(itemWrapper.getItem().getTitle())
-                            .areaName(itemWrapper.getItem().getAreaname())
-                            .organizationName(itemWrapper.getItem().getOrganizationname())
-                            .postTarget(itemWrapper.getItem().getPosttarget())
-                            .postTargetAge(itemWrapper.getItem().getPosttargetage())
-                            .postTargetComAge(itemWrapper.getItem().getPosttargetcomage())
-                            .startDate(LocalDateTime.parse(itemWrapper.getItem().getStartdate(), dateTimeFormatter))
-                            .endDate(LocalDateTime.parse(itemWrapper.getItem().getEnddate(), dateTimeFormatter))
-                            .insertDate(LocalDateTime.parse(itemWrapper.getItem().getInsertdate(), dateTimeFormatter))
-                            .detailUrl(itemWrapper.getItem().getDetailurl())
-                            .prchCnAdrNo(itemWrapper.getItem().getPrchCnadrNo())
-                            .sprvInstClssCdNm(itemWrapper.getItem().getSprvInstClssCdNm())
-                            .bizPrchDprtNm(itemWrapper.getItem().getBizPrchDprtNm())
-                            .blngGvDpCdNm(itemWrapper.getItem().getBlngGvdpCdNm())
-                            .announcementType(AnnouncementType.OPEN_DATA)
-                            .build();
-                })
-                .filter(Objects::nonNull)
-                .toList();
 
         List<Announcement> bizInfoAnnouncements = bizInfoResponse.getJsonArray().stream()
                 .map(item -> {
@@ -146,72 +164,11 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                             .build();
                 })
                 .filter(Objects::nonNull)
+                .distinct()
                 .toList();
 
         announcementRepository.saveAll(openDataAnnouncements);
         announcementRepository.saveAll(bizInfoAnnouncements);
-    }
-
-    @Override
-    public void refreshAnnouncementsV2(final UserPrincipal userPrincipal) {
-        final int perPage = 2000; // 페이지 당 공고 수 설정
-        int totalPages; // 전체 페이지 수
-        List<Announcement> allAnnouncements = new ArrayList<>();
-
-        NewKStartUpAnnouncementRes firstPageResponse = openDataClient.getNewAnnouncementList(
-                feignConfig.getServiceKey().getOpenData(),
-                "1",
-                String.valueOf(1),
-                "json"
-        );
-
-        int totalAnnouncements = firstPageResponse.getTotalCount();
-        totalPages = (int) Math.ceil((double) totalAnnouncements / perPage);
-
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
-        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        LocalDate now = LocalDate.now();
-
-        for (int page = 1; page <= totalPages; page++) {
-            NewKStartUpAnnouncementRes response = openDataClient.getNewAnnouncementList(
-                    feignConfig.getServiceKey().getOpenData(),
-                    String.valueOf(page),
-                    String.valueOf(perPage),
-                    "json"
-            );
-
-            List<Announcement> announcements = response.getData().stream()
-                    .map(item -> {
-                        LocalDate endDate = LocalDate.parse(item.getPbancRcptEndDt(), dateFormatter);
-                        if (endDate.isBefore(now)) {
-                            return null;
-                        }
-
-                        return Announcement.builder()
-                                .postSN(item.getId())
-                                .bizTitle(item.getBizPbancNm())
-                                .supportType(item.getSuptBizClsfc())
-                                .title(item.getBizPbancNm())
-                                .content(item.getPbancCtnt())
-                                .areaName(item.getSuptRegin())
-                                .organizationName(item.getPbancNtrpNm())
-                                .postTarget(item.getAplyTrgt())
-                                .postTargetAge(item.getBizTrgtAge())
-                                .postTargetComAge(item.getBizEnyy())
-                                .startDate(LocalDateTime.parse(item.getPbancRcptBgngDt(), dateTimeFormatter))
-                                .endDate(LocalDateTime.parse(item.getPbancRcptEndDt(), dateTimeFormatter))
-                                .detailUrl(item.getDetlPgUrl())
-                                .prchCnAdrNo(item.getPrchCnplNo())
-                                .sprvInstClssCdNm(item.getSprvInst())
-                                .bizPrchDprtNm(item.getBizPrchDprtNm())
-                                .announcementType(AnnouncementType.OPEN_DATA)
-                                .build();
-                    })
-                    .toList();
-            allAnnouncements.addAll(announcements);
-        }
-
-        log.info("전체 공고 수: {}", allAnnouncements.size());
     }
 
     @Override
@@ -224,7 +181,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     public AnnouncementDetailRes findAnnouncementDetailById(UserPrincipal userPrincipal, Long announcementId) {
         AnnouncementDetailRes announcementDetail = announcementRepository.findAnnouncementDetail(userPrincipal.getId(), announcementId);
 
-        if(announcementDetail == null)
+        if (announcementDetail == null)
             throw new InvalidAnnouncementException();
 
         return announcementDetail;

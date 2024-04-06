@@ -13,7 +13,6 @@ import java.util.List;
 public interface AnnouncementService {
 
     void refreshAnnouncementsV1(UserPrincipal userPrincipal);
-    void refreshAnnouncementsV2(UserPrincipal userPrincipal);
     Slice<AnnouncementRes> findAnnouncements(UserPrincipal userPrincipal, Pageable pageable, String businessAge, String region, String supportType, String sort, String search);
     AnnouncementDetailRes findAnnouncementDetailById(UserPrincipal userPrincipal, Long announcementId);
     List<AnnouncementRes> findThreeRandomAnnouncement(UserPrincipal userPrincipal);

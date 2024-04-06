@@ -1,4 +1,4 @@
-package com.startingblock.domain.announcement.presentation.v1;
+package com.startingblock.domain.announcement.presentation;
 
 
 import com.startingblock.domain.announcement.application.AnnouncementService;
@@ -28,7 +28,7 @@ import java.util.List;
 @RequestMapping("/api/v1/announcements")
 @RestController
 @RequiredArgsConstructor
-public class AnnouncementControllerV1 {
+public class AnnouncementController {
 
     private final AnnouncementService announcementService;
 
