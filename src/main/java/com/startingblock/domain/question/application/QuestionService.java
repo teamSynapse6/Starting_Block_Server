@@ -56,7 +56,7 @@ public class QuestionService {
     }
 
 //    @Scheduled(cron = "0 * * * * *") // 매분 0초마다 실행 (테스트)
-    @Scheduled(cron = "0 0 9 * * *") // 매일 오전 9시에 실행
+//    @Scheduled(cron = "0 0 9 * * *") // 매일 오전 9시에 실행
     public void sendContactEmail() throws MessagingException, UnsupportedEncodingException {
 
         LocalDate today = LocalDate.now();
