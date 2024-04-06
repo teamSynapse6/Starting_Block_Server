@@ -32,6 +32,9 @@ public class Announcement extends BaseEntity {
     @Column(name = "content")
     private String content; // 내용
 
+    @Column(name = "file_url")
+    private String fileUrl; // 첨부파일
+
     @Column(name = "area_name")
     private String areaName; // 지역
 
@@ -85,6 +88,9 @@ public class Announcement extends BaseEntity {
     @Column(name = "roadmap_count")
     private Integer roadmapCount;
 
+    @Column(name = "is_file_used")
+    private Boolean isFileUsed;
+
     public void addRoadmapCount() {
         this.roadmapCount++;
     }
@@ -94,9 +100,10 @@ public class Announcement extends BaseEntity {
     }
 
     @Builder
-    public Announcement(String postSN, String bizTitle, String supportType, String title, String content, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String nonDate, String detailUrl, String prchCnAdrNo, String contact, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm, AnnouncementType announcementType) {
+    public Announcement(String postSN, String fileUrl, String bizTitle, String supportType, String title, String content, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String nonDate, String detailUrl, String prchCnAdrNo, String contact, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm, AnnouncementType announcementType) {
         this.postSN = postSN;
         this.bizTitle = bizTitle;
+        this.fileUrl = fileUrl;
         this.supportType = supportType;
         this.title = title;
         this.content = content;
@@ -116,6 +123,7 @@ public class Announcement extends BaseEntity {
         this.bizPrchDprtNm = bizPrchDprtNm;
         this.blngGvDpCdNm = blngGvDpCdNm;
         this.announcementType = announcementType;
+        this.isFileUsed = false;
         this.roadmapCount = 0;
     }
 
