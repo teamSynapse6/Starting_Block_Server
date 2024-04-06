@@ -146,6 +146,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                     return Announcement.builder()
                             .postSN(item.getPblancId())
                             .bizTitle(item.getPblancNm())
+                            .fileUrl(item.getPrintFlpthNm())
                             .supportType(item.getPldirSportRealmMlsfcCodeNm())
                             .title(item.getPblancNm())
                             .areaName(item.getJrsdInsttNm())
