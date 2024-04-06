@@ -13,6 +13,9 @@ public class ReplyResponseDto {
         @Schema(type = "Long", example = "1", description = "답글의 ID입니다.")
         private Long replyId;
 
+        @Schema(type = "Boolean", example = "true", description = "나의 답글인지 여부입니다.")
+        private Boolean isMyReply;
+
         @Schema(type = "String", example = "예비 창업자", description = "답글을 남긴 유저의 이름입니다.")
         private String userName;
 
@@ -31,8 +34,9 @@ public class ReplyResponseDto {
         @Schema(type = "Long", example = "1", description = "내 답글 하트의 ID입니다.", nullable = true)
         private Long heartId;
 
-        public ReplyResponse(final Long replyId, final String userName, final String content, final LocalDateTime createdAt, final Long heartCount, final Boolean isMyHeart, final Long heartId) {
+        public ReplyResponse(final Long replyId, final Boolean isMyReply, final String userName, final String content, final LocalDateTime createdAt, final Long heartCount, final Boolean isMyHeart, final Long heartId) {
             this.replyId = replyId;
+            this.isMyReply = isMyReply;
             this.userName = userName;
             this.content = content;
             this.createdAt = createdAt;

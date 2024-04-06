@@ -25,6 +25,10 @@ public class ReplyQuerydslRepositoryImpl implements ReplyQuerydslRepository {
         return queryFactory
                 .select(Projections.constructor(ReplyResponseDto.ReplyResponse.class,
                         reply.id,
+                        JPAExpressions.selectOne()
+                                .from(reply)
+                                .where(reply.user.id.eq(userId))
+                                .exists(),
                         user.name,
                         reply.content,
                         reply.createdAt,
