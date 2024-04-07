@@ -39,7 +39,7 @@ public class NewKStartUpAnnouncementRes {
         private String bizEnyy;
         @JsonProperty("biz_gdnc_url")
         private String bizGdncUrl;
-        @JsonProperty("biz_planc_nm")
+        @JsonProperty("biz_pbanc_nm")
         private String bizPbancNm;
         @JsonProperty("biz_prch_dprt_nm")
         private String bizPrchDprtNm;

@@ -13,18 +13,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 public interface OpenDataClient {
 
     @GetMapping("/B552735/k-startup/kisedGWAPI/getAnnouncementList")
-    KStartUpAnnouncementRes getAnnouncementList(@RequestParam("serviceKey") String serviceKey,
-                                                @RequestParam("pageNo") String page,
-                                                @RequestParam("numOfRows") String numOfRows,
-                                                @RequestParam("startDate") String startDate,
-                                                @RequestParam("endDate") String endDate,
-                                                @RequestParam("openYn") String openYn,
-                                                @RequestParam("dataType") String dataType);
+    KStartUpAnnouncementRes getAnnouncementList(final @RequestParam("serviceKey") String serviceKey,
+                                                final @RequestParam("pageNo") String page,
+                                                final @RequestParam("numOfRows") String numOfRows,
+                                                final @RequestParam("startDate") String startDate,
+                                                final @RequestParam("endDate") String endDate,
+                                                final @RequestParam("openYn") String openYn,
+                                                final @RequestParam("dataType") String dataType);
 
     @GetMapping("/B552735/kisedKstartupService/getAnnouncementInformation")
-    NewKStartUpAnnouncementRes getNewAnnouncementList(@RequestParam("serviceKey") String serviceKey,
-                                                     @RequestParam("page") String page,
-                                                     @RequestParam("perPage") String perPage,
-                                                     @RequestParam("returnType") String returnType);
+    NewKStartUpAnnouncementRes getNewAnnouncementList(final @RequestParam("serviceKey") String serviceKey,
+                                                     final @RequestParam("page") String page,
+                                                     final @RequestParam("perPage") String perPage,
+                                                     final @RequestParam("returnType") String returnType);
 
 }

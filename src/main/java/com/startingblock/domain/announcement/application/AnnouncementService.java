@@ -16,5 +16,6 @@ public interface AnnouncementService {
     Slice<AnnouncementRes> findAnnouncements(UserPrincipal userPrincipal, Pageable pageable, String businessAge, String region, String supportType, String sort, String search);
     AnnouncementDetailRes findAnnouncementDetailById(UserPrincipal userPrincipal, Long announcementId);
     List<AnnouncementRes> findThreeRandomAnnouncement(UserPrincipal userPrincipal);
+    void uploadAnnouncementsFile(UserPrincipal userPrincipal);
 
 }
