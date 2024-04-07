@@ -43,6 +43,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private final OpenDataClient openDataClient;
     private final BizInfoClient bizInfoClient;
     private final AnnouncementPdfUploader announcementPdfUploader;
+    private final AnnouncementWriter announcementWriter;
 
     @Override
     @Transactional
@@ -181,6 +182,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             throw new PermissionDeniedException();
 
         announcementPdfUploader.uploadPdf();
+        announcementWriter.uploadPdfResultWrite();
     }
 
     @Override

@@ -46,12 +46,7 @@ public class AnnouncementPdfUploader {
                     .build());
         });
 
-        PdfUploadRes res = pdfClient.uploadPdf(req);
-        res.getSuccess_items().forEach(id -> {
-            Announcement announcement = announcementRepository.findById(id).orElseThrow();
-            announcement.updateIsFileUploaded(true);
-            announcementRepository.save(announcement);
-        });
+        pdfClient.uploadPdf(req);
     }
 
 }
