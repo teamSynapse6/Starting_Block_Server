@@ -88,8 +88,8 @@ public class Announcement extends BaseEntity {
     @Column(name = "roadmap_count")
     private Integer roadmapCount;
 
-    @Column(name = "is_file_used")
-    private Boolean isFileUsed;
+    @Column(name = "is_file_uploaded")
+    private Boolean isFileUploaded;
 
     public void addRoadmapCount() {
         this.roadmapCount++;
@@ -97,6 +97,10 @@ public class Announcement extends BaseEntity {
 
     public void subtractRoadmapCount() {
         this.roadmapCount--;
+    }
+
+    public void updateIsFileUploaded(final boolean isFileUploaded) {
+        this.isFileUploaded = isFileUploaded;
     }
 
     @Builder
@@ -123,7 +127,7 @@ public class Announcement extends BaseEntity {
         this.bizPrchDprtNm = bizPrchDprtNm;
         this.blngGvDpCdNm = blngGvDpCdNm;
         this.announcementType = announcementType;
-        this.isFileUsed = false;
+        this.isFileUploaded = false;
         this.roadmapCount = 0;
     }
 

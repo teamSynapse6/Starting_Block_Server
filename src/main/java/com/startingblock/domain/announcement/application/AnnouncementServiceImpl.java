@@ -18,9 +18,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,13 +36,14 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional(readOnly = true)
 public class AnnouncementServiceImpl implements AnnouncementService {
 
     private final FeignConfig feignConfig;
     private final AnnouncementRepository announcementRepository;
     private final OpenDataClient openDataClient;
     private final BizInfoClient bizInfoClient;
+    private final AnnouncementPdfUploader announcementPdfUploader;
+    private final AnnouncementWriter announcementWriter;
 
     @Override
     @Transactional
@@ -170,6 +174,15 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
         announcementRepository.saveAll(openDataAnnouncements);
         announcementRepository.saveAll(bizInfoAnnouncements);
+    }
+
+    @Override
+    public void uploadAnnouncementsFile(final UserPrincipal userPrincipal) {
+        if (userPrincipal.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals(Role.ADMIN.getValue())))
+            throw new PermissionDeniedException();
+
+        announcementPdfUploader.uploadPdf();
+        announcementWriter.uploadPdfResultWrite();
     }
 
     @Override

@@ -88,4 +88,17 @@ public class AnnouncementController {
         return ResponseEntity.ok(announcementService.findThreeRandomAnnouncement(userPrincipal));
     }
 
+    @Operation(summary = "공고 파일 업로드", description = "공고 파일 업로드")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "공고 파일 업로드 성공"),
+            @ApiResponse(responseCode = "400", description = "공고 파일 업로드 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @PostMapping("/upload")
+    public ResponseEntity<Void> uploadAnnouncementsFile(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        announcementService.uploadAnnouncementsFile(userPrincipal);
+        return ResponseEntity.noContent().build();
+    }
+
 }
