@@ -98,7 +98,7 @@ public class AnswerService {
                 .orElseThrow(InvalidAnswerException::new);
         DefaultAssert.isTrue(answer.getUser().equals(user), "나의 답변만 삭제할 수 있습니다.");
         // 답글 삭제
-        List<Reply> replys = replyRepository.findAllByAnswer(answer);
+        List<Reply> replys = replyRepository.findAllByAnswerId(answer.getId());
         replyRepository.deleteAll(replys);
         // 하트 삭제
         List<Heart> hearts = heartRepository.findAllByAnswer(answer);
