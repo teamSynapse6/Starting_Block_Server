@@ -1,6 +1,5 @@
 package com.startingblock.domain.question.domain.repository;
 
-import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -10,7 +9,6 @@ import com.startingblock.domain.question.domain.QQuestion;
 import com.startingblock.domain.heart.domain.QHeart;
 import com.startingblock.domain.answer.domain.QAnswer;
 import com.startingblock.domain.question.dto.QuestionResponseDto;
-import com.startingblock.domain.reply.domain.QReply;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -59,25 +57,5 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
                 .groupBy(question.id)
                 .orderBy(heart.count().desc(), answer.count().desc(), question.createdAt.desc())
                 .fetch();
-    }
-
-    @Override
-    public Long findAnswerAndReplyCountByQuestionId(Long questionId) {
-        QQuestion question = QQuestion.question;
-        QAnswer answer = QAnswer.answer;
-        QReply reply = QReply.reply;
-
-        Tuple counts = queryFactory
-                .select(answer.id.countDistinct(), reply.id.countDistinct())
-                .from(question)
-                .leftJoin(answer).on(answer.question.id.eq(question.id))
-                .leftJoin(reply).on(reply.answer.id.eq(answer.id))
-                .where(question.id.eq(questionId))
-                .groupBy(question.id)
-                .fetchOne();
-        if (counts == null) {
-            return 0L;
-        }
-        return counts.get(answer.id.countDistinct()) + counts.get(reply.id.countDistinct());
     }
 }

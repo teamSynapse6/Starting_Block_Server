@@ -101,4 +101,36 @@ public class QuestionResponseDto {
         @Schema(type = "String", example = "개별 멘토링 진행시..", description = "질문의 내용입니다.")
         private String content;
     }
+
+    @Getter
+    @Builder
+    public static class MyQuestionListResponse {
+
+        @Schema(type = "String", example = "교외", description = "공고 구분입니다.")
+        private String announcementType;
+
+        @Schema(type = "String", example = "청년 취창업 멘토링", description = "공고 이름입니다.")
+        private String announcementName;
+
+        @Schema(type = "Long", example = "1", description = "질문 ID입니다.")
+        private Long questionId;
+
+        @Schema(type = "String", example = "개별 멘토링 진행 시..", description = "질문 내용입니다.")
+        private String questionContent;
+
+        @Schema(type = "LocalDateTime", example = "2024-03-29 18:26:35.337633", description = "질문 생성일자입니다.")
+        private LocalDateTime createdAt;
+
+        @Schema(type = "Integer", example = "16", description = "질문 도움(좋아요) 누적 수 입니다.")
+        private Integer heartCount;
+
+        @Schema(type = "Integer", example = "16", description = "댓글 + 대댓글 합산 수 입니다.")
+        private Integer answerCount;
+
+        @Schema(type = "String", example = "송파구청 일자리정책담당관", description = "담당자 정보입니다.")
+        private String organizationManger;
+
+        @Schema(type = "String", example = "답변 드리겠습니다.", description = "문의처 담당자의 답변 내용입니다.")
+        private String contactAnswerContent;
+    }
 }

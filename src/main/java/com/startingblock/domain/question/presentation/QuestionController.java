@@ -73,4 +73,16 @@ public class QuestionController {
     ) {
         return ResponseEntity.ok(questionFindService.findDetail(userPrincipal, questionId));
     }
+
+    @Operation(summary = "내 질문 조회", description = "내 질문 조회 API 입니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "내 질문 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = QuestionResponseDto.MyQuestionListResponse.class)))}),
+            @ApiResponse(responseCode = "400", description = "내 질문 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping(value = "/my")
+    public ResponseEntity<?> findMyQuestion(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(questionFindService.findMyQuestion(userPrincipal));
+    }
 }

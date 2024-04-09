@@ -8,5 +8,4 @@ public interface QuestionQuerydslRepository {
 
     List<QuestionResponseDto.QuestionListResponse> findQuestionListByAnnouncementId(Long userId, Long announcementId);
 
-    Long findAnswerAndReplyCountByQuestionId(Long questionId);
 }
