@@ -11,4 +11,6 @@ public interface QuestionRepository extends JpaRepository<Question, Long>, Quest
     List<Question> findByQuestionTypeAndIsAnswerd(QAType type, Boolean isAnswered);
 
     List<Question> findByAnnouncementIdAndQuestionTypeAndIsAnswerdAndIsNew(Long announcementId, QAType type, Boolean isAnswerd, Boolean isNew);
+
+    List<Question> findByUserId(Long userId);
 }

@@ -2,6 +2,7 @@ package com.startingblock.domain.heart.domain.repository;
 
 import com.startingblock.domain.answer.domain.Answer;
 import com.startingblock.domain.heart.domain.Heart;
+import com.startingblock.domain.heart.domain.HeartType;
 import com.startingblock.domain.reply.domain.Reply;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -15,7 +16,13 @@ public interface HeartRepository extends JpaRepository<Heart, Long> {
 
     Integer countByQuestionId(Long questionId);
 
+    Integer countByAnswerId(Long answerId);
+
+    Integer countByReplyId(Long replyId);
+
     Boolean existsByQuestionIdAndUserId(Long questionId, Long userId);
 
     Optional<Heart> findByUserIdAndQuestionId(Long userId, Long questionId);
+
+    List<Heart> findAllByUserIdAndHeartType(Long userId, HeartType heartType);
 }
