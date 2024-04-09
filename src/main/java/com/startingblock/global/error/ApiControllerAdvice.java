@@ -102,6 +102,18 @@ public class ApiControllerAdvice {
         return new ResponseEntity<>(apiResponse, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(InterruptedException.class)
+    protected ResponseEntity<?> handleException(InterruptedException e) {
+
+        ErrorResponse response = ErrorResponse
+                .builder()
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .message(e.toString())
+                .build();
+        ApiResponse apiResponse = ApiResponse.builder().check(false).information(response).build();
+        return new ResponseEntity<>(apiResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     protected ResponseEntity<?> handleAuthenticationException(AuthenticationException e) {
         
