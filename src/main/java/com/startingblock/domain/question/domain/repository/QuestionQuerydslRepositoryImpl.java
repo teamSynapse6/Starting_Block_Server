@@ -9,9 +9,12 @@ import com.startingblock.domain.question.domain.QQuestion;
 import com.startingblock.domain.heart.domain.QHeart;
 import com.startingblock.domain.answer.domain.QAnswer;
 import com.startingblock.domain.question.dto.QuestionResponseDto;
+import com.startingblock.domain.reply.domain.QReply;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @RequiredArgsConstructor
 public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepository{
@@ -57,5 +60,47 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
                 .groupBy(question.id)
                 .orderBy(heart.count().desc(), answer.count().desc(), question.createdAt.desc())
                 .fetch();
+    }
+
+    @Override
+    public List<QuestionResponseDto.QuestionByMyAnswerAndReply> findQuestionByMyAnswerAndReply(Long userId) {
+        QQuestion question = QQuestion.question;
+        QAnswer answer = QAnswer.answer;
+        QReply reply = QReply.reply;
+
+        List<QuestionResponseDto.QuestionByMyAnswerAndReply> answers = queryFactory
+                .select(Projections.constructor(QuestionResponseDto.QuestionByMyAnswerAndReply.class,
+                        question.announcement,
+                        question.user,
+                        question.content,
+                        answer.id))
+                .from(answer)
+                .join(answer.question, question)
+                .where(answer.user.id.eq(userId))
+                .fetch();
+        answers.forEach(myAnswer -> {
+            myAnswer.setWriteType("Answer");
+        });
+
+        List<QuestionResponseDto.QuestionByMyAnswerAndReply> replies = queryFactory
+                .select(Projections.constructor(QuestionResponseDto.QuestionByMyAnswerAndReply.class,
+                        question.announcement,
+                        question.user,
+                        question.content,
+                        reply.id))
+                .from(reply)
+                .join(reply.answer, answer)
+                .join(answer.question, question)
+                .where(reply.user.id.eq(userId))
+                .fetch();
+        replies.forEach(myReplies -> {
+            myReplies.setWriteType("Reply");
+        });
+
+        List<QuestionResponseDto.QuestionByMyAnswerAndReply> allAnswersAndReplies = Stream.concat(answers.stream(), replies.stream())
+                .distinct()
+                .collect(Collectors.toList());
+
+        return allAnswersAndReplies;
     }
 }

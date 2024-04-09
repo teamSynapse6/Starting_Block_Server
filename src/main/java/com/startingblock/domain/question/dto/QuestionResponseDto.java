@@ -1,9 +1,12 @@
 package com.startingblock.domain.question.dto;
 
+import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.answer.dto.AnswerResponseDto;
+import com.startingblock.domain.user.domain.User;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -132,5 +135,22 @@ public class QuestionResponseDto {
 
         @Schema(type = "String", example = "답변 드리겠습니다.", description = "문의처 담당자의 답변 내용입니다.")
         private String contactAnswerContent;
+    }
+
+    @Getter
+    public static class QuestionByMyAnswerAndReply {
+        private Announcement announcement;
+        private User user;
+        private String content;
+        private Long answerOrReplyId;
+        @Setter
+        private String writeType;
+
+        public QuestionByMyAnswerAndReply(final Announcement announcement, final User user, final String content, final Long answerOrReplyId) {
+            this.announcement = announcement;
+            this.user = user;
+            this.content = content;
+            this.answerOrReplyId = answerOrReplyId;
+        }
     }
 }

@@ -16,6 +16,10 @@ public interface HeartRepository extends JpaRepository<Heart, Long> {
 
     Integer countByQuestionId(Long questionId);
 
+    Integer countByAnswerId(Long answerId);
+
+    Integer countByReplyId(Long replyId);
+
     Boolean existsByQuestionIdAndUserId(Long questionId, Long userId);
 
     Optional<Heart> findByUserIdAndQuestionId(Long userId, Long questionId);
