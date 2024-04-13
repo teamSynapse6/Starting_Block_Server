@@ -3,17 +3,13 @@ package com.startingblock.global.config;
 import feign.Logger;
 import feign.codec.Encoder;
 import feign.form.FormEncoder;
-import feign.form.spring.SpringFormEncoder;
 import lombok.Data;
 import lombok.Getter;
-import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.cloud.openfeign.EnableFeignClients;
-import org.springframework.cloud.openfeign.support.SpringEncoder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import javax.naming.spi.ObjectFactory;
 
 @Configuration
 @ConfigurationProperties(prefix = "feign.client")
