@@ -52,10 +52,10 @@ public class User extends BaseEntity {
     private Role role;
 
     @Builder
-    public User(String nickname, LocalDate birth, Boolean isCompletedBusinessRegistration, String residence, String university, String email, Provider provider, String providerId, Role role) {
+    public User(String nickname, LocalDate birth, String residence, String university, String email, Provider provider, String providerId, Role role) {
         this.nickname = nickname;
         this.birth = birth;
-        this.isCompletedBusinessRegistration = isCompletedBusinessRegistration;
+        this.isCompletedBusinessRegistration = false;
         this.residence = residence;
         this.university = university;
         this.email = email;
