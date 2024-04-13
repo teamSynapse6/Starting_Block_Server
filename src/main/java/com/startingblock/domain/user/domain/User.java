@@ -68,4 +68,20 @@ public class User extends BaseEntity {
         this.nickname = nickname;
     }
 
+    public void updateBirth(LocalDate birth) {
+        this.birth = birth;
+    }
+
+    public void updateIsCompletedBusinessRegistration(Boolean isCompletedBusinessRegistration) {
+        this.isCompletedBusinessRegistration = isCompletedBusinessRegistration;
+    }
+
+    public void updateResidence(String residence) {
+        this.residence = residence;
+    }
+
+    public void updateUniversity(String university) {
+        this.university = university;
+    }
+
 }
