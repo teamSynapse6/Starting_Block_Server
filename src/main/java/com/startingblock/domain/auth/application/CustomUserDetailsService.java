@@ -2,6 +2,7 @@ package com.startingblock.domain.auth.application;
 
 import java.util.Optional;
 
+import com.startingblock.domain.common.Status;
 import com.startingblock.global.DefaultAssert;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.domain.user.domain.User;
@@ -24,7 +25,7 @@ public class CustomUserDetailsService implements UserDetailsService{
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         
-        User user = userRepository.findByEmail(email)
+        User user = userRepository.findByEmailAndStatus(email, Status.ACTIVE)
                 .orElseThrow(() ->
                         new UsernameNotFoundException("유저 정보를 찾을 수 없습니다.")
         );
