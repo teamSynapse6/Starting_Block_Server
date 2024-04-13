@@ -79,7 +79,7 @@ public class QuestionFindService {
         Optional<Heart> heart = heartRepository.findByUserIdAndQuestionId(userPrincipal.getId(), questionId);
 
         return QuestionResponseDto.QuestionDetailResponse.builder()
-                .userName(question.getUser().getName())
+                .userName(question.getUser().getNickname())
                 .content(question.getContent())
                 .createdAt(question.getCreatedAt())
                 .heartCount(heartRepository.countByQuestionId(questionId))
