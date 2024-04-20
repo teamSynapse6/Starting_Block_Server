@@ -90,15 +90,21 @@ public class CustomTokenProviderService {
         return Long.parseLong(claims.getSubject());
     }
 
-    public UsernamePasswordAuthenticationToken getAuthenticationById(String token){
+    public UsernamePasswordAuthenticationToken getAuthenticationById(final String token){
         Long userId = getUserIdFromToken(token);
         UserDetails userDetails = customUserDetailsService.loadUserById(userId);
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
         return authentication;
     }
 
-    public UsernamePasswordAuthenticationToken getAuthenticationByEmail(String email){
+    public UsernamePasswordAuthenticationToken getAuthenticationByEmail(final String email){
         UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        return authentication;
+    }
+
+    public UsernamePasswordAuthenticationToken getAuthenticationByProviderId(final String providerId){
+        UserDetails userDetails = customUserDetailsService.loadUserByProviderId(providerId);
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
         return authentication;
     }

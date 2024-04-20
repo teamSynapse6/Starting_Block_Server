@@ -62,7 +62,8 @@ public class AuthService {
 
         Token refreshToken = tokenRepository.findByRefreshToken(tokenRefreshRequest.getRefreshToken())
                 .orElseThrow(() -> new DefaultAuthenticationException(ErrorCode.INVALID_AUTHENTICATION));
-        Authentication authentication = customTokenProviderService.getAuthenticationByEmail(refreshToken.getProviderId());
+
+        Authentication authentication = customTokenProviderService.getAuthenticationByProviderId(refreshToken.getProviderId());
 
         //4. refresh token 정보 값을 업데이트 한다.
         //시간 유효성 확인
@@ -102,8 +103,9 @@ public class AuthService {
         DefaultAssert.isTrue(token.isPresent(), "탈퇴 처리된 회원입니다.");
 
         //3. email 값을 통해 인증값을 불러온다
-        Authentication authentication = customTokenProviderService.getAuthenticationByEmail(token.get().getProviderId());
-        DefaultAssert.isTrue(token.get().getProviderId().equals(authentication.getName()), "사용자 인증에 실패하였습니다.");
+        Authentication authentication = customTokenProviderService.getAuthenticationByProviderId(token.get().getProviderId());
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        DefaultAssert.isTrue(token.get().getProviderId().equals(userPrincipal.getPassword()), "사용자 인증에 실패하였습니다.");
 
         return true;
     }
