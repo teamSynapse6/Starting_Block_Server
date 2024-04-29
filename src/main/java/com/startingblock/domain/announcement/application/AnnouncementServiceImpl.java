@@ -155,6 +155,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                             .title(item.getPblancNm())
                             .areaName(item.getJrsdInsttNm())
                             .organizationName(item.getExcInsttNm())
+                            .content(item.getBsnsSumryCn())
                             .postTarget(item.getTrgetNm())
                             .startDate(startDateTime)
                             .endDate(endDateTime)
