@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+
 import static jakarta.persistence.GenerationType.IDENTITY;
 
 @Entity
@@ -22,12 +23,16 @@ public class Roadmap extends BaseEntity {
     @Column(name = "title", nullable = false)
     private String title;
 
+    @Column(name = "sequence")
+    private Integer sequence;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "roadmap_status", nullable = false)
+    private RoadmapStatus roadmapStatus;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-
-    @Column(name = "sequence")
-    private Integer sequence;
 
     public void updateContent(String content) {
         this.title = content;
@@ -37,11 +42,16 @@ public class Roadmap extends BaseEntity {
         this.sequence = sequence;
     }
 
+    public void updateRoadmapStatus(RoadmapStatus roadmapStatus) {
+        this.roadmapStatus = roadmapStatus;
+    }
+
     @Builder
-    public Roadmap(String title, User user, Integer sequence) {
+    public Roadmap(String title, Integer sequence, RoadmapStatus roadmapStatus, User user) {
         this.title = title;
-        this.user = user;
         this.sequence = sequence;
+        this.roadmapStatus = roadmapStatus;
+        this.user = user;
     }
 
 }

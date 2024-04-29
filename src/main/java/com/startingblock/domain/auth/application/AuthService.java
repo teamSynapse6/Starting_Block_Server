@@ -1,29 +1,26 @@
 package com.startingblock.domain.auth.application;
 
-import java.net.URI;
 import java.util.Optional;
 
 import com.startingblock.domain.auth.dto.*;
+import com.startingblock.domain.common.Status;
+import com.startingblock.domain.user.domain.repository.UserRepository;
 import com.startingblock.global.DefaultAssert;
-import com.startingblock.global.config.security.token.UserPrincipal;
 
 import com.startingblock.domain.user.domain.Provider;
 import com.startingblock.domain.user.domain.Role;
 import com.startingblock.domain.auth.domain.Token;
 import com.startingblock.domain.user.domain.User;
-import com.startingblock.global.payload.ApiResponse;
-import com.startingblock.global.payload.Message;
 import com.startingblock.domain.auth.domain.repository.TokenRepository;
-import com.startingblock.domain.user.domain.repository.UserRepository;
 
+import com.startingblock.global.config.security.token.UserPrincipal;
+import com.startingblock.global.error.DefaultAuthenticationException;
+import com.startingblock.global.payload.ErrorCode;
+import jakarta.transaction.Transactional;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import lombok.RequiredArgsConstructor;
 
@@ -34,99 +31,65 @@ import lombok.RequiredArgsConstructor;
 public class AuthService {
 
     private final CustomTokenProviderService customTokenProviderService;
-    private final AuthenticationManager authenticationManager;
-    private final PasswordEncoder passwordEncoder;
-    
-    private final UserRepository userRepository;
     private final TokenRepository tokenRepository;
-    
+    private final UserRepository userRepository;
 
-    public ResponseEntity<?> whoAmI(UserPrincipal userPrincipal){
-        Optional<User> user = userRepository.findById(userPrincipal.getId());
-        DefaultAssert.isOptionalPresent(user);
-        ApiResponse apiResponse = ApiResponse.builder().check(true).information(user.get()).build();
+    @Transactional
+    public SignInRes kakaoSignIn(final SignInReq signInReq) {
+        Optional<User> optionalUser = userRepository.findByProviderIdAndStatus(signInReq.getProviderId(), Status.ACTIVE);
 
-        return ResponseEntity.ok(apiResponse);
+        if (optionalUser.isEmpty()) {
+            User newUser = User.builder()
+                    .provider(Provider.KAKAO)
+                    .providerId(signInReq.getProviderId())
+                    .email(signInReq.getEmail())
+                    .role(Role.USER)
+                    .build();
+
+            userRepository.save(newUser);
+            optionalUser = Optional.of(newUser);
+        }
+
+        User user = optionalUser.get();
+        return getUserSignInRes(user);
     }
 
-    public ResponseEntity<?> signin(SignInReq signInRequest){
-        Authentication authentication = authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(
-                signInRequest.getEmail(),
-                signInRequest.getPassword()
-            )
-        );
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        TokenMapping tokenMapping = customTokenProviderService.createToken(authentication);
-        Token token = Token.builder()
-                            .refreshToken(tokenMapping.getRefreshToken())
-                            .userEmail(tokenMapping.getUserEmail())
-                            .build();
-        tokenRepository.save(token);
-        AuthRes authResponse = AuthRes.builder().accessToken(tokenMapping.getAccessToken()).refreshToken(token.getRefreshToken()).build();
-        
-        return ResponseEntity.ok(authResponse);
-    }
-
-    public ResponseEntity<?> signup(SignUpReq signUpRequest){
-        DefaultAssert.isTrue(!userRepository.existsByEmail(signUpRequest.getEmail()), "해당 이메일이 존재하지 않습니다.");
-
-        User user = User.builder()
-                        .name(signUpRequest.getName())
-                        .email(signUpRequest.getEmail())
-                        .provider(Provider.local)
-                        .role(Role.ADMIN)
-                        .build();
-
-        userRepository.save(user);
-
-        URI location = ServletUriComponentsBuilder
-                .fromCurrentContextPath().path("/auth/")
-                .buildAndExpand(user.getId()).toUri();
-        ApiResponse apiResponse = ApiResponse.builder().check(true).information(Message.builder().message("회원가입에 성공하였습니다.").build()).build();
-
-        return ResponseEntity.created(location).body(apiResponse);
-    }
-
-    public ResponseEntity<?> refresh(RefreshTokenReq tokenRefreshRequest){
+    @Transactional
+    public AuthRes refresh(final RefreshTokenReq tokenRefreshRequest) {
         //1차 검증
         boolean checkValid = valid(tokenRefreshRequest.getRefreshToken());
         DefaultAssert.isAuthentication(checkValid);
 
-        Optional<Token> token = tokenRepository.findByRefreshToken(tokenRefreshRequest.getRefreshToken());
-        Authentication authentication = customTokenProviderService.getAuthenticationByEmail(token.get().getUserEmail());
+        Token refreshToken = tokenRepository.findByRefreshToken(tokenRefreshRequest.getRefreshToken())
+                .orElseThrow(() -> new DefaultAuthenticationException(ErrorCode.INVALID_AUTHENTICATION));
+
+        Authentication authentication = customTokenProviderService.getAuthenticationByProviderId(refreshToken.getProviderId());
 
         //4. refresh token 정보 값을 업데이트 한다.
         //시간 유효성 확인
         TokenMapping tokenMapping;
 
         Long expirationTime = customTokenProviderService.getExpiration(tokenRefreshRequest.getRefreshToken());
-        if(expirationTime > 0){
-            tokenMapping = customTokenProviderService.refreshToken(authentication, token.get().getRefreshToken());
-        }else{
+        if (expirationTime > 0) {
+            tokenMapping = customTokenProviderService.refreshToken(authentication, refreshToken.getRefreshToken());
+        } else {
             tokenMapping = customTokenProviderService.createToken(authentication);
         }
 
-        Token updateToken = token.get().updateRefreshToken(tokenMapping.getRefreshToken());
-        tokenRepository.save(updateToken);
+        Token updateRefreshToken = refreshToken.updateRefreshToken(tokenMapping.getRefreshToken());
+        tokenRepository.save(updateRefreshToken);
 
-        AuthRes authResponse = AuthRes.builder().accessToken(tokenMapping.getAccessToken()).refreshToken(updateToken.getRefreshToken()).build();
-
-        return ResponseEntity.ok(authResponse);
+        return AuthRes.builder().
+                accessToken(tokenMapping.getAccessToken())
+                .refreshToken(updateRefreshToken.getRefreshToken())
+                .build();
     }
 
-    public ResponseEntity<?> signout(RefreshTokenReq tokenRefreshRequest){
-        boolean checkValid = valid(tokenRefreshRequest.getRefreshToken());
-        DefaultAssert.isAuthentication(checkValid);
-
-        //4 token 정보를 삭제한다.
-        Optional<Token> token = tokenRepository.findByRefreshToken(tokenRefreshRequest.getRefreshToken());
-        tokenRepository.delete(token.get());
-        ApiResponse apiResponse = ApiResponse.builder().check(true).information(Message.builder().message("로그아웃 하였습니다.").build()).build();
-
-        return ResponseEntity.ok(apiResponse);
+    @Transactional
+    public void signOut(final RefreshTokenReq tokenRefreshRequest) {
+        Token refreshToken = tokenRepository.findByRefreshToken(tokenRefreshRequest.getRefreshToken())
+                .orElseThrow(() -> new DefaultAuthenticationException(ErrorCode.INVALID_AUTHENTICATION));
+        tokenRepository.delete(refreshToken);
     }
 
     private boolean valid(String refreshToken){
@@ -140,10 +103,47 @@ public class AuthService {
         DefaultAssert.isTrue(token.isPresent(), "탈퇴 처리된 회원입니다.");
 
         //3. email 값을 통해 인증값을 불러온다
-        Authentication authentication = customTokenProviderService.getAuthenticationByEmail(token.get().getUserEmail());
-        DefaultAssert.isTrue(token.get().getUserEmail().equals(authentication.getName()), "사용자 인증에 실패하였습니다.");
+        Authentication authentication = customTokenProviderService.getAuthenticationByProviderId(token.get().getProviderId());
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        DefaultAssert.isTrue(token.get().getProviderId().equals(userPrincipal.getPassword()), "사용자 인증에 실패하였습니다.");
 
         return true;
+    }
+
+    private SignInRes getUserSignInRes(User user) {
+        UserPrincipal userPrincipal = UserPrincipal.create(user);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                userPrincipal,
+                null,
+                userPrincipal.getAuthorities()
+        );
+
+        TokenMapping tokenMapping = customTokenProviderService.createToken(authentication);
+        Token refreshToken = Token.builder()
+                .refreshToken(tokenMapping.getRefreshToken())
+                .providerId(user.getProviderId())
+                .build();
+
+        tokenRepository.save(refreshToken);
+
+        boolean isSignUpComplete = user.getNickname() != null
+                && user.getEmail() != null
+                && user.getBirth() != null
+                && user.getIsCompletedBusinessRegistration() != null
+                && user.getResidence() != null
+                && user.getUniversity() != null;
+
+        AuthRes userAuthRes = AuthRes.builder()
+                .accessToken(tokenMapping.getAccessToken())
+                .refreshToken(refreshToken.getRefreshToken())
+                .build();
+
+        return SignInRes.builder()
+                .isSignUpComplete(isSignUpComplete)
+                .accessToken(userAuthRes.getAccessToken())
+                .refreshToken(userAuthRes.getRefreshToken())
+                .tokenType(userAuthRes.getTokenType())
+                .build();
     }
 
 }
