@@ -1,14 +1,13 @@
 package com.startingblock.domain.user.application;
 
-import com.startingblock.domain.user.domain.repository.UserRepository;
+import com.startingblock.domain.user.dto.SignUpUserReq;
+import com.startingblock.global.config.security.token.UserPrincipal;
 import org.springframework.stereotype.Service;
 
-import lombok.RequiredArgsConstructor;
-
-@RequiredArgsConstructor
 @Service
-public class UserService {
+public interface UserService {
 
-    private final UserRepository userRepository;
+    void inactiveCurrentUser(UserPrincipal userPrincipal);
+    void signUpCurrentUser(UserPrincipal userPrincipal, SignUpUserReq signUpUserReq);
 
 }

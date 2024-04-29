@@ -4,10 +4,8 @@ import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
-import com.startingblock.domain.announcement.dto.AnnouncementRes;
-import com.startingblock.domain.announcement.dto.QAnnouncementDetailRes;
-import com.startingblock.domain.announcement.dto.QAnnouncementRes;
+import com.startingblock.domain.announcement.domain.Announcement;
+import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.common.Status;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +17,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.startingblock.domain.announcement.domain.QAnnouncement.*;
+import static com.startingblock.domain.roadmap.domain.QRoadmap.*;
 import static com.startingblock.domain.roadmap.domain.QRoadmapAnnouncement.*;
 
 @RequiredArgsConstructor
@@ -35,7 +34,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
-    public List<AnnouncementRes> findThreeRandomAnnouncement(Long userId) {
+    public List<AnnouncementRes> findThreeRandomAnnouncement(final Long userId) {
         return queryFactory
                 .select(
                         new QAnnouncementRes(
@@ -60,7 +59,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
-    public AnnouncementDetailRes findAnnouncementDetail(Long userId, Long announcementId) {
+    public AnnouncementDetailRes findAnnouncementDetail(final Long userId, final Long announcementId) {
         return queryFactory
                 .select(
                         new QAnnouncementDetailRes(
@@ -124,6 +123,22 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
         List<AnnouncementRes> announcements = hasNext ? announcementResList.subList(0, pageable.getPageSize()) : announcementResList;
 
         return new SliceImpl<>(announcements, pageable, hasNext);
+    }
+
+    @Override
+    public List<Announcement> findOffCampusAnnouncementsByRoadmapId(final Long userId, final Long roadmapId) {
+        return queryFactory
+                .select(announcement)
+                .from(roadmap)
+                .leftJoin(roadmapAnnouncement).on(roadmap.id.eq(roadmapAnnouncement.roadmap.id))
+                .leftJoin(announcement).on(roadmapAnnouncement.announcement.id.eq(announcement.id))
+                .where(
+                        announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이전이거나, 비기한이 없는 공고
+                        announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이후이거나, 비기한이 없는 공고
+                        roadmap.id.eq(roadmapId),
+                        roadmap.user.id.eq(userId)
+                )
+                .fetch();
     }
 
     private BooleanExpression businessAgeExpression(final String businessAge) {

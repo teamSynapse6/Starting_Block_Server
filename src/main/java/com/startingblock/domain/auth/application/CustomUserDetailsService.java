@@ -2,6 +2,7 @@ package com.startingblock.domain.auth.application;
 
 import java.util.Optional;
 
+import com.startingblock.domain.common.Status;
 import com.startingblock.global.DefaultAssert;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.domain.user.domain.User;
@@ -17,17 +18,17 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Service
-public class CustomUserDetailsService implements UserDetailsService{
+public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        
-        User user = userRepository.findByEmail(email)
+
+        User user = userRepository.findByEmailAndStatus(email, Status.ACTIVE)
                 .orElseThrow(() ->
                         new UsernameNotFoundException("유저 정보를 찾을 수 없습니다.")
-        );
+                );
 
         return UserPrincipal.create(user);
     }
@@ -39,5 +40,13 @@ public class CustomUserDetailsService implements UserDetailsService{
 
         return UserPrincipal.create(user.get());
     }
-    
+
+    @Transactional
+    public UserDetails loadUserByProviderId(final String providerId) {
+        Optional<User> user = userRepository.findByProviderIdAndStatus(providerId, Status.ACTIVE);
+        DefaultAssert.isOptionalPresent(user);
+
+        return UserPrincipal.create(user.get());
+    }
+
 }

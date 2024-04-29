@@ -8,15 +8,15 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-@Table(name="token")
 @Entity
+@Table(name="token")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 public class Token extends BaseEntity {
 
     @Id
-    @Column(name = "user_email", nullable = false)
-    private String userEmail;
+    @Column(name = "provider_id", nullable = false, unique = true)
+    private String providerId;
 
     @Column(name = "refresh_token", nullable = false)
     @Lob
@@ -28,8 +28,8 @@ public class Token extends BaseEntity {
     }
 
     @Builder
-    public Token(String userEmail, String refreshToken) {
-        this.userEmail = userEmail;
+    public Token(String providerId, String refreshToken) {
+        this.providerId = providerId;
         this.refreshToken = refreshToken;
     }
 
