@@ -3,7 +3,7 @@ package com.startingblock.domain.crawling.oncampus;
 import java.util.HashMap;
 import java.util.Map;
 
-public class CampusClassify {
+public abstract class CampusClassify {
 
     public String classifyAnnouncement(String title) {
         Map<String, String> categoryMap = new HashMap<>();

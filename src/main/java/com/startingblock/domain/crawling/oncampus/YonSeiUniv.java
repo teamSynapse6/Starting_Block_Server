@@ -12,23 +12,24 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 
-import static com.startingblock.domain.crawling.oncampus.constant.SungKyunKwanConstant.VISIBLE;
-import static com.startingblock.domain.crawling.oncampus.constant.SungKyunKwanConstant.URL;
-import static com.startingblock.domain.crawling.oncampus.constant.SungKyunKwanConstant.TITLE1;
-import static com.startingblock.domain.crawling.oncampus.constant.SungKyunKwanConstant.TITLE2;
-import static com.startingblock.domain.crawling.oncampus.constant.SungKyunKwanConstant.DATE1;
-import static com.startingblock.domain.crawling.oncampus.constant.SungKyunKwanConstant.DATE2;
+import static com.startingblock.domain.crawling.oncampus.constant.YonSeiConstant.URL;
+import static com.startingblock.domain.crawling.oncampus.constant.YonSeiConstant.DATE1;
+import static com.startingblock.domain.crawling.oncampus.constant.YonSeiConstant.DATE2;
+import static com.startingblock.domain.crawling.oncampus.constant.YonSeiConstant.TITLE1;
+import static com.startingblock.domain.crawling.oncampus.constant.YonSeiConstant.TITLE2;
+import static com.startingblock.domain.crawling.oncampus.constant.YonSeiConstant.VISIBLE;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class SungKyunKwanUniv extends CampusClassify implements CampusCrawling {
+public class YonSeiUniv extends CampusClassify implements CampusCrawling {
 
     @Override
     public void onCampusCrawling() {
         WebDriver driver = WebDriverManager.getDriver();
         try {
             driver.get(URL);
+
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));  // 5초 동안 기다림
             // 아래 반복문은 1페이지를 크롤링한다.
             for (int i = 1; i <= 10; i++) {
