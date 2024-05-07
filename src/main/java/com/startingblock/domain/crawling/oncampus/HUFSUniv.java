@@ -1,7 +1,9 @@
 package com.startingblock.domain.crawling.oncampus;
 
+import com.startingblock.domain.announcement.domain.Announcement;
+import com.startingblock.domain.announcement.domain.Keyword;
+import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.crawling.WebDriverManager;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -11,6 +13,11 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.startingblock.domain.crawling.oncampus.constant.HUFSConstant.DATE1;
 import static com.startingblock.domain.crawling.oncampus.constant.HUFSConstant.DATE2;
@@ -20,16 +27,16 @@ import static com.startingblock.domain.crawling.oncampus.constant.HUFSConstant.U
 import static com.startingblock.domain.crawling.oncampus.constant.HUFSConstant.VISIBLE;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class HUFSUniv extends CampusClassify implements CampusCrawling {
 
+    public List<Announcement> announcementList = new ArrayList<>();
+
     @Override
-    public void onCampusCrawling() {
+    public List<Announcement> onCampusCrawling() {
         WebDriver driver = WebDriverManager.getDriver();
         try {
             driver.get(URL);
-
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));  // 5초 동안 기다림
             // 아래 반복문은 1페이지를 크롤링한다.
             for (int i = 1; i <= 10; i++) {
@@ -43,7 +50,10 @@ public class HUFSUniv extends CampusClassify implements CampusCrawling {
                 // insertDate
                 WebElement dateElement = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(dateXpath)));
                 String insertDate = dateElement.getText();
-                log.info("date: " + insertDate);
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+                LocalDate date = LocalDate.parse(insertDate, formatter);
+                LocalDateTime dateTime = date.atStartOfDay(); // 자정 시간 추가
+                log.info("date: " + dateTime);
 
                 // detailUrl
                 titleElement.click();
@@ -52,8 +62,10 @@ public class HUFSUniv extends CampusClassify implements CampusCrawling {
                 log.info("href: " + detailUrl);
 
                 //keyword
-                String keyword = super.classifyAnnouncement(title);
+                Keyword keyword = super.classifyAnnouncement(title);
                 log.info("keyword: " + keyword);
+
+                announcementList.add(CampusAnnouncementCreator.createCampusAnnouncement(title, dateTime, detailUrl, University.HUFS, keyword));
 
                 // 뒤로가기
                 driver.navigate().back();
@@ -63,5 +75,6 @@ public class HUFSUniv extends CampusClassify implements CampusCrawling {
         } finally {
             WebDriverManager.closeDriver(); // 작업이 끝나면 드라이버를 닫음
         }
+        return announcementList;
     }
 }

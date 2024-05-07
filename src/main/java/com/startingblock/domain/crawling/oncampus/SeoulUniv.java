@@ -1,18 +1,22 @@
 package com.startingblock.domain.crawling.oncampus;
 
+import com.startingblock.domain.announcement.domain.Announcement;
+import com.startingblock.domain.announcement.domain.Keyword;
+import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.crawling.WebDriverManager;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import static com.startingblock.domain.crawling.oncampus.constant.SeoulConstant.URL;
@@ -25,20 +29,19 @@ import static com.startingblock.domain.crawling.oncampus.constant.SeoulConstant.
 import static com.startingblock.domain.crawling.oncampus.constant.SeoulConstant.VISIBLE;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class SeoulUniv extends CampusClassify implements CampusCrawling {
 
+    public List<Announcement> announcementList = new ArrayList<>();
+
     @Override
-    public void onCampusCrawling() {
+    public List<Announcement> onCampusCrawling() {
         WebDriver driver = WebDriverManager.getDriver();
         try {
             driver.get(URL);
-
-            int notificationCount = 0;
-
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));  // 5초 동안 기다림
 
+            int notificationCount = 0;
             // 아래 반복문은 1페이지를 크롤링한다.
             for (int i = 1; notificationCount < 12; i++) {
                 String titleXpath = TITLE1 + i + TITLE2;
@@ -57,8 +60,10 @@ public class SeoulUniv extends CampusClassify implements CampusCrawling {
 
                 // insertDate
                 WebElement dateElement = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(dateXpath)));
-                String date = dateElement.getText().substring(0, 10);
-                log.info("date: " + date);
+                String insertDate = dateElement.getText();
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm:ss");
+                LocalDateTime dateTime = LocalDateTime.parse(insertDate, formatter);
+                log.info("date: " + dateTime);
 
                 // detailUrl
                 titleElement.click();
@@ -67,8 +72,10 @@ public class SeoulUniv extends CampusClassify implements CampusCrawling {
                 log.info("href: " + detailUrl);
 
                 // keyword
-                String keyword = super.classifyAnnouncement(title);
+                Keyword keyword = super.classifyAnnouncement(title);
                 log.info("keyword: " + keyword);
+
+                announcementList.add(CampusAnnouncementCreator.createCampusAnnouncement(title, dateTime, detailUrl, University.SEOUL, keyword));
 
                 // 뒤로가기
                 driver.navigate().back();
@@ -78,5 +85,6 @@ public class SeoulUniv extends CampusClassify implements CampusCrawling {
         } finally {
             WebDriverManager.closeDriver(); // 작업이 끝나면 드라이버를 닫음
         }
+        return announcementList;
     }
 }
