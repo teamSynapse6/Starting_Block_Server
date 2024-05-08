@@ -90,6 +90,14 @@ public class Announcement extends BaseEntity {
     @Column(name = "is_file_uploaded")
     private Boolean isFileUploaded;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "university")
+    private University university;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "keyword")
+    private Keyword keyword;
+
     public void addRoadmapCount() {
         this.roadmapCount++;
     }
@@ -102,8 +110,12 @@ public class Announcement extends BaseEntity {
         this.isFileUploaded = isFileUploaded;
     }
 
+    public void updateContact(final String contact) {
+        this.contact = contact;
+    }
+
     @Builder
-    public Announcement(String postSN, String fileUrl, String bizTitle, String supportType, String title, String content, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String nonDate, String detailUrl, String prchCnAdrNo, String contact, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm, AnnouncementType announcementType) {
+    public Announcement(String postSN, String fileUrl, String bizTitle, String supportType, String title, String content, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String nonDate, String detailUrl, String prchCnAdrNo, String contact, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm, AnnouncementType announcementType, University university, Keyword keyword) {
         this.postSN = postSN;
         this.bizTitle = bizTitle;
         this.fileUrl = fileUrl;
@@ -128,6 +140,8 @@ public class Announcement extends BaseEntity {
         this.announcementType = announcementType;
         this.isFileUploaded = false;
         this.roadmapCount = 0;
+        this.university = university;
+        this.keyword = keyword;
     }
 
 }

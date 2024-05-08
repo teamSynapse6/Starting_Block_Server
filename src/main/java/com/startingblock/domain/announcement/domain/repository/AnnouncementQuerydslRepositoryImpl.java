@@ -14,6 +14,7 @@ import com.startingblock.domain.roadmap.domain.QRoadmap;
 import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import com.startingblock.domain.user.domain.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
@@ -21,12 +22,13 @@ import org.springframework.data.domain.SliceImpl;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.startingblock.domain.announcement.domain.QAnnouncement.*;
 import static com.startingblock.domain.roadmap.domain.QRoadmap.*;
 import static com.startingblock.domain.roadmap.domain.QRoadmapAnnouncement.*;
-import static com.startingblock.domain.user.domain.QUser.*;
 
 @RequiredArgsConstructor
 public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslRepository {
@@ -236,28 +238,37 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
 
     @Override
     public List<Announcement> findCustomAnnouncementOff(User user) {
-        // 1순위 조건에 맞는 공고 먼저 조회
+        // 첫 번째 쿼리: 조건에 맞는 공고 먼저 조회
         List<Announcement> announcements = queryFactory
                 .selectFrom(announcement)
-                .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO))
-                .where(isUserAreaAndSupportTypeMatch(user))
-                .orderBy(
-                        roadmapAnnouncement.announcement.count().desc(),
-                        announcement.createdAt.desc()
-                )
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
+                .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO)
+                        .and(
+                                isUserAreaAndSupportTypeMatch(user)
+                                        .or(announcementSupportTypeMatchesRoadmapTitle(user))
+                        )
+                        .and(
+                                announcement.endDate.isNull()
+                                        .or(announcement.endDate.after(LocalDateTime.now()))
+                        ))
+                .groupBy(announcement.id)
+                .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                 .limit(2)
                 .fetch();
 
-        // 1순위 조건에 맞는 공고가 충분하지 않은 경우, 2순위와 3순위 조건 적용
+        // 첫 번째 쿼리 결과가 충분하지 않은 경우, 추가 쿼리 실행
         if (announcements.size() < 2) {
             List<Announcement> additionalAnnouncements = queryFactory
                     .selectFrom(announcement)
-                    .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO))
-                    .where(announcement.id.notIn(announcements.stream().map(Announcement::getId).collect(Collectors.toList())))
-                    .orderBy(
-                            roadmapAnnouncement.announcement.count().desc(),
-                            announcement.createdAt.desc()
-                    )
+                    .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
+                    .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO),
+                            announcement.id.notIn(announcements.stream().map(Announcement::getId).collect(Collectors.toSet()))
+                                    .and(
+                                            announcement.endDate.isNull()
+                                                    .or(announcement.endDate.after(LocalDateTime.now()))
+                                    ))
+                    .groupBy(announcement.id)
+                    .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                     .limit(2 - announcements.size())
                     .fetch();
             announcements.addAll(additionalAnnouncements);
@@ -271,34 +282,40 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
         // BIZ_INFO or OPEN_DATA
         Announcement offCampusAnnouncement = queryFactory
                 .selectFrom(announcement)
-                .where(announcement.announcementType.in(AnnouncementType.BIZ_INFO, AnnouncementType.OPEN_DATA),
-                        isUserAreaAndSupportTypeMatch(user))
-                .orderBy(
-                        roadmapAnnouncement.announcement.count().desc(),
-                        announcement.createdAt.desc()
-                )
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
+                .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO)
+                        .and(
+                                isUserAreaAndSupportTypeMatch(user)
+                                        .or(announcementSupportTypeMatchesRoadmapTitle(user))
+                        )
+                        .and(
+                                announcement.endDate.isNull()
+                                        .or(announcement.endDate.after(LocalDateTime.now()))
+                        ))
+                .groupBy(announcement.id)
+                .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                 .limit(1)
                 .fetchOne();
 
         // ON_CAMPUS
         Announcement onCampusAnnouncement = queryFactory
                 .selectFrom(announcement)
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
                 .where(announcement.announcementType.eq(AnnouncementType.ON_CAMPUS),
-                        announcement.university.eq(university))  // assuming university is stored in organizationName
-                .orderBy(
-                        roadmapAnnouncement.announcement.count().desc(),
-                        announcement.createdAt.desc()
-                )
+                        announcement.university.eq(university))
+                .groupBy(announcement.id)
+                .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                 .limit(1)
                 .fetchOne();
 
-        return List.of(offCampusAnnouncement, onCampusAnnouncement);
+        return Stream.of(offCampusAnnouncement, onCampusAnnouncement)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
 
     private BooleanExpression isUserAreaAndSupportTypeMatch(User user) {
-        return announcement.areaName.eq(user.getResidence())
-                .and(announcementSupportTypeMatchesRoadmapTitle(user));
+        return announcement.areaName.eq(user.getResidence());
     }
 
     private BooleanExpression announcementSupportTypeMatchesRoadmapTitle(User user) {

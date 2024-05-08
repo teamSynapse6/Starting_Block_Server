@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -218,28 +219,38 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(InvalidUserException::new);
         University university = CampusFindService.findUserUniversity(user);
-        // 교외1 + 교내1
-        // user - university가 있고, 10개 대학 중 하나인 경우
+
+        // 교외1 + 교내1 -> user - university가 있고, 10개 대학 중 하나인 경우
         if (university != null) {
+            log.info(university.toString());
             List<Announcement> announcementList = announcementRepository.findCustomAnnouncementOnOff(user, university);
             List<CustomAnnouncementRes> response = new ArrayList<>();
             boolean isOffCampus = true;
+
             for (Announcement announcement : announcementList) {
+                LocalDateTime endDate = announcement.getEndDate();
                 response.add(CustomAnnouncementRes.builder()
-                                .announcementType(announcement.getAnnouncementType() == AnnouncementType.ON_CAMPUS ? "교내" : "교외")
-//                                .keyword(isOffCampus ? announcement.getSprvInstClssCdNm() : announcement.ge)
+                                .announcementType(isOffCampus ? "교외" : "교내")
+                                .keyword(isOffCampus ? announcement.getSprvInstClssCdNm() : String.valueOf(announcement.getKeyword()))
                                 .title(announcement.getTitle())
-//                                .dday()
+                                .dday(String.valueOf((endDate != null) ? Duration.between(LocalDateTime.now(), endDate).toDays() : null))
                         .build());
+                isOffCampus = false;
             }
-            return null;
+            return response;
         }
-
-        // 교외2
-        // user - university가 없고, 있어도 10개 대학이 아니면
+        // 교외 2 -> user - university가 없고, 있어도 10개 대학이 아니면
         List<Announcement> announcementList = announcementRepository.findCustomAnnouncementOff(user);
-        return null;
+        List<CustomAnnouncementRes> response = new ArrayList<>();
+        for (Announcement announcement : announcementList) {
+            LocalDateTime endDate = announcement.getEndDate();
+            response.add(CustomAnnouncementRes.builder()
+                    .announcementType("교외")
+                    .keyword(announcement.getSprvInstClssCdNm())
+                    .title(announcement.getTitle())
+                    .dday(String.valueOf((endDate != null) ? Duration.between(LocalDateTime.now(), endDate).toDays() : null))
+                    .build());
+        }
+        return response;
     }
-
-
 }
