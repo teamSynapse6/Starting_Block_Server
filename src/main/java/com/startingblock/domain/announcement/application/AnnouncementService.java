@@ -2,6 +2,7 @@ package com.startingblock.domain.announcement.application;
 
 import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
+import com.startingblock.domain.announcement.dto.CustomAnnouncementRes;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -17,5 +18,5 @@ public interface AnnouncementService {
     AnnouncementDetailRes findAnnouncementDetailById(UserPrincipal userPrincipal, Long announcementId);
     List<AnnouncementRes> findThreeRandomAnnouncement(UserPrincipal userPrincipal);
     void uploadAnnouncementsFile(UserPrincipal userPrincipal);
-
+    List<CustomAnnouncementRes> findCustomAnnouncement(UserPrincipal userPrincipal);
 }
