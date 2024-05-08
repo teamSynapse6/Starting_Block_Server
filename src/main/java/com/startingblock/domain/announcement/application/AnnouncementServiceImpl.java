@@ -2,12 +2,17 @@ package com.startingblock.domain.announcement.application;
 
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
+import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
+import com.startingblock.domain.announcement.dto.CustomAnnouncementRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.announcement.exception.PermissionDeniedException;
 import com.startingblock.domain.user.domain.Role;
+import com.startingblock.domain.user.domain.User;
+import com.startingblock.domain.user.domain.repository.UserRepository;
+import com.startingblock.domain.user.exception.InvalidUserException;
 import com.startingblock.global.config.FeignConfig;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.infrastructure.feign.BizInfoClient;
@@ -44,6 +49,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private final BizInfoClient bizInfoClient;
     private final AnnouncementPdfUploader announcementPdfUploader;
     private final AnnouncementWriter announcementWriter;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
@@ -206,5 +212,34 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     public List<AnnouncementRes> findThreeRandomAnnouncement(UserPrincipal userPrincipal) {
         return announcementRepository.findThreeRandomAnnouncement(userPrincipal.getId());
     }
+
+    @Override
+    public List<CustomAnnouncementRes> findCustomAnnouncement(UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+        University university = CampusFindService.findUserUniversity(user);
+        // 교외1 + 교내1
+        // user - university가 있고, 10개 대학 중 하나인 경우
+        if (university != null) {
+            List<Announcement> announcementList = announcementRepository.findCustomAnnouncementOnOff(user, university);
+            List<CustomAnnouncementRes> response = new ArrayList<>();
+            boolean isOffCampus = true;
+            for (Announcement announcement : announcementList) {
+                response.add(CustomAnnouncementRes.builder()
+                                .announcementType(announcement.getAnnouncementType() == AnnouncementType.ON_CAMPUS ? "교내" : "교외")
+//                                .keyword(isOffCampus ? announcement.getSprvInstClssCdNm() : announcement.ge)
+                                .title(announcement.getTitle())
+//                                .dday()
+                        .build());
+            }
+            return null;
+        }
+
+        // 교외2
+        // user - university가 없고, 있어도 10개 대학이 아니면
+        List<Announcement> announcementList = announcementRepository.findCustomAnnouncementOff(user);
+        return null;
+    }
+
 
 }

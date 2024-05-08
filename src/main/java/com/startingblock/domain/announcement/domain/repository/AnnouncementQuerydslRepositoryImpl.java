@@ -3,10 +3,16 @@ package com.startingblock.domain.announcement.domain.repository;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.startingblock.domain.announcement.domain.Announcement;
+import com.startingblock.domain.announcement.domain.AnnouncementType;
+import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.common.Status;
+import com.startingblock.domain.roadmap.domain.QRoadmap;
+import com.startingblock.domain.roadmap.domain.RoadmapStatus;
+import com.startingblock.domain.user.domain.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -15,10 +21,12 @@ import org.springframework.data.domain.SliceImpl;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.startingblock.domain.announcement.domain.QAnnouncement.*;
 import static com.startingblock.domain.roadmap.domain.QRoadmap.*;
 import static com.startingblock.domain.roadmap.domain.QRoadmapAnnouncement.*;
+import static com.startingblock.domain.user.domain.QUser.*;
 
 @RequiredArgsConstructor
 public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslRepository {
@@ -226,4 +234,83 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
         };
     }
 
+    @Override
+    public List<Announcement> findCustomAnnouncementOff(User user) {
+        // 1순위 조건에 맞는 공고 먼저 조회
+        List<Announcement> announcements = queryFactory
+                .selectFrom(announcement)
+                .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO))
+                .where(isUserAreaAndSupportTypeMatch(user))
+                .orderBy(
+                        roadmapAnnouncement.announcement.count().desc(),
+                        announcement.createdAt.desc()
+                )
+                .limit(2)
+                .fetch();
+
+        // 1순위 조건에 맞는 공고가 충분하지 않은 경우, 2순위와 3순위 조건 적용
+        if (announcements.size() < 2) {
+            List<Announcement> additionalAnnouncements = queryFactory
+                    .selectFrom(announcement)
+                    .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO))
+                    .where(announcement.id.notIn(announcements.stream().map(Announcement::getId).collect(Collectors.toList())))
+                    .orderBy(
+                            roadmapAnnouncement.announcement.count().desc(),
+                            announcement.createdAt.desc()
+                    )
+                    .limit(2 - announcements.size())
+                    .fetch();
+            announcements.addAll(additionalAnnouncements);
+        }
+
+        return announcements;
+    }
+
+    @Override
+    public List<Announcement> findCustomAnnouncementOnOff(User user, University university) {
+        // BIZ_INFO or OPEN_DATA
+        Announcement offCampusAnnouncement = queryFactory
+                .selectFrom(announcement)
+                .where(announcement.announcementType.in(AnnouncementType.BIZ_INFO, AnnouncementType.OPEN_DATA),
+                        isUserAreaAndSupportTypeMatch(user))
+                .orderBy(
+                        roadmapAnnouncement.announcement.count().desc(),
+                        announcement.createdAt.desc()
+                )
+                .limit(1)
+                .fetchOne();
+
+        // ON_CAMPUS
+        Announcement onCampusAnnouncement = queryFactory
+                .selectFrom(announcement)
+                .where(announcement.announcementType.eq(AnnouncementType.ON_CAMPUS),
+                        announcement.university.eq(university))  // assuming university is stored in organizationName
+                .orderBy(
+                        roadmapAnnouncement.announcement.count().desc(),
+                        announcement.createdAt.desc()
+                )
+                .limit(1)
+                .fetchOne();
+
+        return List.of(offCampusAnnouncement, onCampusAnnouncement);
+    }
+
+
+    private BooleanExpression isUserAreaAndSupportTypeMatch(User user) {
+        return announcement.areaName.eq(user.getResidence())
+                .and(announcementSupportTypeMatchesRoadmapTitle(user));
+    }
+
+    private BooleanExpression announcementSupportTypeMatchesRoadmapTitle(User user) {
+        QRoadmap roadmap = QRoadmap.roadmap;
+
+        JPAQuery<?> subQuery = new JPAQuery<Void>()
+                .select(roadmap.id)
+                .from(roadmap)
+                .where(roadmap.user.eq(user),
+                        roadmap.title.eq(announcement.supportType),
+                        roadmap.roadmapStatus.eq(RoadmapStatus.IN_PROGRESS));
+
+        return Expressions.booleanTemplate("exists {0}", subQuery);
+    }
 }
