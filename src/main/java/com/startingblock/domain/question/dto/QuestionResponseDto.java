@@ -153,4 +153,15 @@ public class QuestionResponseDto {
             this.answerOrReplyId = answerOrReplyId;
         }
     }
+
+    @Getter
+    @Builder
+    public static class QuestionResponseForStatusCheck {
+        private String title;
+        private Long questionId;
+        private String content;
+        private LocalDateTime receptionTime;
+        private LocalDateTime sendTime;
+        private LocalDateTime arriveTime;
+    }
 }

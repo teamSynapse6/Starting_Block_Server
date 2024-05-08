@@ -23,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -130,5 +131,30 @@ public class QuestionFindService {
             replyCount += replyRepository.countByAnswerId(answer.getId());
         }
         return answerCount + replyCount;
+    }
+
+    // TODO: 질문 발송 상태 조회
+    public List<QuestionResponseDto.QuestionResponseForStatusCheck> findQuestionForStatusCheck(final UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        List<QuestionResponseDto.QuestionResponseForStatusCheck> responseList = new ArrayList<>();
+        List<Question> contactQuestions = questionRepository.findQuestionsForStatusCheck(user.getId());
+
+        for (Question contactQuestion : contactQuestions) {
+            LocalDateTime receptionTime = contactQuestion.getCreatedAt();
+            LocalDateTime sendTime = contactQuestion.getIsSend() ? receptionTime.plusDays(1) : null;
+            LocalDateTime arriveTime = contactQuestion.getIsAnswerd() ? contactQuestion.getUpdatedAt() : null;
+
+            responseList.add(QuestionResponseDto.QuestionResponseForStatusCheck.builder()
+                    .title(contactQuestion.getAnnouncement().getTitle())
+                    .questionId(contactQuestion.getId())
+                    .content(contactQuestion.getContent())
+                    .receptionTime(receptionTime)
+                    .sendTime(sendTime)
+                    .arriveTime(arriveTime)
+                    .build());
+        }
+        return responseList;
     }
 }
