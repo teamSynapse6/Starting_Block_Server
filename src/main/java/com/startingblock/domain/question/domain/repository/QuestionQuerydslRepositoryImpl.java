@@ -1,6 +1,7 @@
 package com.startingblock.domain.question.domain.repository;
 
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.startingblock.domain.heart.domain.HeartType;
@@ -8,10 +9,12 @@ import com.startingblock.domain.question.domain.QAType;
 import com.startingblock.domain.question.domain.QQuestion;
 import com.startingblock.domain.heart.domain.QHeart;
 import com.startingblock.domain.answer.domain.QAnswer;
+import com.startingblock.domain.question.domain.Question;
 import com.startingblock.domain.question.dto.QuestionResponseDto;
 import com.startingblock.domain.reply.domain.QReply;
 import lombok.RequiredArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -102,5 +105,21 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
                 .collect(Collectors.toList());
 
         return allAnswersAndReplies;
+    }
+
+    @Override
+    public List<Question> findQuestionsForStatusCheck(Long userId) {
+        QQuestion question = QQuestion.question;
+        return queryFactory
+                .selectFrom(question)
+                .where(question.questionType.eq(QAType.CONTACT)
+                        .and(question.user.id.eq(userId))
+                        .and(isAnsweredAndOutdated(question).not()))
+                .fetch();
+    }
+    private BooleanExpression isAnsweredAndOutdated(QQuestion question) {
+        LocalDateTime yesterday = LocalDateTime.now().minusDays(1);
+        return question.isAnswerd.isTrue()
+                .and(question.updatedAt.before(yesterday));
     }
 }

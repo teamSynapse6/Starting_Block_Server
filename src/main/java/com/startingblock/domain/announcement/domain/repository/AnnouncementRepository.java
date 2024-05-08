@@ -11,4 +11,5 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
 
     List<Announcement> findAnnouncementsByAnnouncementTypeAndIsFileUploaded(AnnouncementType announcementType, boolean isFileUsed);
 
+    List<Announcement> findByAnnouncementType(AnnouncementType announcementType);
 }

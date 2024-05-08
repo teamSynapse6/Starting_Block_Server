@@ -44,6 +44,9 @@ public class Question extends BaseEntity {
     @Column(name = "is_new")
     private Boolean isNew;
 
+    @Column(name = "is_Send")
+    private Boolean isSend;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -66,6 +69,7 @@ public class Question extends BaseEntity {
         this.questionType = questionType;
         this.isAnswerd = false;
         this.isNew = true;
+        this.isSend = false;
         this.user = user;
         this.announcement = announcement;
     }
