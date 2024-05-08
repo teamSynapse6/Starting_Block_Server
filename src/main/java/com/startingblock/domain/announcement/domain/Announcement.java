@@ -111,6 +111,10 @@ public class Announcement extends BaseEntity {
         this.isFileUploaded = isFileUploaded;
     }
 
+    public void updateContact(final String contact) {
+        this.contact = contact;
+    }
+
     @Builder
     public Announcement(String postSN, String fileUrl, String bizTitle, String supportType, String title, String content, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String nonDate, String detailUrl, String prchCnAdrNo, String contact, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm, AnnouncementType announcementType, University university, Keyword keyword) {
         this.postSN = postSN;

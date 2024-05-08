@@ -1,6 +1,8 @@
 package com.startingblock.domain.crawling.application;
 
+import com.startingblock.domain.announcement.domain.AnnouncementType;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
+import com.startingblock.domain.crawling.offcampus.OpenData;
 import com.startingblock.domain.crawling.oncampus.CampusCrawling;
 import com.startingblock.domain.crawling.oncampus.EwhaUniv;
 import com.startingblock.domain.crawling.oncampus.HUFSUniv;
@@ -44,5 +46,12 @@ public class CrawlingService {
         for (CampusCrawling campusCrawling : campusList) {
             announcementRepository.saveAll(campusCrawling.onCampusCrawling());
         }
+    }
+
+    // TODO: k-startup 공고 이메일 크롤링
+    @Transactional
+    public void offCampusEmailCrawling() {
+        OpenData openData = new OpenData();
+        openData.offCampusEmailCrawling(announcementRepository.findByAnnouncementType(AnnouncementType.OPEN_DATA));
     }
 }

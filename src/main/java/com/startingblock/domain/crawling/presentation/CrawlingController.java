@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,11 +31,24 @@ public class CrawlingController {
             @ApiResponse(responseCode = "201", description = "교내 크롤링 초기 저장 성공", content = {@Content(mediaType = "application/json")}),
             @ApiResponse(responseCode = "400", description = "교내 크롤링 초기 저장 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
-    @PostMapping("/initial")
-    public ResponseEntity<?> refreshAnnouncements(
+    @PostMapping("/on-campus/initial")
+    public ResponseEntity<?> onCampusInitialCrawling(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
     ) {
         crawlingService.onCampusInitialCrawling();
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "k-startup 이메일 크롤링", description = "k-startup 이메일 크롤링")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "k-startup 이메일 크롤링 성공", content = {@Content(mediaType = "application/json")}),
+            @ApiResponse(responseCode = "400", description = "k-startup 이메일 크롤링 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @PatchMapping("/off-campus/email")
+    public ResponseEntity<?> offCampusEmailCrawling(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        crawlingService.offCampusEmailCrawling();
         return ResponseEntity.noContent().build();
     }
 }
