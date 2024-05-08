@@ -58,6 +58,12 @@ dependencies {
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
+
+	// selenium
+	testImplementation 'org.seleniumhq.selenium:selenium-java:4.17.0'
+	testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
+	implementation group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '4.1.1'
+
 }
 
 tasks.named('test') {
