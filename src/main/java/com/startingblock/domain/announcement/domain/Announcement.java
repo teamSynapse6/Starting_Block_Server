@@ -63,7 +63,6 @@ public class Announcement extends BaseEntity {
     private String nonDate;
 
     @Column(name = "detail_url")
-    @Lob
     private String detailUrl; // 상세 URL
 
     @Column(name = "prch_cn_adr_no")
