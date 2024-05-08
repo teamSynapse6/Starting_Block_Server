@@ -2,6 +2,7 @@ package com.startingblock.domain.user.presentation;
 
 import com.startingblock.domain.user.application.UserService;
 import com.startingblock.domain.user.dto.SignUpUserReq;
+import com.startingblock.domain.user.dto.UserDto;
 import com.startingblock.global.config.security.token.CurrentUser;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.payload.ErrorResponse;
@@ -23,6 +24,18 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+
+    @Operation(summary = "현재 유저 정보 조회", description = "현재 유저 정보 조회 합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "현재 유저 정보 조회 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = UserDto.class))}),
+            @ApiResponse(responseCode = "400", description = "현재 유저 정보 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))}),
+    })
+    @GetMapping("/me")
+    public ResponseEntity<UserDto> getCurrentUser(
+            @Parameter(description = "AccessToken 을 입력해주세요.", required = true) @CurrentUser UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(userService.getCurrentUser(userPrincipal));
+    }
 
     @Operation(summary = "유저 탈퇴", description = "현재 유저를 탈퇴 처리 합니다.")
     @ApiResponses(value = {

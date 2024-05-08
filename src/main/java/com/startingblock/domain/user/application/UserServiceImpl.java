@@ -7,6 +7,8 @@ import com.startingblock.domain.common.Status;
 import com.startingblock.domain.user.domain.User;
 import com.startingblock.domain.user.domain.repository.UserRepository;
 import com.startingblock.domain.user.dto.SignUpUserReq;
+import com.startingblock.domain.user.dto.UserDto;
+import com.startingblock.domain.user.exception.AlreadyExistNicknameException;
 import com.startingblock.domain.user.exception.InvalidUserException;
 import com.startingblock.global.config.security.AuthConfig;
 import com.startingblock.global.config.security.token.UserPrincipal;
@@ -49,11 +51,24 @@ public class UserServiceImpl implements UserService {
     public void signUpCurrentUser(final UserPrincipal userPrincipal, final SignUpUserReq signUpUserReq) {
         User user = userRepository.findById(userPrincipal.getId()).orElseThrow(InvalidUserException::new);
 
+        Boolean isExistNickname = userRepository.existsByNickname(signUpUserReq.getNickname());
+        if(isExistNickname) {
+            throw new AlreadyExistNicknameException(signUpUserReq.getNickname());
+        }
+
         user.updateNickname(signUpUserReq.getNickname());
         user.updateBirth(signUpUserReq.getBirth());
         user.updateIsCompletedBusinessRegistration(signUpUserReq.getIsCompletedBusinessRegistration());
         user.updateResidence(signUpUserReq.getResidence());
         user.updateUniversity(signUpUserReq.getUniversity());
+    }
+
+    @Override
+    public UserDto getCurrentUser(UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        return UserDto.toDto(user);
     }
 
 }
