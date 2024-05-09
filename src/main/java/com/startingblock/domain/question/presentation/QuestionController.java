@@ -97,4 +97,16 @@ public class QuestionController {
     ) {
         return ResponseEntity.ok(questionFindService.findQuestionForStatusCheck(userPrincipal));
     }
+
+    @Operation(summary = "답변을 기다리는 질문 조회", description = "질답변을 기다리는 질문 조회입니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "답변을 기다리는 질문 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = QuestionResponseDto.WaitingAnswer.class)))}),
+            @ApiResponse(responseCode = "400", description = "답변을 기다리는 질문 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping(value = "/waiting")
+    public ResponseEntity<?> findQuestionWaitingAnswer(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(questionFindService.findQuestionWaitingAnswer(userPrincipal));
+    }
 }

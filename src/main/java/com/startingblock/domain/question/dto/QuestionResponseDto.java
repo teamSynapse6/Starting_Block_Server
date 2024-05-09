@@ -1,6 +1,7 @@
 package com.startingblock.domain.question.dto;
 
 import com.startingblock.domain.announcement.domain.Announcement;
+import com.startingblock.domain.announcement.domain.AnnouncementType;
 import com.startingblock.domain.answer.dto.AnswerResponseDto;
 import com.startingblock.domain.user.domain.User;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -163,5 +164,17 @@ public class QuestionResponseDto {
         private LocalDateTime receptionTime;
         private LocalDateTime sendTime;
         private LocalDateTime arriveTime;
+    }
+
+    @Getter
+    @Builder
+    public static class WaitingAnswer {
+        private Long announcementId;
+        private String announcementType;
+        private String announcementTitle;
+        private Long questionId;
+        private String questionContent;
+        private Integer heartCount;
+        private LocalDateTime createdAt;
     }
 }

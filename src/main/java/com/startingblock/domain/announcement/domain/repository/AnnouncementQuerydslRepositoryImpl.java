@@ -7,6 +7,7 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
+import com.startingblock.domain.announcement.domain.QAnnouncement;
 import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.common.Status;
@@ -14,7 +15,6 @@ import com.startingblock.domain.roadmap.domain.QRoadmap;
 import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import com.startingblock.domain.user.domain.User;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
@@ -136,7 +136,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
-    public List<Announcement> findOffCampusAnnouncementsByRoadmapId(final Long userId, final Long roadmapId) {
+    public List<Announcement> findListOfRoadmapByRoadmapId(final Long userId, final Long roadmapId, final String type) {
         return queryFactory
                 .select(announcement)
                 .from(roadmap)
@@ -146,9 +146,19 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이전이거나, 비기한이 없는 공고
                         announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이후이거나, 비기한이 없는 공고
                         roadmap.id.eq(roadmapId),
-                        roadmap.user.id.eq(userId)
+                        roadmap.user.id.eq(userId),
+                        createExpressionForAnnouncementType(type)
                 )
                 .fetch();
+    }
+
+    private BooleanExpression createExpressionForAnnouncementType(final String type) {
+        return switch (type) {
+            case "ON_CAMPUS" -> announcement.announcementType.eq(AnnouncementType.ON_CAMPUS);
+            case "OFF_CAMPUS" -> announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO);
+            case "SYSTEM" -> announcement.announcementType.eq(AnnouncementType.SYSTEM);
+            default -> null;
+        };
     }
 
     private BooleanExpression businessAgeExpression(final String businessAge) {
@@ -250,7 +260,8 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         .and(
                                 announcement.endDate.isNull()
                                         .or(announcement.endDate.after(LocalDateTime.now()))
-                        ))
+                        )
+                        .and(createRegistrationCondition(user.getIsCompletedBusinessRegistration())))
                 .groupBy(announcement.id)
                 .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                 .limit(2)
@@ -266,7 +277,8 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                                     .and(
                                             announcement.endDate.isNull()
                                                     .or(announcement.endDate.after(LocalDateTime.now()))
-                                    ))
+                                    )
+                                    .and(createRegistrationCondition(user.getIsCompletedBusinessRegistration())))
                     .groupBy(announcement.id)
                     .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                     .limit(2 - announcements.size())
@@ -291,11 +303,28 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         .and(
                                 announcement.endDate.isNull()
                                         .or(announcement.endDate.after(LocalDateTime.now()))
-                        ))
+                        )
+                        .and(createRegistrationCondition(user.getIsCompletedBusinessRegistration())))
                 .groupBy(announcement.id)
                 .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                 .limit(1)
                 .fetchOne();
+        // 첫 번째 쿼리 결과가 충분하지 않은 경우, 추가 쿼리 실행
+        if (offCampusAnnouncement == null) {
+            offCampusAnnouncement = queryFactory
+                    .selectFrom(announcement)
+                    .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
+                    .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO)
+                            .and(
+                                    announcement.endDate.isNull()
+                                            .or(announcement.endDate.after(LocalDateTime.now()))
+                            )
+                            .and(createRegistrationCondition(user.getIsCompletedBusinessRegistration())))
+                    .groupBy(announcement.id)
+                    .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
+                    .limit(1)
+                    .fetchOne();
+        }
 
         // ON_CAMPUS
         Announcement onCampusAnnouncement = queryFactory
@@ -329,5 +358,14 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         roadmap.roadmapStatus.eq(RoadmapStatus.IN_PROGRESS));
 
         return Expressions.booleanTemplate("exists {0}", subQuery);
+    }
+
+    private BooleanExpression createRegistrationCondition(boolean isCompletedBusinessRegistration) {
+        QAnnouncement announcement = QAnnouncement.announcement;
+        if (!isCompletedBusinessRegistration) {
+            return announcement.postTargetComAge.contains("예비창업자");
+        } else {
+            return null;  // isCompletedBusinessRegistration이 true일 때는 제한 없음
+        }
     }
 }
