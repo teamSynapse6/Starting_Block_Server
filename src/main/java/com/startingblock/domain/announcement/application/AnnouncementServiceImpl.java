@@ -2,12 +2,17 @@ package com.startingblock.domain.announcement.application;
 
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
+import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
+import com.startingblock.domain.announcement.dto.CustomAnnouncementRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.announcement.exception.PermissionDeniedException;
 import com.startingblock.domain.user.domain.Role;
+import com.startingblock.domain.user.domain.User;
+import com.startingblock.domain.user.domain.repository.UserRepository;
+import com.startingblock.domain.user.exception.InvalidUserException;
 import com.startingblock.global.config.FeignConfig;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.infrastructure.feign.BizInfoClient;
@@ -25,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -44,6 +50,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private final BizInfoClient bizInfoClient;
     private final AnnouncementPdfUploader announcementPdfUploader;
     private final AnnouncementWriter announcementWriter;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
@@ -207,4 +214,43 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         return announcementRepository.findThreeRandomAnnouncement(userPrincipal.getId());
     }
 
+    @Override
+    public List<CustomAnnouncementRes> findCustomAnnouncement(UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+        University university = CampusFindService.findUserUniversity(user);
+
+        // 교외1 + 교내1 -> user - university가 있고, 10개 대학 중 하나인 경우
+        if (university != null) {
+            log.info(university.toString());
+            List<Announcement> announcementList = announcementRepository.findCustomAnnouncementOnOff(user, university);
+            List<CustomAnnouncementRes> response = new ArrayList<>();
+            boolean isOffCampus = true;
+
+            for (Announcement announcement : announcementList) {
+                LocalDateTime endDate = announcement.getEndDate();
+                response.add(CustomAnnouncementRes.builder()
+                                .announcementType(isOffCampus ? "교외" : "교내")
+                                .keyword(isOffCampus ? announcement.getSprvInstClssCdNm() : String.valueOf(announcement.getKeyword()))
+                                .title(announcement.getTitle())
+                                .dday(String.valueOf((endDate != null) ? Duration.between(LocalDateTime.now(), endDate).toDays() : null))
+                        .build());
+                isOffCampus = false;
+            }
+            return response;
+        }
+        // 교외 2 -> user - university가 없고, 있어도 10개 대학이 아니면
+        List<Announcement> announcementList = announcementRepository.findCustomAnnouncementOff(user);
+        List<CustomAnnouncementRes> response = new ArrayList<>();
+        for (Announcement announcement : announcementList) {
+            LocalDateTime endDate = announcement.getEndDate();
+            response.add(CustomAnnouncementRes.builder()
+                    .announcementType("교외")
+                    .keyword(announcement.getSprvInstClssCdNm())
+                    .title(announcement.getTitle())
+                    .dday(String.valueOf((endDate != null) ? Duration.between(LocalDateTime.now(), endDate).toDays() : null))
+                    .build());
+        }
+        return response;
+    }
 }

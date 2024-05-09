@@ -85,4 +85,16 @@ public class QuestionController {
     ) {
         return ResponseEntity.ok(questionFindService.findMyQuestion(userPrincipal));
     }
+
+    @Operation(summary = "질문 발송 상태 조회", description = "질문 발송 상태 조회입니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "질문 발송 상태 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = QuestionResponseDto.QuestionResponseForStatusCheck.class)))}),
+            @ApiResponse(responseCode = "400", description = "질문 발송 상태 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping(value = "/my/status")
+    public ResponseEntity<?> findQuestionForStatusCheck(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(questionFindService.findQuestionForStatusCheck(userPrincipal));
+    }
 }

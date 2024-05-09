@@ -4,6 +4,7 @@ package com.startingblock.domain.announcement.presentation;
 import com.startingblock.domain.announcement.application.AnnouncementService;
 import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
+import com.startingblock.domain.announcement.dto.CustomAnnouncementRes;
 import com.startingblock.global.config.security.token.CurrentUser;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.payload.ErrorResponse;
@@ -101,4 +102,15 @@ public class AnnouncementController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "맞춤 공고 조회", description = "맞춤 공고 조회")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "맞춤 공고 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = CustomAnnouncementRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "맞춤 공고 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/custom")
+    public ResponseEntity<?> findCustomAnnouncement(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(announcementService.findCustomAnnouncement(userPrincipal));
+    }
 }
