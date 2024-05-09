@@ -222,7 +222,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
         // 교외1 + 교내1 -> user - university가 있고, 10개 대학 중 하나인 경우
         if (university != null) {
-            log.info(university.toString());
             List<Announcement> announcementList = announcementRepository.findCustomAnnouncementOnOff(user, university);
             List<CustomAnnouncementRes> response = new ArrayList<>();
             boolean isOffCampus = true;
@@ -234,6 +233,8 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                                 .keyword(isOffCampus ? announcement.getSprvInstClssCdNm() : String.valueOf(announcement.getKeyword()))
                                 .title(announcement.getTitle())
                                 .dday(String.valueOf((endDate != null) ? Duration.between(LocalDateTime.now(), endDate).toDays() : null))
+                                .detailUrl(announcement.getDetailUrl())
+                                .announcementId(announcement.getId())
                         .build());
                 isOffCampus = false;
             }
@@ -249,6 +250,8 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                     .keyword(announcement.getSprvInstClssCdNm())
                     .title(announcement.getTitle())
                     .dday(String.valueOf((endDate != null) ? Duration.between(LocalDateTime.now(), endDate).toDays() : null))
+                    .detailUrl(announcement.getDetailUrl())
+                    .announcementId(announcement.getId())
                     .build());
         }
         return response;

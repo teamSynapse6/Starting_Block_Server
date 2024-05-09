@@ -15,4 +15,8 @@ public class CustomAnnouncementRes {
     private String title; // 공고명
 
     private String dday; // D-day
+
+    private String detailUrl;
+
+    private Long announcementId;
 }
