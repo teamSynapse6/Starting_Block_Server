@@ -12,4 +12,8 @@ public interface QuestionQuerydslRepository {
     List<QuestionResponseDto.QuestionByMyAnswerAndReply> findQuestionByMyAnswerAndReply(Long userId);
 
     List<Question> findQuestionsForStatusCheck(Long userId);
+
+    List<Question> findQuestionWaitingAnswerOff(Long userId);
+
+    List<Question> findQuestionWaitingAnswerOnOff(Long userId);
 }
