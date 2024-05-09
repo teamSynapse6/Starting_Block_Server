@@ -153,8 +153,8 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
 
     private BooleanExpression createExpressionForAnnouncementType(final String type) {
         return switch (type) {
-            case "ON_CAMPUS" -> announcement.announcementType.eq(AnnouncementType.ON_CAMPUS);
-            case "OFF_CAMPUS" -> announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO);
+            case "ON-CAMPUS" -> announcement.announcementType.eq(AnnouncementType.ON_CAMPUS);
+            case "OFF-CAMPUS" -> announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO);
             case "SYSTEM" -> announcement.announcementType.eq(AnnouncementType.SYSTEM);
             default -> null;
         };

@@ -49,7 +49,7 @@ public class RoadmapController {
             @ApiResponse(responseCode = "400", description = "로드맵의 공고 리스트 조회(교외, 교내, 창업제도) 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @GetMapping("/{roadmap-id}/list")
-    public ResponseEntity<List<RoadmapAnnouncementRes>> findAnnouncementsOfRoadmap(
+    public ResponseEntity<List<?>> findAnnouncementsOfRoadmap(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(name = "type", description = "공고 타입(OFF-CAMPUS, ON-CAMPUS, SYSTEM)") @RequestParam(name = "type") final String type,
             @PathVariable(name = "roadmap-id") final Long roadmapId

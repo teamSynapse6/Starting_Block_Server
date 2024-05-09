@@ -3,6 +3,7 @@ package com.startingblock.domain.roadmap.application;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.dto.RoadmapAnnouncementRes;
+import com.startingblock.domain.announcement.dto.RoadmapSystemRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.roadmap.domain.Roadmap;
 import com.startingblock.domain.roadmap.domain.RoadmapAnnouncement;
@@ -239,10 +240,15 @@ public class RoadmapServiceImpl implements RoadmapService {
     }
 
     @Override
-    public List<RoadmapAnnouncementRes> findListOfRoadmap(final UserPrincipal userPrincipal, final Long roadmapId, final String type) {
+    public List<?> findListOfRoadmap(final UserPrincipal userPrincipal, final Long roadmapId, final String type) {
         List<Announcement> announcements = announcementRepository.findListOfRoadmapByRoadmapId(userPrincipal.getId(), roadmapId, type);
 
-        return RoadmapAnnouncementRes.of(announcements);
+        if(type.equals("OFF-CAMPUS"))
+            return RoadmapAnnouncementRes.toOffCampusDto(announcements);
+        else if(type.equals("ON-CAMPUS"))
+            return RoadmapAnnouncementRes.toOnCampusDto(announcements);
+        else
+            return RoadmapSystemRes.toDto(announcements);
     }
 
 }

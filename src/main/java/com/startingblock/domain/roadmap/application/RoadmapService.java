@@ -22,6 +22,6 @@ public interface RoadmapService {
     List<RoadmapDetailRes> swapRoadmap(UserPrincipal userPrincipal, SwapRoadmapReq swapRoadmapReq);
     List<RoadmapDetailRes> leapCurrentRoadmap(UserPrincipal userPrincipal);
     List<RoadmapDetailRes> addRoadmap(UserPrincipal userPrincipal, String roadmapTitle);
-    List<RoadmapAnnouncementRes> findListOfRoadmap(UserPrincipal userPrincipal, Long roadmapId, String type);
+    List<?> findListOfRoadmap(UserPrincipal userPrincipal, Long roadmapId, String type);
 
 }
