@@ -16,9 +16,7 @@ public interface AnnouncementQuerydslRepository {
     Slice<AnnouncementRes> findAnnouncements(Long userId, Pageable pageable, String businessAge, String region, String supportType, String sort, String search);
     AnnouncementDetailRes findAnnouncementDetail(Long userId, Long announcementId);
     List<AnnouncementRes> findThreeRandomAnnouncement(Long userId);
-    List<Announcement> findOffCampusAnnouncementsByRoadmapId(Long userId, Long roadmapId);
-
+    List<Announcement> findListOfRoadmapByRoadmapId(Long userId, Long roadmapId, String type);
     List<Announcement> findCustomAnnouncementOnOff(User user, University university);
-
     List<Announcement> findCustomAnnouncementOff(User user);
 }

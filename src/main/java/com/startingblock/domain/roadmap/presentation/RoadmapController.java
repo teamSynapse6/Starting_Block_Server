@@ -43,17 +43,18 @@ public class RoadmapController {
         return ResponseEntity.ok(roadmapService.findRoadmaps(userPrincipal));
     }
 
-    @Operation(summary = "로드맵의 공고 리스트 조회(교외 사업)", description = "로드맵의 공고 리스트 조회(교외 사업)")
+    @Operation(summary = "로드맵의 공고 리스트 조회(교외, 교내, 창업제도)", description = "로드맵의 공고 리스트 조회(교외, 교내, 창업제도)")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "로드맵의 공고 리스트 조회(교외 사업) 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RoadmapAnnouncementRes.class)))}),
-            @ApiResponse(responseCode = "400", description = "로드맵의 공고 리스트 조회(교외 사업) 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+            @ApiResponse(responseCode = "200", description = "로드맵의 공고 리스트 조회(교외, 교내, 창업제도) 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RoadmapAnnouncementRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "로드맵의 공고 리스트 조회(교외, 교내, 창업제도) 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
-    @GetMapping("/{roadmap-id}/off-campus")
+    @GetMapping("/{roadmap-id}/list")
     public ResponseEntity<List<RoadmapAnnouncementRes>> findAnnouncementsOfRoadmap(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "type", description = "공고 타입(OFF-CAMPUS, ON-CAMPUS, SYSTEM)") @RequestParam(name = "type") final String type,
             @PathVariable(name = "roadmap-id") final Long roadmapId
     ) {
-        return ResponseEntity.ok(roadmapService.findOffCampusAnnouncementsOfRoadmap(userPrincipal, roadmapId));
+        return ResponseEntity.ok(roadmapService.findListOfRoadmap(userPrincipal, roadmapId, type));
     }
 
     @Operation(summary = "공고가 저장된 로드맵 조회", description = "공고가 저장된 로드맵 조회")
@@ -134,10 +135,10 @@ public class RoadmapController {
         return ResponseEntity.ok(roadmapService.deleteRoadmap(userPrincipal, roadmapId));
     }
 
-    @Operation(summary = "로드맵에 공고 저장", description = "로드맵에 공고 저장")
+    @Operation(summary = "로드맵에 공고 저장(교외, 교내, 창업제도)", description = "로드맵에 공고(교외, 교내, 창업제도) 저장")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "로드맵에 공고 저장 성공", content = {@Content(mediaType = "application/json")}),
-            @ApiResponse(responseCode = "400", description = "로드맵에 공고 저장 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+            @ApiResponse(responseCode = "200", description = "로드맵에 공고(교외, 교내, 창업제도) 저장 성공", content = {@Content(mediaType = "application/json")}),
+            @ApiResponse(responseCode = "400", description = "로드맵에 공고(교외, 교내, 창업제도) 저장 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @PostMapping("/{roadmap-id}/announcement")
     public ResponseEntity<Void> addRoadmapAnnouncement(
