@@ -14,7 +14,6 @@ import com.startingblock.domain.roadmap.domain.QRoadmap;
 import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import com.startingblock.domain.user.domain.User;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
@@ -136,7 +135,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
-    public List<Announcement> findOffCampusAnnouncementsByRoadmapId(final Long userId, final Long roadmapId) {
+    public List<Announcement> findListOfRoadmapByRoadmapId(final Long userId, final Long roadmapId, final String type) {
         return queryFactory
                 .select(announcement)
                 .from(roadmap)
@@ -146,9 +145,19 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이전이거나, 비기한이 없는 공고
                         announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이후이거나, 비기한이 없는 공고
                         roadmap.id.eq(roadmapId),
-                        roadmap.user.id.eq(userId)
+                        roadmap.user.id.eq(userId),
+                        createExpressionForAnnouncementType(type)
                 )
                 .fetch();
+    }
+
+    private BooleanExpression createExpressionForAnnouncementType(final String type) {
+        return switch (type) {
+            case "ON_CAMPUS" -> announcement.announcementType.eq(AnnouncementType.ON_CAMPUS);
+            case "OFF_CAMPUS" -> announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO);
+            case "SYSTEM" -> announcement.announcementType.eq(AnnouncementType.SYSTEM);
+            default -> null;
+        };
     }
 
     private BooleanExpression businessAgeExpression(final String businessAge) {
