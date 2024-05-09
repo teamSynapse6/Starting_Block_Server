@@ -1,5 +1,6 @@
 package com.startingblock.domain.question.domain.repository;
 
+import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.question.domain.Question;
 import com.startingblock.domain.question.dto.QuestionResponseDto;
 
@@ -15,5 +16,5 @@ public interface QuestionQuerydslRepository {
 
     List<Question> findQuestionWaitingAnswerOff(Long userId);
 
-    List<Question> findQuestionWaitingAnswerOnOff(Long userId);
+    List<Question> findQuestionWaitingAnswerOnOff(Long userId, University university);
 }

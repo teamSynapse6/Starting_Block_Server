@@ -168,11 +168,10 @@ public class QuestionFindService {
                 .orElseThrow(InvalidUserException::new);
         List<QuestionResponseDto.WaitingAnswer> responseList = new ArrayList<>();
         University university = CampusFindService.findUserUniversity(user);
-        log.info(university.toString());
+
         // 교외1 + 교내1 -> user - university가 있고, 10개 대학 중 하나인 경우
         if (university != null) { //
-            log.info("여기 들어옴");
-            List<Question> questions = questionRepository.findQuestionWaitingAnswerOnOff(user.getId());
+            List<Question> questions = questionRepository.findQuestionWaitingAnswerOnOff(user.getId(), university);
             for (Question question : questions) {
                 Announcement announcement = question.getAnnouncement();
                 responseList.add(QuestionResponseDto.WaitingAnswer.builder()

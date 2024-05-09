@@ -8,7 +8,7 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
-import com.startingblock.domain.announcement.domain.QAnnouncement;
+import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.heart.domain.HeartType;
 import com.startingblock.domain.question.domain.QAType;
 import com.startingblock.domain.question.domain.QQuestion;
@@ -17,8 +17,8 @@ import com.startingblock.domain.answer.domain.QAnswer;
 import com.startingblock.domain.question.domain.Question;
 import com.startingblock.domain.question.dto.QuestionResponseDto;
 import com.startingblock.domain.reply.domain.QReply;
-import com.startingblock.domain.roadmap.domain.QRoadmapAnnouncement;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -27,9 +27,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.startingblock.domain.announcement.domain.QAnnouncement.announcement;
+import static com.startingblock.domain.announcement.domain.QAnnouncement.*;
+import static com.startingblock.domain.roadmap.domain.QRoadmapAnnouncement.*;
+import static com.startingblock.domain.question.domain.QQuestion.*;
+import static com.startingblock.domain.heart.domain.QHeart.*;
 
 @RequiredArgsConstructor
+@Slf4j
 public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepository{
 
     private final JPAQueryFactory queryFactory;
@@ -135,37 +139,33 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
 
     @Override
     public List<Question> findQuestionWaitingAnswerOff(Long userId) {
-        QAnnouncement qAnnouncement = QAnnouncement.announcement;
-        QQuestion qQuestion = QQuestion.question;
-        QRoadmapAnnouncement qRoadmapAnnouncement = QRoadmapAnnouncement.roadmapAnnouncement;
 
         // userId가 roadmap에 있는지 확인하여 정렬 가중치 계산
         NumberExpression<Integer> userRoadmapPriority = new CaseBuilder()
-                .when(qRoadmapAnnouncement.roadmap.user.id.eq(userId)).then(1)
+                .when(roadmapAnnouncement.roadmap.user.id.eq(userId)).then(1)
                 .otherwise(0);
-
         // 공고에 대한 로드맵 저장 횟수를 계산
-        NumberExpression<Long> roadmapCount = qRoadmapAnnouncement.count();
+        NumberExpression<Long> roadmapCount = roadmapAnnouncement.count();
         // heart 개수를 계산하는 집계
-//        NumberExpression<Integer> heartsCount = new CaseBuilder()
-//                .when(qHeart.heartType.eq(HeartType.QUESTION))
-//                .then(1)
-//                .otherwise(0)
-//                .sum();
+        NumberExpression<Integer> heartsCount = new CaseBuilder()
+                .when(heart.heartType.eq(HeartType.QUESTION))
+                .then(1)
+                .otherwise(0)
+                .sum();
 
         // 모든 공고를 조회하면서 저장한 공고, 로드맵 저장된 공고, 하트 누적 순으로 정렬
         List<Announcement> rankedAnnouncements = queryFactory
-                .selectFrom(qAnnouncement)
-                .leftJoin(qRoadmapAnnouncement).on(qRoadmapAnnouncement.announcement.eq(qAnnouncement))
-                .leftJoin(qQuestion).on(qQuestion.announcement.eq(qAnnouncement))
-//                .leftJoin(qHeart).on(qHeart.question.eq(qQuestion))
+                .selectFrom(announcement)
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
+                .leftJoin(question).on(question.announcement.eq(announcement))
+                .leftJoin(heart).on(heart.question.eq(question))
                 .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO))
-                .groupBy(qAnnouncement.id)
+                .groupBy(announcement.id)
                 .orderBy(
                         userRoadmapPriority.desc(),
                         roadmapCount.desc(),
-//                        heartsCount.desc(),
-                        qAnnouncement.createdAt.desc()
+                        heartsCount.desc(),
+                        announcement.createdAt.desc()
                 )
                 .limit(2)  // 마지막에 상위 2개의 공고만 선택
                 .fetch();
@@ -174,70 +174,68 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
         List<Question> topQuestions = new ArrayList<>();
         for (Announcement announcement : rankedAnnouncements) {
             Question topQuestion = queryFactory
-                    .selectFrom(qQuestion)
-                    .where(qQuestion.announcement.eq(announcement))
-//                    .orderBy(qHeart.count().desc())
+                    .selectFrom(question)
+                    .leftJoin(heart).on(heart.question.eq(question))
+                    .where(question.announcement.eq(announcement))
+                    .groupBy(question.id)
+                    .orderBy(heartsCount.desc())
                     .limit(1)
                     .fetchOne();
             if (topQuestion != null) {
                 topQuestions.add(topQuestion);
             }
         }
-
         return topQuestions;
     }
 
     @Override
-    public List<Question> findQuestionWaitingAnswerOnOff(Long userId) {
-        QAnnouncement qAnnouncement = QAnnouncement.announcement;
-        QQuestion qQuestion = QQuestion.question;
-        QRoadmapAnnouncement qRoadmapAnnouncement = QRoadmapAnnouncement.roadmapAnnouncement;
-        QHeart qHeart = QHeart.heart;
+    public List<Question> findQuestionWaitingAnswerOnOff(Long userId, University university) {
 
         // userId가 roadmap에 있는지 확인하여 정렬 가중치 계산
         NumberExpression<Integer> userRoadmapPriority = new CaseBuilder()
-                .when(qRoadmapAnnouncement.roadmap.user.id.eq(userId)).then(1)
+                .when(roadmapAnnouncement.roadmap.user.id.eq(userId)).then(1)
                 .otherwise(0);
 
         // 공고에 대한 로드맵 저장 횟수를 계산
-        NumberExpression<Long> roadmapCount = qRoadmapAnnouncement.count();
+        NumberExpression<Long> roadmapCount = roadmapAnnouncement.count();
         // heart 개수를 계산하는 집계
         NumberExpression<Integer> heartsCount = new CaseBuilder()
-                .when(qHeart.heartType.eq(HeartType.QUESTION))
+                .when(heart.heartType.eq(HeartType.QUESTION))
                 .then(1)
                 .otherwise(0)
                 .sum();
 
         // ON_CAMPUS 공고 선택
         Announcement onCampusAnnouncement = queryFactory
-                .selectFrom(qAnnouncement)
-                .leftJoin(qRoadmapAnnouncement).on(qRoadmapAnnouncement.announcement.eq(qAnnouncement))
-                .leftJoin(qQuestion).on(qQuestion.announcement.eq(qAnnouncement))
-//                .leftJoin(qHeart).on(qHeart.question.eq(qQuestion))
-                .where(qAnnouncement.announcementType.eq(AnnouncementType.ON_CAMPUS))
-                .groupBy(qAnnouncement.id)
+                .selectFrom(announcement)
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
+                .leftJoin(question).on(question.announcement.eq(announcement))
+                .leftJoin(heart).on(heart.question.eq(question))
+                .where(announcement.announcementType.eq(AnnouncementType.ON_CAMPUS),
+                        announcement.university.eq(university))
+                .groupBy(announcement.id)
                 .orderBy(
                         userRoadmapPriority.desc(),
                         roadmapCount.desc(),
-//                        heartsCount.desc(),
-                        qAnnouncement.createdAt.desc()
+                        heartsCount.desc(),
+                        announcement.createdAt.desc()
                 )
                 .limit(1)
                 .fetchOne();
 
         // BIZ_INFO 또는 OPEN_DATA 공고 선택
         Announcement bizOrOpenDataAnnouncement = queryFactory
-                .selectFrom(qAnnouncement)
-                .leftJoin(qRoadmapAnnouncement).on(qRoadmapAnnouncement.announcement.eq(qAnnouncement))
-                .leftJoin(qQuestion).on(qQuestion.announcement.eq(qAnnouncement))
-//                .leftJoin(qHeart).on(qHeart.question.eq(qQuestion))
-                .where(qAnnouncement.announcementType.in(AnnouncementType.BIZ_INFO, AnnouncementType.OPEN_DATA))
-                .groupBy(qAnnouncement.id)
+                .selectFrom(announcement)
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
+                .leftJoin(question).on(question.announcement.eq(announcement))
+                .leftJoin(heart).on(heart.question.eq(question))
+                .where(announcement.announcementType.in(AnnouncementType.BIZ_INFO, AnnouncementType.OPEN_DATA))
+                .groupBy(announcement.id)
                 .orderBy(
                         userRoadmapPriority.desc(),
                         roadmapCount.desc(),
-//                        heartsCount.desc(),
-                        qAnnouncement.createdAt.desc()
+                        heartsCount.desc(),
+                        announcement.createdAt.desc()
                 )
                 .limit(1)
                 .fetchOne();
@@ -250,9 +248,11 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
         for (Announcement announcement : selectedAnnouncements) {
             if (announcement != null) {  // Null 체크 추가
                 Question topQuestion = queryFactory
-                        .selectFrom(qQuestion)
-                        .where(qQuestion.announcement.eq(announcement))
-                        .orderBy(qHeart.count().desc())
+                        .selectFrom(question)
+                        .leftJoin(heart).on(heart.question.eq(question))
+                        .where(question.announcement.eq(announcement))
+                        .groupBy(question.id)
+                        .orderBy(heartsCount.desc())
                         .limit(1)
                         .fetchOne();
                 if (topQuestion != null) {
