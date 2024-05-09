@@ -222,7 +222,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
         // 교외1 + 교내1 -> user - university가 있고, 10개 대학 중 하나인 경우
         if (university != null) {
-            log.info(university.toString());
             List<Announcement> announcementList = announcementRepository.findCustomAnnouncementOnOff(user, university);
             List<CustomAnnouncementRes> response = new ArrayList<>();
             boolean isOffCampus = true;

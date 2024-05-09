@@ -7,6 +7,7 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
+import com.startingblock.domain.announcement.domain.QAnnouncement;
 import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.common.Status;
@@ -250,7 +251,8 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         .and(
                                 announcement.endDate.isNull()
                                         .or(announcement.endDate.after(LocalDateTime.now()))
-                        ))
+                        )
+                        .and(createRegistrationCondition(user.getIsCompletedBusinessRegistration())))
                 .groupBy(announcement.id)
                 .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                 .limit(2)
@@ -266,7 +268,8 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                                     .and(
                                             announcement.endDate.isNull()
                                                     .or(announcement.endDate.after(LocalDateTime.now()))
-                                    ))
+                                    )
+                                    .and(createRegistrationCondition(user.getIsCompletedBusinessRegistration())))
                     .groupBy(announcement.id)
                     .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                     .limit(2 - announcements.size())
@@ -291,11 +294,28 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         .and(
                                 announcement.endDate.isNull()
                                         .or(announcement.endDate.after(LocalDateTime.now()))
-                        ))
+                        )
+                        .and(createRegistrationCondition(user.getIsCompletedBusinessRegistration())))
                 .groupBy(announcement.id)
                 .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                 .limit(1)
                 .fetchOne();
+        // 첫 번째 쿼리 결과가 충분하지 않은 경우, 추가 쿼리 실행
+        if (offCampusAnnouncement == null) {
+            offCampusAnnouncement = queryFactory
+                    .selectFrom(announcement)
+                    .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
+                    .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO)
+                            .and(
+                                    announcement.endDate.isNull()
+                                            .or(announcement.endDate.after(LocalDateTime.now()))
+                            )
+                            .and(createRegistrationCondition(user.getIsCompletedBusinessRegistration())))
+                    .groupBy(announcement.id)
+                    .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
+                    .limit(1)
+                    .fetchOne();
+        }
 
         // ON_CAMPUS
         Announcement onCampusAnnouncement = queryFactory
@@ -329,5 +349,14 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         roadmap.roadmapStatus.eq(RoadmapStatus.IN_PROGRESS));
 
         return Expressions.booleanTemplate("exists {0}", subQuery);
+    }
+
+    private BooleanExpression createRegistrationCondition(boolean isCompletedBusinessRegistration) {
+        QAnnouncement announcement = QAnnouncement.announcement;
+        if (!isCompletedBusinessRegistration) {
+            return announcement.postTargetComAge.contains("예비창업자");
+        } else {
+            return null;  // isCompletedBusinessRegistration이 true일 때는 제한 없음
+        }
     }
 }
