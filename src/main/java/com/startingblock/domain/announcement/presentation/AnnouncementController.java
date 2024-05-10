@@ -5,6 +5,7 @@ import com.startingblock.domain.announcement.application.AnnouncementService;
 import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import com.startingblock.domain.announcement.dto.CustomAnnouncementRes;
+import com.startingblock.domain.announcement.dto.SystemRes;
 import com.startingblock.global.config.security.token.CurrentUser;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.payload.ErrorResponse;
@@ -46,10 +47,10 @@ public class AnnouncementController {
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "공고 조건별 검색(Paging)", description = "공고 조건별 검색(Paging)")
+    @Operation(summary = "교외 공고 조건별 검색(Paging)", description = "교외 공고 조건별 검색(Paging)")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "공고 조건별 검색 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AnnouncementRes.class)))}),
-            @ApiResponse(responseCode = "400", description = "공고 조건별 검색 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+            @ApiResponse(responseCode = "200", description = "교외 공고 조건별 검색 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AnnouncementRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "교외 공고 조건별 검색 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @GetMapping("/list")
     public ResponseEntity<Slice<AnnouncementRes>> findAnnouncements(
@@ -62,6 +63,18 @@ public class AnnouncementController {
             @Parameter(name = "search", description = "검색어") @RequestParam(required = false) final String search
     ) {
         return ResponseEntity.ok(announcementService.findAnnouncements(userPrincipal, pageable, postTarget, region, supportType, sorting, search));
+    }
+
+    @Operation(summary = "교내 학사 제도 검색", description = "교내 학사 제도 검색")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "교내 학사 제도 검색 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = SystemRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "교내 학사 제도 검색 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/list/system")
+    public ResponseEntity<List<SystemRes>> findSystems(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(announcementService.findSystems(userPrincipal));
     }
 
     @Operation(summary = "공고 상세정보 조회", description = "공고 상세정보 조회")
@@ -113,4 +126,5 @@ public class AnnouncementController {
     ) {
         return ResponseEntity.ok(announcementService.findCustomAnnouncement(userPrincipal));
     }
+
 }

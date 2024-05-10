@@ -7,6 +7,7 @@ import com.startingblock.domain.announcement.domain.repository.AnnouncementRepos
 import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import com.startingblock.domain.announcement.dto.CustomAnnouncementRes;
+import com.startingblock.domain.announcement.dto.SystemRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.announcement.exception.PermissionDeniedException;
 import com.startingblock.domain.user.domain.Role;
@@ -253,4 +254,16 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         }
         return response;
     }
+
+    @Override
+    public List<SystemRes> findSystems(UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        University university = University.fromName(user.getUniversity());
+
+        List<Announcement> announcements = announcementRepository.findByAnnouncementTypeAndUniversity(AnnouncementType.SYSTEM, university);
+        return SystemRes.toDto(announcements);
+    }
+
 }
