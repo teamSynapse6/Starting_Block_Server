@@ -6,6 +6,7 @@ import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import com.startingblock.domain.announcement.dto.OnCampusAnnouncementRes;
+import com.startingblock.domain.announcement.dto.SystemRes;
 import com.startingblock.domain.user.domain.User;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -22,5 +23,6 @@ public interface AnnouncementQuerydslRepository {
     List<Announcement> findCustomAnnouncementOnOff(User user, University university);
     List<Announcement> findCustomAnnouncementOff(User user);
     List<OnCampusAnnouncementRes> findOnCampusAnnouncements(Long userId, University university, Keyword keyword);
+    List<SystemRes> findSystems(Long userId, University university);
 
 }

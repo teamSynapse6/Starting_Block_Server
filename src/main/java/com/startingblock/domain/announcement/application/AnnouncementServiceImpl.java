@@ -257,8 +257,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
         University university = University.of(user.getUniversity());
 
-        List<Announcement> announcements = announcementRepository.findByAnnouncementTypeAndUniversity(AnnouncementType.SYSTEM, university);
-        return SystemRes.toDto(announcements);
+        return announcementRepository.findSystems(user.getId(), university);
     }
 
     @Override

@@ -1,29 +1,25 @@
 package com.startingblock.domain.announcement.dto;
 
-import com.startingblock.domain.announcement.domain.Announcement;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import com.querydsl.core.annotations.QueryProjection;
 import lombok.Data;
 
-import java.util.List;
 
 @Data
-@AllArgsConstructor
-@Builder
 public class SystemRes {
 
+    private Long systemId;
     private String title;
     private String target;
     private String content;
+    private Boolean isBookmarked;
 
-    public static List<SystemRes> toDto(final List<Announcement> systems) {
-        return systems.stream()
-                .map(system -> SystemRes.builder()
-                        .title(system.getTitle())
-                        .target(system.getPostTarget())
-                        .content(system.getContent())
-                        .build())
-                .toList();
+    @QueryProjection
+    public SystemRes(Long systemId, String title, String target, String content, Boolean isBookmarked) {
+        this.systemId = systemId;
+        this.title = title;
+        this.target = target;
+        this.content = content;
+        this.isBookmarked = isBookmarked;
     }
 
 }

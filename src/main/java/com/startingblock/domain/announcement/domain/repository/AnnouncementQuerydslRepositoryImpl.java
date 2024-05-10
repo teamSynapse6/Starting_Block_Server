@@ -174,6 +174,28 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .fetch();
     }
 
+    @Override
+    public List<SystemRes> findSystems(final Long userId, final University university) {
+        return queryFactory
+                .select(
+                        new QSystemRes(
+                                announcement.id,
+                                announcement.title,
+                                announcement.postTarget,
+                                announcement.content,
+                                roadmapAnnouncement.announcement.id.isNotNull()
+                        )
+                )
+                .from(announcement)
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement).and(roadmapAnnouncement.roadmap.user.id.eq(userId)))
+                .where(
+                        announcement.announcementType.eq(AnnouncementType.SYSTEM),
+                        announcement.university.eq(university)
+                )
+                .distinct()
+                .fetch();
+    }
+
     private BooleanExpression keywordExpression(final Keyword keyword) {
         if (keyword == null) return null;
         return announcement.keyword.eq(keyword);
