@@ -4,6 +4,7 @@ import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.Lecture;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.domain.repository.LectureRepository;
+import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
 import com.startingblock.domain.announcement.dto.RoadmapAnnouncementRes;
 import com.startingblock.domain.announcement.dto.RoadmapSystemRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
@@ -33,8 +34,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static com.startingblock.domain.announcement.domain.QAnnouncement.announcement;
 
 @Service
 @RequiredArgsConstructor
@@ -282,6 +281,13 @@ public class RoadmapServiceImpl implements RoadmapService {
 
         lecture.addRoadmapCount();
         roadmapLectureRepository.save(roadmapLecture);
+    }
+
+    @Override
+    public List<RoadmapLectureRes> findLecturesOfRoadmap(UserPrincipal userPrincipal, Long roadmapId) {
+        List<Lecture> lectures = lectureRepository.findLecturesOfRoadmapsByRoadmapId(userPrincipal.getId(), roadmapId);
+
+        return RoadmapLectureRes.toDto(lectures);
     }
 
 }
