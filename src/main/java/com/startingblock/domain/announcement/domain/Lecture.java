@@ -32,6 +32,12 @@ public class Lecture extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private University university;
 
+    private Integer roadmapCount;
+
+    public void addRoadmapCount() {
+        this.roadmapCount++;
+    }
+
     @Builder
     public Lecture(String title, String liberal, Integer credit, String session, String instructor, String content, University university) {
         this.title = title;
@@ -41,6 +47,7 @@ public class Lecture extends BaseEntity {
         this.instructor = instructor;
         this.content = content;
         this.university = university;
+        this.roadmapCount = 0;
     }
 
 }
