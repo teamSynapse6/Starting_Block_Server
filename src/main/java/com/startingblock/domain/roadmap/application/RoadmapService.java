@@ -1,6 +1,6 @@
 package com.startingblock.domain.roadmap.application;
 
-import com.startingblock.domain.announcement.dto.RoadmapAnnouncementRes;
+import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
 import com.startingblock.domain.roadmap.dto.AnnouncementSavedRoadmapRes;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
@@ -22,6 +22,8 @@ public interface RoadmapService {
     List<RoadmapDetailRes> swapRoadmap(UserPrincipal userPrincipal, SwapRoadmapReq swapRoadmapReq);
     List<RoadmapDetailRes> leapCurrentRoadmap(UserPrincipal userPrincipal);
     List<RoadmapDetailRes> addRoadmap(UserPrincipal userPrincipal, String roadmapTitle);
-    List<RoadmapAnnouncementRes> findListOfRoadmap(UserPrincipal userPrincipal, Long roadmapId, String type);
+    List<?> findListOfRoadmap(UserPrincipal userPrincipal, Long roadmapId, String type);
+    void addRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId);
+    List<RoadmapLectureRes> findLecturesOfRoadmap(UserPrincipal userPrincipal, Long roadmapId);
 
 }

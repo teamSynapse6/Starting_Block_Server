@@ -5,13 +5,11 @@ import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.startingblock.domain.announcement.domain.Announcement;
-import com.startingblock.domain.announcement.domain.AnnouncementType;
-import com.startingblock.domain.announcement.domain.QAnnouncement;
-import com.startingblock.domain.announcement.domain.University;
+import com.startingblock.domain.announcement.domain.*;
 import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.common.Status;
 import com.startingblock.domain.roadmap.domain.QRoadmap;
+import com.startingblock.domain.roadmap.domain.QRoadmapLecture;
 import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import com.startingblock.domain.user.domain.User;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +25,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.startingblock.domain.announcement.domain.QAnnouncement.*;
+import static com.startingblock.domain.announcement.domain.QLecture.*;
 import static com.startingblock.domain.roadmap.domain.QRoadmap.*;
 import static com.startingblock.domain.roadmap.domain.QRoadmapAnnouncement.*;
+import static com.startingblock.domain.roadmap.domain.QRoadmapLecture.*;
 
 @RequiredArgsConstructor
 public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslRepository {
@@ -152,10 +152,83 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .fetch();
     }
 
+    @Override
+    public List<OnCampusAnnouncementRes> findOnCampusAnnouncements(final Long userId, final University university, final Keyword keyword) {
+        return queryFactory
+                .select(
+                    new QOnCampusAnnouncementRes(
+                            announcement.id,
+                            announcement.title,
+                            announcement.content,
+                            roadmapAnnouncement.announcement.id.isNotNull()
+                    )
+                )
+                .from(announcement)
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement).and(roadmapAnnouncement.roadmap.user.id.eq(userId)))
+                .where(
+                        announcement.announcementType.eq(AnnouncementType.ON_CAMPUS),
+                        announcement.university.eq(university),
+                        keywordExpression(keyword)
+                )
+                .distinct()
+                .fetch();
+    }
+
+    @Override
+    public List<SystemRes> findSystems(final Long userId, final University university) {
+        return queryFactory
+                .select(
+                        new QSystemRes(
+                                announcement.id,
+                                announcement.title,
+                                announcement.postTarget,
+                                announcement.content,
+                                roadmapAnnouncement.announcement.id.isNotNull()
+                        )
+                )
+                .from(announcement)
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement).and(roadmapAnnouncement.roadmap.user.id.eq(userId)))
+                .where(
+                        announcement.announcementType.eq(AnnouncementType.SYSTEM),
+                        announcement.university.eq(university)
+                )
+                .distinct()
+                .fetch();
+    }
+
+    @Override
+    public List<LectureRes> findLectures(final Long id, final University university) {
+        return queryFactory
+                .select(
+                        new QLectureRes(
+                                lecture.id,
+                                lecture.title,
+                                lecture.liberal,
+                                lecture.credit,
+                                lecture.session,
+                                lecture.instructor,
+                                lecture.content,
+                                roadmapLecture.lecture.id.isNotNull()
+                        )
+                )
+                .from(lecture)
+                .leftJoin(roadmapLecture).on(roadmapLecture.lecture.eq(lecture).and(roadmapLecture.roadmap.user.id.eq(id)))
+                .where(
+                        lecture.university.eq(university)
+                )
+                .distinct()
+                .fetch();
+    }
+
+    private BooleanExpression keywordExpression(final Keyword keyword) {
+        if (keyword == null) return null;
+        return announcement.keyword.eq(keyword);
+    }
+
     private BooleanExpression createExpressionForAnnouncementType(final String type) {
         return switch (type) {
-            case "ON_CAMPUS" -> announcement.announcementType.eq(AnnouncementType.ON_CAMPUS);
-            case "OFF_CAMPUS" -> announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO);
+            case "ON-CAMPUS" -> announcement.announcementType.eq(AnnouncementType.ON_CAMPUS);
+            case "OFF-CAMPUS" -> announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO);
             case "SYSTEM" -> announcement.announcementType.eq(AnnouncementType.SYSTEM);
             default -> null;
         };
@@ -260,8 +333,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         .and(
                                 announcement.endDate.isNull()
                                         .or(announcement.endDate.after(LocalDateTime.now()))
-                        )
-                        .and(createRegistrationCondition(user.getIsCompletedBusinessRegistration())))
+                        ))
                 .groupBy(announcement.id)
                 .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                 .limit(2)
@@ -277,8 +349,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                                     .and(
                                             announcement.endDate.isNull()
                                                     .or(announcement.endDate.after(LocalDateTime.now()))
-                                    )
-                                    .and(createRegistrationCondition(user.getIsCompletedBusinessRegistration())))
+                                    ))
                     .groupBy(announcement.id)
                     .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                     .limit(2 - announcements.size())
@@ -303,28 +374,11 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         .and(
                                 announcement.endDate.isNull()
                                         .or(announcement.endDate.after(LocalDateTime.now()))
-                        )
-                        .and(createRegistrationCondition(user.getIsCompletedBusinessRegistration())))
+                        ))
                 .groupBy(announcement.id)
                 .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
                 .limit(1)
                 .fetchOne();
-        // 첫 번째 쿼리 결과가 충분하지 않은 경우, 추가 쿼리 실행
-        if (offCampusAnnouncement == null) {
-            offCampusAnnouncement = queryFactory
-                    .selectFrom(announcement)
-                    .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
-                    .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO)
-                            .and(
-                                    announcement.endDate.isNull()
-                                            .or(announcement.endDate.after(LocalDateTime.now()))
-                            )
-                            .and(createRegistrationCondition(user.getIsCompletedBusinessRegistration())))
-                    .groupBy(announcement.id)
-                    .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
-                    .limit(1)
-                    .fetchOne();
-        }
 
         // ON_CAMPUS
         Announcement onCampusAnnouncement = queryFactory
@@ -358,14 +412,5 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         roadmap.roadmapStatus.eq(RoadmapStatus.IN_PROGRESS));
 
         return Expressions.booleanTemplate("exists {0}", subQuery);
-    }
-
-    private BooleanExpression createRegistrationCondition(boolean isCompletedBusinessRegistration) {
-        QAnnouncement announcement = QAnnouncement.announcement;
-        if (!isCompletedBusinessRegistration) {
-            return announcement.postTargetComAge.contains("예비창업자");
-        } else {
-            return null;  // isCompletedBusinessRegistration이 true일 때는 제한 없음
-        }
     }
 }
