@@ -1,7 +1,9 @@
 package com.startingblock.domain.question.application;
 
+import com.startingblock.domain.announcement.application.CampusFindService;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
+import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.answer.domain.Answer;
@@ -20,6 +22,8 @@ import com.startingblock.domain.user.domain.repository.UserRepository;
 import com.startingblock.domain.user.exception.InvalidUserException;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.units.qual.A;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +35,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class QuestionFindService {
 
     private final QuestionRepository questionRepository;
@@ -153,6 +158,48 @@ public class QuestionFindService {
                     .receptionTime(receptionTime)
                     .sendTime(sendTime)
                     .arriveTime(arriveTime)
+                    .build());
+        }
+        return responseList;
+    }
+
+    public List<QuestionResponseDto.WaitingAnswer> findQuestionWaitingAnswer(final UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+        List<QuestionResponseDto.WaitingAnswer> responseList = new ArrayList<>();
+        University university = CampusFindService.findUserUniversity(user);
+
+        // 교외1 + 교내1 -> user - university가 있고, 10개 대학 중 하나인 경우
+        if (university != null) { //
+            List<Question> questions = questionRepository.findQuestionWaitingAnswerOnOff(user.getId(), university);
+            for (Question question : questions) {
+                Announcement announcement = question.getAnnouncement();
+                responseList.add(QuestionResponseDto.WaitingAnswer.builder()
+                        .announcementId(announcement.getId())
+                        .announcementType(announcement.getAnnouncementType() == AnnouncementType.ON_CAMPUS ? "교내" : "교외")
+                        .announcementTitle(announcement.getTitle())
+                        .questionId(question.getId())
+                        .questionContent(question.getContent())
+                        .heartCount(heartRepository.countByQuestionId(question.getId()))
+                        .createdAt(question.getCreatedAt())
+                        .build());
+            }
+            return responseList;
+        }
+
+        // 교외 2 -> user - university가 없고, 있어도 10개 대학이 아니면
+        List<Question> questions = questionRepository.findQuestionWaitingAnswerOff(user.getId());
+        for (Question question : questions) {
+            log.info(String.valueOf(questions.size()));
+            Announcement announcement = question.getAnnouncement();
+            responseList.add(QuestionResponseDto.WaitingAnswer.builder()
+                    .announcementId(announcement.getId())
+                    .announcementType("교외")
+                    .announcementTitle(announcement.getTitle())
+                    .questionId(question.getId())
+                    .questionContent(question.getContent())
+                    .heartCount(heartRepository.countByQuestionId(question.getId()))
+                    .createdAt(question.getCreatedAt())
                     .build());
         }
         return responseList;
