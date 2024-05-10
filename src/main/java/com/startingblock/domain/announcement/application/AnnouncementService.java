@@ -1,9 +1,7 @@
 package com.startingblock.domain.announcement.application;
 
-import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
-import com.startingblock.domain.announcement.dto.AnnouncementRes;
-import com.startingblock.domain.announcement.dto.CustomAnnouncementRes;
-import com.startingblock.domain.announcement.dto.SystemRes;
+import com.startingblock.domain.announcement.domain.Keyword;
+import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -21,5 +19,6 @@ public interface AnnouncementService {
     void uploadAnnouncementsFile(UserPrincipal userPrincipal);
     List<CustomAnnouncementRes> findCustomAnnouncement(UserPrincipal userPrincipal);
     List<SystemRes> findSystems(UserPrincipal userPrincipal);
+    List<OnCampusAnnouncementRes> findOnCampusAnnouncements(UserPrincipal userPrincipal, Keyword keyword);
 
 }

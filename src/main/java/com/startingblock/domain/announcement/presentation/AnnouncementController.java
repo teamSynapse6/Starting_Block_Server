@@ -2,10 +2,8 @@ package com.startingblock.domain.announcement.presentation;
 
 
 import com.startingblock.domain.announcement.application.AnnouncementService;
-import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
-import com.startingblock.domain.announcement.dto.AnnouncementRes;
-import com.startingblock.domain.announcement.dto.CustomAnnouncementRes;
-import com.startingblock.domain.announcement.dto.SystemRes;
+import com.startingblock.domain.announcement.domain.Keyword;
+import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.global.config.security.token.CurrentUser;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.payload.ErrorResponse;
@@ -75,6 +73,19 @@ public class AnnouncementController {
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
     ) {
         return ResponseEntity.ok(announcementService.findSystems(userPrincipal));
+    }
+
+    @Operation(summary = "교내 지원 공고 검색", description = "교내 지원 공고 검색")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "교내 지원 공고 검색 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = OnCampusAnnouncementRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "교내 지원 공고 검색 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/list/on-campus")
+    public ResponseEntity<List<OnCampusAnnouncementRes>> findOnCampusAnnouncements(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "keyword", description = "키워드(CLUB/CAMP/CONTEST/LECTURE/MENTORING/ETC/SPACE)") @RequestParam(required = false) final Keyword keyword
+    ) {
+        return ResponseEntity.ok(announcementService.findOnCampusAnnouncements(userPrincipal, keyword));
     }
 
     @Operation(summary = "공고 상세정보 조회", description = "공고 상세정보 조회")

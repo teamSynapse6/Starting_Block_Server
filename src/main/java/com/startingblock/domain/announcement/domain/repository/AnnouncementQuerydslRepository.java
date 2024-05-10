@@ -1,9 +1,11 @@
 package com.startingblock.domain.announcement.domain.repository;
 
 import com.startingblock.domain.announcement.domain.Announcement;
+import com.startingblock.domain.announcement.domain.Keyword;
 import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
+import com.startingblock.domain.announcement.dto.OnCampusAnnouncementRes;
 import com.startingblock.domain.user.domain.User;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -19,4 +21,6 @@ public interface AnnouncementQuerydslRepository {
     List<Announcement> findListOfRoadmapByRoadmapId(Long userId, Long roadmapId, String type);
     List<Announcement> findCustomAnnouncementOnOff(User user, University university);
     List<Announcement> findCustomAnnouncementOff(User user);
+    List<OnCampusAnnouncementRes> findOnCampusAnnouncements(Long userId, University university, Keyword keyword);
+
 }

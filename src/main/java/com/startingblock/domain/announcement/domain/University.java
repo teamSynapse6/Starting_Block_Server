@@ -1,5 +1,8 @@
 package com.startingblock.domain.announcement.domain;
 
+import lombok.Getter;
+
+@Getter
 public enum University {
     EWHA("이화여자대학교"),
     HAN_YANG("한양대학교"),
@@ -46,7 +49,7 @@ public enum University {
         this.name = name;
     }
 
-    public static University fromName(String name) {
+    public static University of(String name) {
         for (University uni : University.values()) {
             if (uni.name.equals(name)) {
                 return uni;

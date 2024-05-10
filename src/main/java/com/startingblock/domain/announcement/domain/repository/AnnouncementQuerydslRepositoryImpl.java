@@ -7,6 +7,7 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
+import com.startingblock.domain.announcement.domain.Keyword;
 import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.common.Status;
@@ -149,6 +150,33 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         createExpressionForAnnouncementType(type)
                 )
                 .fetch();
+    }
+
+    @Override
+    public List<OnCampusAnnouncementRes> findOnCampusAnnouncements(final Long userId, final University university, final Keyword keyword) {
+        return queryFactory
+                .select(
+                    new QOnCampusAnnouncementRes(
+                            announcement.id,
+                            announcement.title,
+                            announcement.content,
+                            roadmapAnnouncement.announcement.id.isNotNull()
+                    )
+                )
+                .from(announcement)
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement).and(roadmapAnnouncement.roadmap.user.id.eq(userId)))
+                .where(
+                        announcement.announcementType.eq(AnnouncementType.ON_CAMPUS),
+                        announcement.university.eq(university),
+                        keywordExpression(keyword)
+                )
+                .distinct()
+                .fetch();
+    }
+
+    private BooleanExpression keywordExpression(final Keyword keyword) {
+        if (keyword == null) return null;
+        return announcement.keyword.eq(keyword);
     }
 
     private BooleanExpression createExpressionForAnnouncementType(final String type) {

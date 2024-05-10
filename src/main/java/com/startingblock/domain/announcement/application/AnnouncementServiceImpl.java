@@ -2,12 +2,10 @@ package com.startingblock.domain.announcement.application;
 
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
+import com.startingblock.domain.announcement.domain.Keyword;
 import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
-import com.startingblock.domain.announcement.dto.AnnouncementDetailRes;
-import com.startingblock.domain.announcement.dto.AnnouncementRes;
-import com.startingblock.domain.announcement.dto.CustomAnnouncementRes;
-import com.startingblock.domain.announcement.dto.SystemRes;
+import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.announcement.exception.PermissionDeniedException;
 import com.startingblock.domain.user.domain.Role;
@@ -24,12 +22,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
-import org.springframework.http.MediaType;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -201,7 +196,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     @Override
-    public AnnouncementDetailRes findAnnouncementDetailById(UserPrincipal userPrincipal, Long announcementId) {
+    public AnnouncementDetailRes findAnnouncementDetailById(final UserPrincipal userPrincipal, final Long announcementId) {
         AnnouncementDetailRes announcementDetail = announcementRepository.findAnnouncementDetail(userPrincipal.getId(), announcementId);
 
         if (announcementDetail == null)
@@ -211,12 +206,12 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     @Override
-    public List<AnnouncementRes> findThreeRandomAnnouncement(UserPrincipal userPrincipal) {
+    public List<AnnouncementRes> findThreeRandomAnnouncement(final UserPrincipal userPrincipal) {
         return announcementRepository.findThreeRandomAnnouncement(userPrincipal.getId());
     }
 
     @Override
-    public List<CustomAnnouncementRes> findCustomAnnouncement(UserPrincipal userPrincipal) {
+    public List<CustomAnnouncementRes> findCustomAnnouncement(final UserPrincipal userPrincipal) {
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(InvalidUserException::new);
         University university = CampusFindService.findUserUniversity(user);
@@ -256,14 +251,24 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     @Override
-    public List<SystemRes> findSystems(UserPrincipal userPrincipal) {
+    public List<SystemRes> findSystems(final UserPrincipal userPrincipal) {
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(InvalidUserException::new);
 
-        University university = University.fromName(user.getUniversity());
+        University university = University.of(user.getUniversity());
 
         List<Announcement> announcements = announcementRepository.findByAnnouncementTypeAndUniversity(AnnouncementType.SYSTEM, university);
         return SystemRes.toDto(announcements);
+    }
+
+    @Override
+    public List<OnCampusAnnouncementRes> findOnCampusAnnouncements(final UserPrincipal userPrincipal, final Keyword keyword) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        University university = University.of(user.getUniversity());
+
+        return announcementRepository.findOnCampusAnnouncements(userPrincipal.getId(), university, keyword);
     }
 
 }
