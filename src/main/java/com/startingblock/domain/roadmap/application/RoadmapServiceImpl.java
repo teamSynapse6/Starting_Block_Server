@@ -1,14 +1,19 @@
 package com.startingblock.domain.roadmap.application;
 
 import com.startingblock.domain.announcement.domain.Announcement;
+import com.startingblock.domain.announcement.domain.Lecture;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
+import com.startingblock.domain.announcement.domain.repository.LectureRepository;
 import com.startingblock.domain.announcement.dto.RoadmapAnnouncementRes;
 import com.startingblock.domain.announcement.dto.RoadmapSystemRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
+import com.startingblock.domain.announcement.exception.InvalidLectureException;
 import com.startingblock.domain.roadmap.domain.Roadmap;
 import com.startingblock.domain.roadmap.domain.RoadmapAnnouncement;
+import com.startingblock.domain.roadmap.domain.RoadmapLecture;
 import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapAnnouncementRepository;
+import com.startingblock.domain.roadmap.domain.repository.RoadmapLectureRepository;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapRepository;
 import com.startingblock.domain.roadmap.dto.AnnouncementSavedRoadmapRes;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
@@ -29,6 +34,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.startingblock.domain.announcement.domain.QAnnouncement.announcement;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -39,6 +46,8 @@ public class RoadmapServiceImpl implements RoadmapService {
     private final RoadmapRepository roadmapRepository;
     private final AnnouncementRepository announcementRepository;
     private final RoadmapAnnouncementRepository roadmapAnnouncementRepository;
+    private final LectureRepository lectureRepository;
+    private final RoadmapLectureRepository roadmapLectureRepository;
 
     @Override
     @Transactional
@@ -249,6 +258,30 @@ public class RoadmapServiceImpl implements RoadmapService {
             return RoadmapAnnouncementRes.toOnCampusDto(announcements);
         else
             return RoadmapSystemRes.toDto(announcements);
+    }
+
+    @Override
+    @Transactional
+    public void addRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId) {
+        Roadmap roadmap = roadmapRepository.findRoadmapById(roadmapId)
+                .orElseThrow(InvalidRoadmapException::new);
+
+        if (!Objects.equals(roadmap.getUser().getId(), userPrincipal.getId()))
+            throw new RoadmapMismatchUserException();
+
+        Lecture lecture = lectureRepository.findById(lectureId)
+                .orElseThrow(InvalidLectureException::new);
+
+        if (roadmapLectureRepository.existsByRoadmapIdAndLectureId(roadmapId, lectureId))
+            throw new AlreadyExistsRoadmapException();
+
+        RoadmapLecture roadmapLecture = RoadmapLecture.builder()
+                .roadmap(roadmap)
+                .lecture(lecture)
+                .build();
+
+        lecture.addRoadmapCount();
+        roadmapLectureRepository.save(roadmapLecture);
     }
 
 }

@@ -23,5 +23,6 @@ public interface RoadmapService {
     List<RoadmapDetailRes> leapCurrentRoadmap(UserPrincipal userPrincipal);
     List<RoadmapDetailRes> addRoadmap(UserPrincipal userPrincipal, String roadmapTitle);
     List<?> findListOfRoadmap(UserPrincipal userPrincipal, Long roadmapId, String type);
+    void addRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId);
 
 }

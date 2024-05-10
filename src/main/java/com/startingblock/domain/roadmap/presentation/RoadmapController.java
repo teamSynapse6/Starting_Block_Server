@@ -150,6 +150,21 @@ public class RoadmapController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "로드맵에 강의 저장(창업 강의)", description = "로드맵에 강의 저장(창업 강의) 저장")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "로드맵에 강의 저장(창업 강의) 저장 성공", content = {@Content(mediaType = "application/json")}),
+            @ApiResponse(responseCode = "400", description = "로드맵에 강의 저장(창업 강의) 저장 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @PostMapping("/{roadmap-id}/lecture")
+    public ResponseEntity<Void> addRoadmapLecture(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "roadmap-id", description = "로드맵 ID") @PathVariable(name = "roadmap-id") final Long roadmapId,
+            @Parameter(name = "lectureId", description = "창업강의 ID") @RequestParam(name = "lectureId") final Long lectureId
+    ) {
+        roadmapService.addRoadmapLecture(userPrincipal, roadmapId, lectureId);
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "로드맵의 공고 삭제", description = "로드맵의 공고 삭제")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "로드맵의 공고 삭제 성공", content = {@Content(mediaType = "application/json")}),
