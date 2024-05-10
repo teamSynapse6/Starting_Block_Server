@@ -20,5 +20,6 @@ public interface AnnouncementService {
     List<CustomAnnouncementRes> findCustomAnnouncement(UserPrincipal userPrincipal);
     List<SystemRes> findSystems(UserPrincipal userPrincipal);
     List<OnCampusAnnouncementRes> findOnCampusAnnouncements(UserPrincipal userPrincipal, Keyword keyword);
+    List<LectureRes> findLectures(UserPrincipal userPrincipal);
 
 }

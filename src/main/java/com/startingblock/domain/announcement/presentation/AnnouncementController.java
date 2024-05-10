@@ -88,6 +88,18 @@ public class AnnouncementController {
         return ResponseEntity.ok(announcementService.findOnCampusAnnouncements(userPrincipal, keyword));
     }
 
+    @Operation(summary = "교내 창업 강의 검색", description = "교내 창업 강의 검색")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "교내 창업 강의 검색 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = LectureRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "교내 창업 강의 검색 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/list/lecture")
+    public ResponseEntity<List<LectureRes>> findLectures(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        return ResponseEntity.ok(announcementService.findLectures(userPrincipal));
+    }
+
     @Operation(summary = "공고 상세정보 조회", description = "공고 상세정보 조회")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "공고 상세정보 조회 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = AnnouncementDetailRes.class))}),

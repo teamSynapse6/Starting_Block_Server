@@ -5,13 +5,11 @@ import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.startingblock.domain.announcement.domain.Announcement;
-import com.startingblock.domain.announcement.domain.AnnouncementType;
-import com.startingblock.domain.announcement.domain.Keyword;
-import com.startingblock.domain.announcement.domain.University;
+import com.startingblock.domain.announcement.domain.*;
 import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.common.Status;
 import com.startingblock.domain.roadmap.domain.QRoadmap;
+import com.startingblock.domain.roadmap.domain.QRoadmapLecture;
 import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import com.startingblock.domain.user.domain.User;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +25,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.startingblock.domain.announcement.domain.QAnnouncement.*;
+import static com.startingblock.domain.announcement.domain.QLecture.*;
 import static com.startingblock.domain.roadmap.domain.QRoadmap.*;
 import static com.startingblock.domain.roadmap.domain.QRoadmapAnnouncement.*;
+import static com.startingblock.domain.roadmap.domain.QRoadmapLecture.*;
 
 @RequiredArgsConstructor
 public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslRepository {
@@ -191,6 +191,30 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .where(
                         announcement.announcementType.eq(AnnouncementType.SYSTEM),
                         announcement.university.eq(university)
+                )
+                .distinct()
+                .fetch();
+    }
+
+    @Override
+    public List<LectureRes> findLectures(final Long id, final University university) {
+        return queryFactory
+                .select(
+                        new QLectureRes(
+                                lecture.id,
+                                lecture.title,
+                                lecture.liberal,
+                                lecture.credit,
+                                lecture.session,
+                                lecture.instructor,
+                                lecture.content,
+                                roadmapLecture.lecture.id.isNotNull()
+                        )
+                )
+                .from(lecture)
+                .leftJoin(roadmapLecture).on(roadmapLecture.lecture.eq(lecture).and(roadmapLecture.roadmap.user.id.eq(id)))
+                .where(
+                        lecture.university.eq(university)
                 )
                 .distinct()
                 .fetch();

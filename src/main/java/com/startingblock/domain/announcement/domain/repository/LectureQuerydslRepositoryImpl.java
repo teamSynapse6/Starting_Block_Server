@@ -30,4 +30,6 @@ public class LectureQuerydslRepositoryImpl implements LectureQuerydslRepository 
                 .fetch();
     }
 
+
+
 }

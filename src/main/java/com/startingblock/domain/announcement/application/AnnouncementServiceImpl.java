@@ -270,4 +270,13 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         return announcementRepository.findOnCampusAnnouncements(userPrincipal.getId(), university, keyword);
     }
 
+    @Override
+    public List<LectureRes> findLectures(UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        University university = University.of(user.getUniversity());
+
+        return announcementRepository.findLectures(userPrincipal.getId(), university);
+    }
 }
