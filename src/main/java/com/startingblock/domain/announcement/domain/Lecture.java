@@ -38,6 +38,10 @@ public class Lecture extends BaseEntity {
         this.roadmapCount++;
     }
 
+    public void subtractRoadmapCount() {
+        this.roadmapCount--;
+    }
+
     @Builder
     public Lecture(String title, String liberal, Integer credit, String session, String instructor, String content, University university) {
         this.title = title;
