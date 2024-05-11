@@ -21,5 +21,7 @@ public interface AnnouncementService {
     List<SystemRes> findSystems(UserPrincipal userPrincipal);
     List<OnCampusAnnouncementRes> findOnCampusAnnouncements(UserPrincipal userPrincipal, Keyword keyword);
     List<LectureRes> findLectures(UserPrincipal userPrincipal);
+    List<SupportGroupRes> findSupportGroups(UserPrincipal userPrincipal, Keyword keyword);
+    List<String> findSupportGroupKeywords(UserPrincipal userPrincipal);
 
 }

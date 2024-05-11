@@ -274,7 +274,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     @Override
-    public List<LectureRes> findLectures(UserPrincipal userPrincipal) {
+    public List<LectureRes> findLectures(final UserPrincipal userPrincipal) {
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(InvalidUserException::new);
 
@@ -282,4 +282,26 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
         return announcementRepository.findLectures(userPrincipal.getId(), university);
     }
+
+    @Override
+    public List<SupportGroupRes> findSupportGroups(final UserPrincipal userPrincipal, final Keyword keyword) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        University university = University.of(user.getUniversity());
+
+        List<Announcement> supportGroups = announcementRepository.findSupportGroups(userPrincipal.getId(), university, keyword);
+        return SupportGroupRes.toDto(supportGroups);
+    }
+
+    @Override
+    public List<String> findSupportGroupKeywords(UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        University university = University.of(user.getUniversity());
+
+        return announcementRepository.findSupportGroupKeywords(university);
+    }
+
 }

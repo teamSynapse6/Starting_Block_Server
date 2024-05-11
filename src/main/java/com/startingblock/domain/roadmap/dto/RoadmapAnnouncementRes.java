@@ -1,4 +1,4 @@
-package com.startingblock.domain.announcement.dto;
+package com.startingblock.domain.roadmap.dto;
 
 import com.startingblock.domain.announcement.domain.Announcement;
 import lombok.AllArgsConstructor;
@@ -21,30 +21,11 @@ public class RoadmapAnnouncementRes {
     private String dDay;
     private Boolean isBookmarked;
 
-    public static List<RoadmapAnnouncementRes> toOffCampusDto(final List<Announcement> announcements) {
+    public static List<RoadmapAnnouncementRes> toDto(final List<Announcement> announcements) {
         return announcements.stream()
                 .map(announcement -> RoadmapAnnouncementRes.builder()
                         .announcementId(announcement.getId())
                         .department(announcement.getBizPrchDprtNm())
-                        .title(announcement.getTitle())
-                        .dDay(announcement.getEndDate() == null ? announcement.getNonDate() : String.valueOf(ChronoUnit.DAYS.between(LocalDateTime.now(), announcement.getEndDate())))
-                        .isBookmarked(true)
-                        .build())
-                .sorted(Comparator.comparing(roadmapAnnouncementRes -> {
-                    try {
-                        return Integer.parseInt(roadmapAnnouncementRes.getDDay());
-                    } catch (NumberFormatException e) {
-                        return Integer.MAX_VALUE;
-                    }
-                }))
-                .toList();
-    }
-
-    public static List<RoadmapAnnouncementRes> toOnCampusDto(final List<Announcement> announcements) {
-        return announcements.stream()
-                .map(announcement -> RoadmapAnnouncementRes.builder()
-                        .announcementId(announcement.getId())
-                        .department(announcement.getKeyword().toString())
                         .title(announcement.getTitle())
                         .dDay(announcement.getEndDate() == null ? announcement.getNonDate() : String.valueOf(ChronoUnit.DAYS.between(LocalDateTime.now(), announcement.getEndDate())))
                         .isBookmarked(true)

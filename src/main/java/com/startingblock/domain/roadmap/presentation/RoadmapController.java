@@ -1,9 +1,9 @@
 package com.startingblock.domain.roadmap.presentation;
 
 import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
-import com.startingblock.domain.announcement.dto.RoadmapAnnouncementRes;
+import com.startingblock.domain.roadmap.dto.RoadmapAnnouncementRes;
 import com.startingblock.domain.roadmap.application.RoadmapService;
-import com.startingblock.domain.roadmap.dto.AnnouncementSavedRoadmapRes;
+import com.startingblock.domain.roadmap.dto.SavedRoadmapRes;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
 import com.startingblock.domain.roadmap.dto.SwapRoadmapReq;
@@ -73,15 +73,28 @@ public class RoadmapController {
 
     @Operation(summary = "공고가 저장된 로드맵 조회", description = "공고가 저장된 로드맵 조회")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "공고가 저장된 로드맵 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AnnouncementSavedRoadmapRes.class)))}),
+            @ApiResponse(responseCode = "200", description = "공고가 저장된 로드맵 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = SavedRoadmapRes.class)))}),
             @ApiResponse(responseCode = "400", description = "공고가 저장된 로드맵 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @GetMapping("/announcement/{announcement-id}")
-    public ResponseEntity<List<AnnouncementSavedRoadmapRes>> findAnnouncementSavedRoadmap(
+    public ResponseEntity<List<SavedRoadmapRes>> findAnnouncementSavedRoadmap(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(name = "announcementId", description = "공고 ID") @PathVariable(name = "announcement-id") final Long announcementId
     ) {
         return ResponseEntity.ok(roadmapService.findAnnouncementSavedRoadmap(userPrincipal, announcementId));
+    }
+
+    @Operation(summary = "강의가 저장된 로드맵 조회", description = "강의가 저장된 로드맵 조회")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "강의가 저장된 로드맵 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = SavedRoadmapRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "강의가 저장된 로드맵 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/lecture/{lecture-id}")
+    public ResponseEntity<List<SavedRoadmapRes>> findLectureSavedRoadmap(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "lectureId", description = "강의 ID") @PathVariable(name = "lecture-id") final Long lectureId
+    ) {
+        return ResponseEntity.ok(roadmapService.findLectureSavedRoadmap(userPrincipal, lectureId));
     }
 
     @Operation(summary = "로드맵 초기 등록", description = "로드맵 초기 등록")
@@ -191,6 +204,21 @@ public class RoadmapController {
             @Parameter(name = "announcementId", description = "공고 ID") @RequestParam(name = "announcementId") final Long announcementId
     ) {
         roadmapService.deleteRoadmapAnnouncement(userPrincipal, roadmapId, announcementId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "로드맵의 강의(창업 강의) 삭제", description = "로드맵의 강의(창업 강의) 삭제")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "로드맵의 강의(창업 강의) 삭제 성공", content = {@Content(mediaType = "application/json")}),
+            @ApiResponse(responseCode = "400", description = "로드맵의 강의(창업 강의) 삭제 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @DeleteMapping("/{roadmap-id}/lecture")
+    public ResponseEntity<Void> deleteRoadmapLecture(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "roadmap-id", description = "로드맵 ID") @PathVariable(name = "roadmap-id") final Long roadmapId,
+            @Parameter(name = "lectureId", description = "강의 ID") @RequestParam(name = "lectureId") final Long lectureId
+    ) {
+        roadmapService.deleteRoadmapLecture(userPrincipal, roadmapId, lectureId);
         return ResponseEntity.noContent().build();
     }
 

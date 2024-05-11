@@ -5,7 +5,7 @@ import com.startingblock.domain.announcement.domain.Lecture;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.domain.repository.LectureRepository;
 import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
-import com.startingblock.domain.announcement.dto.RoadmapAnnouncementRes;
+import com.startingblock.domain.roadmap.dto.*;
 import com.startingblock.domain.announcement.dto.RoadmapSystemRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.announcement.exception.InvalidLectureException;
@@ -16,10 +16,6 @@ import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapAnnouncementRepository;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapLectureRepository;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapRepository;
-import com.startingblock.domain.roadmap.dto.AnnouncementSavedRoadmapRes;
-import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
-import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
-import com.startingblock.domain.roadmap.dto.SwapRoadmapReq;
 import com.startingblock.domain.roadmap.exception.*;
 import com.startingblock.domain.user.domain.User;
 import com.startingblock.domain.user.domain.repository.UserRepository;
@@ -158,8 +154,13 @@ public class RoadmapServiceImpl implements RoadmapService {
     }
 
     @Override
-    public List<AnnouncementSavedRoadmapRes> findAnnouncementSavedRoadmap(final UserPrincipal userPrincipal, final Long announcementId) {
+    public List<SavedRoadmapRes> findAnnouncementSavedRoadmap(final UserPrincipal userPrincipal, final Long announcementId) {
         return roadmapRepository.findAnnouncementSavedRoadmap(announcementId, userPrincipal.getId());
+    }
+
+    @Override
+    public List<SavedRoadmapRes> findLectureSavedRoadmap(final UserPrincipal userPrincipal, final Long lectureId) {
+        return roadmapRepository.findLectureSavedRoadmap(lectureId, userPrincipal.getId());
     }
 
     @Override
@@ -252,9 +253,9 @@ public class RoadmapServiceImpl implements RoadmapService {
         List<Announcement> announcements = announcementRepository.findListOfRoadmapByRoadmapId(userPrincipal.getId(), roadmapId, type);
 
         if(type.equals("OFF-CAMPUS"))
-            return RoadmapAnnouncementRes.toOffCampusDto(announcements);
+            return RoadmapAnnouncementRes.toDto(announcements);
         else if(type.equals("ON-CAMPUS"))
-            return RoadmapAnnouncementRes.toOnCampusDto(announcements);
+            return RoadmapOnCampusRes.toDto(announcements);
         else
             return RoadmapSystemRes.toDto(announcements);
     }
@@ -288,6 +289,25 @@ public class RoadmapServiceImpl implements RoadmapService {
         List<Lecture> lectures = lectureRepository.findLecturesOfRoadmapsByRoadmapId(userPrincipal.getId(), roadmapId);
 
         return RoadmapLectureRes.toDto(lectures);
+    }
+
+    @Override
+    @Transactional
+    public void deleteRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId) {
+        Roadmap roadmap = roadmapRepository.findRoadmapById(roadmapId)
+                .orElseThrow(EmptyRoadmapException::new);
+
+        if (!Objects.equals(roadmap.getUser().getId(), userPrincipal.getId()))
+            throw new RoadmapMismatchUserException();
+
+        Lecture lecture = lectureRepository.findById(lectureId)
+                .orElseThrow(InvalidAnnouncementException::new);
+
+        RoadmapLecture roadmapLecture = roadmapLectureRepository.findByRoadmapAndLecture(roadmap, lecture)
+                .orElseThrow(InvalidAnnouncementRoadmapException::new);
+
+        lecture.subtractRoadmapCount();
+        roadmapLectureRepository.delete(roadmapLecture);
     }
 
 }
