@@ -25,5 +25,6 @@ public interface RoadmapService {
     List<?> findListOfRoadmap(UserPrincipal userPrincipal, Long roadmapId, String type);
     void addRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId);
     List<RoadmapLectureRes> findLecturesOfRoadmap(UserPrincipal userPrincipal, Long roadmapId);
+    void deleteRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId);
 
 }

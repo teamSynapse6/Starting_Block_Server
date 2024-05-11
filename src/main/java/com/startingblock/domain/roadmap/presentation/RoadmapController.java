@@ -194,4 +194,19 @@ public class RoadmapController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "로드맵의 강의(창업 강의) 삭제", description = "로드맵의 강의(창업 강의) 삭제")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "로드맵의 강의(창업 강의) 삭제 성공", content = {@Content(mediaType = "application/json")}),
+            @ApiResponse(responseCode = "400", description = "로드맵의 강의(창업 강의) 삭제 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @DeleteMapping("/{roadmap-id}/lecture")
+    public ResponseEntity<Void> deleteRoadmapLecture(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "roadmap-id", description = "로드맵 ID") @PathVariable(name = "roadmap-id") final Long roadmapId,
+            @Parameter(name = "lectureId", description = "강의 ID") @RequestParam(name = "lectureId") final Long lectureId
+    ) {
+        roadmapService.deleteRoadmapLecture(userPrincipal, roadmapId, lectureId);
+        return ResponseEntity.noContent().build();
+    }
+
 }

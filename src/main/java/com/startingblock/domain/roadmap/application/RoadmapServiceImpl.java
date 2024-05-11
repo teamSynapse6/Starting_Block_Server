@@ -286,4 +286,23 @@ public class RoadmapServiceImpl implements RoadmapService {
         return RoadmapLectureRes.toDto(lectures);
     }
 
+    @Override
+    @Transactional
+    public void deleteRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId) {
+        Roadmap roadmap = roadmapRepository.findRoadmapById(roadmapId)
+                .orElseThrow(EmptyRoadmapException::new);
+
+        if (!Objects.equals(roadmap.getUser().getId(), userPrincipal.getId()))
+            throw new RoadmapMismatchUserException();
+
+        Lecture lecture = lectureRepository.findById(lectureId)
+                .orElseThrow(InvalidAnnouncementException::new);
+
+        RoadmapLecture roadmapLecture = roadmapLectureRepository.findByRoadmapAndLecture(roadmap, lecture)
+                .orElseThrow(InvalidAnnouncementRoadmapException::new);
+
+        lecture.subtractRoadmapCount();
+        roadmapLectureRepository.delete(roadmapLecture);
+    }
+
 }
