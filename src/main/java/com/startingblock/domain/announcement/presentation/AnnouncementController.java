@@ -63,6 +63,20 @@ public class AnnouncementController {
         return ResponseEntity.ok(announcementService.findAnnouncements(userPrincipal, pageable, postTarget, region, supportType, sorting, search));
     }
 
+    @Operation(summary = "교내 창업지원단 검색", description = "교내 창업지원단 검색")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "교내 창업지원단 검색 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = SupportGroupRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "교내 창업지원단 검색 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/list/support-group")
+    public ResponseEntity<List<SupportGroupRes>> findSupportGroups(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "keyword", description = "키워드(CLUB/CAMP/CONTEST/LECTURE/MENTORING/ETC/SPACE)") @RequestParam(required = false) final Keyword keyword
+
+    ) {
+        return ResponseEntity.ok(announcementService.findSupportGroups(userPrincipal, keyword));
+    }
+
     @Operation(summary = "교내 학사 제도 검색", description = "교내 학사 제도 검색")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "교내 학사 제도 검색 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = SystemRes.class)))}),

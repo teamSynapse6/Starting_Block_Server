@@ -9,7 +9,6 @@ import com.startingblock.domain.announcement.domain.*;
 import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.common.Status;
 import com.startingblock.domain.roadmap.domain.QRoadmap;
-import com.startingblock.domain.roadmap.domain.QRoadmapLecture;
 import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import com.startingblock.domain.user.domain.User;
 import lombok.RequiredArgsConstructor;
@@ -219,6 +218,19 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .leftJoin(roadmapLecture).on(roadmapLecture.lecture.eq(lecture).and(roadmapLecture.roadmap.user.id.eq(id)))
                 .where(
                         lecture.university.eq(university)
+                )
+                .distinct()
+                .fetch();
+    }
+
+    @Override
+    public List<Announcement> findSupportGroups(final Long id, final University university, final Keyword keyword) {
+        return queryFactory
+                .selectFrom(announcement)
+                .where(
+                        announcement.announcementType.eq(AnnouncementType.SUPPORT_GROUP),
+                        announcement.university.eq(university),
+                        keywordExpression(keyword)
                 )
                 .distinct()
                 .fetch();

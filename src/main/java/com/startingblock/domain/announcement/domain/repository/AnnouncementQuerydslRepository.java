@@ -22,5 +22,6 @@ public interface AnnouncementQuerydslRepository {
     List<OnCampusAnnouncementRes> findOnCampusAnnouncements(Long userId, University university, Keyword keyword);
     List<SystemRes> findSystems(Long userId, University university);
     List<LectureRes> findLectures(Long id, University university);
+    List<Announcement> findSupportGroups(Long id, University university, Keyword keyword);
 
 }
