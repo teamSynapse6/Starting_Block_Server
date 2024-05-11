@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -161,8 +162,9 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .select(
                     new QOnCampusAnnouncementRes(
                             announcement.id,
+                            announcement.keyword.stringValue(),
                             announcement.title,
-                            announcement.content,
+                            announcement.insertDate,
                             roadmapAnnouncement.announcement.id.isNotNull()
                     )
                 )
