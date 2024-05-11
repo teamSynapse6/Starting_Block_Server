@@ -165,6 +165,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                             announcement.keyword.stringValue(),
                             announcement.title,
                             announcement.insertDate,
+                            announcement.detailUrl,
                             roadmapAnnouncement.announcement.id.isNotNull()
                     )
                 )

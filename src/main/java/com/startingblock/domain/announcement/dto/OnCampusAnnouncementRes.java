@@ -18,15 +18,17 @@ public class OnCampusAnnouncementRes {
     private String keyword;
     private String title;
     private LocalDateTime insertDate;
+    private String detailUrl;
     private Boolean isBookmarked;
 
     @Builder
     @QueryProjection
-    public OnCampusAnnouncementRes(Long announcementId, String keyword, String title, LocalDateTime insertDate, Boolean isBookmarked) {
+    public OnCampusAnnouncementRes(Long announcementId, String keyword, String title, LocalDateTime insertDate, String detailUrl, Boolean isBookmarked) {
         this.announcementId = announcementId;
         this.keyword = keyword;
         this.title = title;
         this.insertDate = insertDate;
+        this.detailUrl = detailUrl;
         this.isBookmarked = isBookmarked;
     }
 

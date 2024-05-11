@@ -17,6 +17,7 @@ public class RoadmapOnCampusRes {
     private String keyword;
     private String title;
     private LocalDate insertDate;
+    private String detailUrl;
     private Boolean isBookmarked;
 
     public static List<RoadmapOnCampusRes> toDto(final List<Announcement> announcements) {
@@ -26,6 +27,7 @@ public class RoadmapOnCampusRes {
                         .keyword(announcement.getKeyword().getKeyword())
                         .title(announcement.getTitle())
                         .insertDate(announcement.getInsertDate().toLocalDate())
+                        .detailUrl(announcement.getDetailUrl())
                         .isBookmarked(true)
                         .build())
                 .toList();
