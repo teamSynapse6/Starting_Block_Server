@@ -53,7 +53,9 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                                 announcement.title,
                                 Expressions.stringTemplate("COALESCE({0}, {1})", announcement.startDate.stringValue(), announcement.nonDate),
                                 Expressions.stringTemplate("COALESCE({0}, {1})", announcement.endDate.stringValue(), announcement.nonDate),
-                                roadmapAnnouncement.announcement.id.isNotNull()
+                                roadmapAnnouncement.announcement.id.isNotNull(),
+                                announcement.contact.isNotNull(),
+                                announcement.isFileUploaded
                 ))
                 .from(announcement)
                 .leftJoin(roadmapAnnouncement).on(announcement.id.eq(roadmapAnnouncement.announcement.id).and(roadmapAnnouncement.roadmap.user.id.eq(userId)))
@@ -109,7 +111,9 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                                 announcement.title,
                                 Expressions.stringTemplate("COALESCE({0}, {1})", announcement.startDate.stringValue(), announcement.nonDate),
                                 Expressions.stringTemplate("COALESCE({0}, {1})", announcement.endDate.stringValue(), announcement.nonDate),
-                                roadmapAnnouncement.announcement.id.isNotNull()
+                                roadmapAnnouncement.announcement.id.isNotNull(),
+                                announcement.contact.isNotNull(),
+                                announcement.isFileUploaded
                         )
                 )
                 .from(announcement)
