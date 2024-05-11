@@ -1,7 +1,7 @@
 package com.startingblock.domain.roadmap.application;
 
 import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
-import com.startingblock.domain.roadmap.dto.AnnouncementSavedRoadmapRes;
+import com.startingblock.domain.roadmap.dto.SavedRoadmapRes;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
 import com.startingblock.domain.roadmap.dto.SwapRoadmapReq;
@@ -18,7 +18,7 @@ public interface RoadmapService {
     void deleteRoadmapAnnouncement(UserPrincipal userPrincipal, Long roadmapId, Long announcementId);
     List<RoadmapDetailRes> findRoadmaps(UserPrincipal userPrincipal);
     List<RoadmapDetailRes> deleteRoadmap(UserPrincipal userPrincipal, Long roadmapId);
-    List<AnnouncementSavedRoadmapRes> findAnnouncementSavedRoadmap(UserPrincipal userPrincipal, Long announcementId);
+    List<SavedRoadmapRes> findAnnouncementSavedRoadmap(UserPrincipal userPrincipal, Long announcementId);
     List<RoadmapDetailRes> swapRoadmap(UserPrincipal userPrincipal, SwapRoadmapReq swapRoadmapReq);
     List<RoadmapDetailRes> leapCurrentRoadmap(UserPrincipal userPrincipal);
     List<RoadmapDetailRes> addRoadmap(UserPrincipal userPrincipal, String roadmapTitle);
@@ -26,5 +26,6 @@ public interface RoadmapService {
     void addRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId);
     List<RoadmapLectureRes> findLecturesOfRoadmap(UserPrincipal userPrincipal, Long roadmapId);
     void deleteRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId);
+    List<SavedRoadmapRes> findLectureSavedRoadmap(UserPrincipal userPrincipal, Long lectureId);
 
 }

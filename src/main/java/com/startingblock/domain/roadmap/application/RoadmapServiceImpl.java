@@ -154,8 +154,13 @@ public class RoadmapServiceImpl implements RoadmapService {
     }
 
     @Override
-    public List<AnnouncementSavedRoadmapRes> findAnnouncementSavedRoadmap(final UserPrincipal userPrincipal, final Long announcementId) {
+    public List<SavedRoadmapRes> findAnnouncementSavedRoadmap(final UserPrincipal userPrincipal, final Long announcementId) {
         return roadmapRepository.findAnnouncementSavedRoadmap(announcementId, userPrincipal.getId());
+    }
+
+    @Override
+    public List<SavedRoadmapRes> findLectureSavedRoadmap(final UserPrincipal userPrincipal, final Long lectureId) {
+        return roadmapRepository.findLectureSavedRoadmap(lectureId, userPrincipal.getId());
     }
 
     @Override
