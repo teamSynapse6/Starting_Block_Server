@@ -294,4 +294,14 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         return SupportGroupRes.toDto(supportGroups);
     }
 
+    @Override
+    public List<String> findSupportGroupKeywords(UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        University university = University.of(user.getUniversity());
+
+        return announcementRepository.findSupportGroupKeywords(university);
+    }
+
 }

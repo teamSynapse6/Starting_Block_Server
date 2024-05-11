@@ -23,5 +23,6 @@ public interface AnnouncementQuerydslRepository {
     List<SystemRes> findSystems(Long userId, University university);
     List<LectureRes> findLectures(Long id, University university);
     List<Announcement> findSupportGroups(Long id, University university, Keyword keyword);
+    List<String> findSupportGroupKeywords(University university);
 
 }

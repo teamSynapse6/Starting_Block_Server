@@ -238,6 +238,19 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .fetch();
     }
 
+    @Override
+    public List<String> findSupportGroupKeywords(University university) {
+        return queryFactory
+                .select(announcement.keyword.stringValue())
+                .from(announcement)
+                .where(
+                        announcement.announcementType.eq(AnnouncementType.SUPPORT_GROUP),
+                        announcement.university.eq(university)
+                )
+                .distinct()
+                .fetch();
+    }
+
     private BooleanExpression keywordExpression(final Keyword keyword) {
         if (keyword == null) return null;
         return announcement.keyword.eq(keyword);
