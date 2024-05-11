@@ -5,7 +5,7 @@ import com.startingblock.domain.announcement.domain.Lecture;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.domain.repository.LectureRepository;
 import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
-import com.startingblock.domain.announcement.dto.RoadmapAnnouncementRes;
+import com.startingblock.domain.roadmap.dto.*;
 import com.startingblock.domain.announcement.dto.RoadmapSystemRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.announcement.exception.InvalidLectureException;
@@ -16,10 +16,6 @@ import com.startingblock.domain.roadmap.domain.RoadmapStatus;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapAnnouncementRepository;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapLectureRepository;
 import com.startingblock.domain.roadmap.domain.repository.RoadmapRepository;
-import com.startingblock.domain.roadmap.dto.AnnouncementSavedRoadmapRes;
-import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
-import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
-import com.startingblock.domain.roadmap.dto.SwapRoadmapReq;
 import com.startingblock.domain.roadmap.exception.*;
 import com.startingblock.domain.user.domain.User;
 import com.startingblock.domain.user.domain.repository.UserRepository;
@@ -252,9 +248,9 @@ public class RoadmapServiceImpl implements RoadmapService {
         List<Announcement> announcements = announcementRepository.findListOfRoadmapByRoadmapId(userPrincipal.getId(), roadmapId, type);
 
         if(type.equals("OFF-CAMPUS"))
-            return RoadmapAnnouncementRes.toOffCampusDto(announcements);
+            return RoadmapAnnouncementRes.toDto(announcements);
         else if(type.equals("ON-CAMPUS"))
-            return RoadmapAnnouncementRes.toOnCampusDto(announcements);
+            return RoadmapOnCampusRes.toDto(announcements);
         else
             return RoadmapSystemRes.toDto(announcements);
     }

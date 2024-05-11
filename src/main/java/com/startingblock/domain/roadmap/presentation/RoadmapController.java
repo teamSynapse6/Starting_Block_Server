@@ -1,7 +1,7 @@
 package com.startingblock.domain.roadmap.presentation;
 
 import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
-import com.startingblock.domain.announcement.dto.RoadmapAnnouncementRes;
+import com.startingblock.domain.roadmap.dto.RoadmapAnnouncementRes;
 import com.startingblock.domain.roadmap.application.RoadmapService;
 import com.startingblock.domain.roadmap.dto.AnnouncementSavedRoadmapRes;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
