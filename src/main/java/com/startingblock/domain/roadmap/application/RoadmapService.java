@@ -1,5 +1,6 @@
 package com.startingblock.domain.roadmap.application;
 
+import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
 import com.startingblock.domain.roadmap.dto.SavedRoadmapRes;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
@@ -27,5 +28,6 @@ public interface RoadmapService {
     List<RoadmapLectureRes> findLecturesOfRoadmap(UserPrincipal userPrincipal, Long roadmapId);
     void deleteRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId);
     List<SavedRoadmapRes> findLectureSavedRoadmap(UserPrincipal userPrincipal, Long lectureId);
+    List<AnnouncementRes> recommendOffCampusAnnouncements(UserPrincipal userPrincipal, Long roadmapId);
 
 }

@@ -1,5 +1,6 @@
 package com.startingblock.domain.roadmap.presentation;
 
+import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
 import com.startingblock.domain.roadmap.dto.RoadmapAnnouncementRes;
 import com.startingblock.domain.roadmap.application.RoadmapService;
@@ -19,6 +20,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Slice;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -220,6 +222,19 @@ public class RoadmapController {
     ) {
         roadmapService.deleteRoadmapLecture(userPrincipal, roadmapId, lectureId);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "교외 공고 추천 조회", description = "교외 공고 추천 조회")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "교외 공고 추천 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AnnouncementRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "교외 공고 추천 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/{roadmap-id}/recommend/off-campus")
+    public ResponseEntity<List<AnnouncementRes>> recommendOffCampusAnnouncements(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "roadmap-id", description = "로드맵 ID") @PathVariable(name = "roadmap-id") final Long roadmapId
+    ) {
+        return ResponseEntity.ok(roadmapService.recommendOffCampusAnnouncements(userPrincipal, roadmapId));
     }
 
 }

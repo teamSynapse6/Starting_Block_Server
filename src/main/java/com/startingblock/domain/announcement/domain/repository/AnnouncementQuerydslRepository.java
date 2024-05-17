@@ -8,6 +8,7 @@ import com.startingblock.domain.user.domain.User;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface AnnouncementQuerydslRepository {
@@ -24,5 +25,6 @@ public interface AnnouncementQuerydslRepository {
     List<LectureRes> findLectures(Long id, University university);
     List<Announcement> findSupportGroups(Long id, University university, Keyword keyword);
     List<String> findSupportGroupKeywords(University university);
+    List<Announcement> findOffCampusAnnouncementsBySupportType(String supportType, LocalDateTime now);
 
 }

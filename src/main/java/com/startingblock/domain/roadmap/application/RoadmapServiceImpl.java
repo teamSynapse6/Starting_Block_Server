@@ -4,6 +4,7 @@ import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.Lecture;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.domain.repository.LectureRepository;
+import com.startingblock.domain.announcement.dto.AnnouncementRes;
 import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
 import com.startingblock.domain.roadmap.dto.*;
 import com.startingblock.domain.announcement.dto.RoadmapSystemRes;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -312,6 +314,19 @@ public class RoadmapServiceImpl implements RoadmapService {
 
         lecture.subtractRoadmapCount();
         roadmapLectureRepository.delete(roadmapLecture);
+    }
+
+    @Override
+    public List<AnnouncementRes> recommendOffCampusAnnouncements(final UserPrincipal userPrincipal, final Long roadmapId) {
+        Roadmap roadmap = roadmapRepository.findById(roadmapId)
+                .orElseThrow(InvalidRoadmapException::new);
+
+        String supportType = roadmap.getTitle();
+        LocalDateTime now = LocalDateTime.now();
+
+        announcementRepository.findOffCampusAnnouncementsBySupportType(supportType, now);
+
+        return List.of();
     }
 
 }
