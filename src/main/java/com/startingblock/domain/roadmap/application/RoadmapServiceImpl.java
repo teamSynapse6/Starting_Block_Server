@@ -80,8 +80,9 @@ public class RoadmapServiceImpl implements RoadmapService {
         Integer deletedSequence = roadmap.getSequence();
         RoadmapStatus deletedRoadmapStatus = roadmap.getRoadmapStatus();
 
-        // 삭제하는 Roadmap에 속한 RoadmapAnnouncement bulk delete
+        // 삭제하는 Roadmap에 속한 RoadmapAnnouncement, RoadmapLecture bulk delete
         roadmapAnnouncementRepository.bulkDeleteByRoadmapId(roadmapId);
+        roadmapLectureRepository.bulkDeleteByRoadmapId(roadmapId);
 
         // 삭제하는 Roadmap
         roadmapRepository.delete(roadmap);

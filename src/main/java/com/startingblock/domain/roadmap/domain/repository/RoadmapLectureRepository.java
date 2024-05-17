@@ -17,6 +17,6 @@ public interface RoadmapLectureRepository extends JpaRepository<RoadmapLecture, 
 
     @Modifying
     @Query("delete from RoadmapLecture rl where rl.roadmap.id = :roadmapId")
-    void bulkDeleteByLectureId(Long roadmapId);
+    void bulkDeleteByRoadmapId(Long roadmapId);
 
 }
