@@ -89,7 +89,9 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                                 announcement.areaName,
                                 announcement.roadmapCount,
                                 announcement.announcementType.stringValue(),
-                                announcement.contact
+                                announcement.contact,
+                                announcement.contact.isNotNull(),
+                                announcement.isFileUploaded
                         )
                 )
                 .from(announcement)
