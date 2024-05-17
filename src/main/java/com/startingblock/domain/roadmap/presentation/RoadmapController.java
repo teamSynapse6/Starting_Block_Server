@@ -1,6 +1,7 @@
 package com.startingblock.domain.roadmap.presentation;
 
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
+import com.startingblock.domain.announcement.dto.RecommendAnnouncementRes;
 import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
 import com.startingblock.domain.roadmap.dto.RoadmapAnnouncementRes;
 import com.startingblock.domain.roadmap.application.RoadmapService;
@@ -226,11 +227,11 @@ public class RoadmapController {
 
     @Operation(summary = "교외 공고 추천 조회", description = "교외 공고 추천 조회")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "교외 공고 추천 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = AnnouncementRes.class)))}),
+            @ApiResponse(responseCode = "200", description = "교외 공고 추천 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RecommendAnnouncementRes.class)))}),
             @ApiResponse(responseCode = "400", description = "교외 공고 추천 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
     })
     @GetMapping("/{roadmap-id}/recommend/off-campus")
-    public ResponseEntity<List<AnnouncementRes>> recommendOffCampusAnnouncements(
+    public ResponseEntity<List<RecommendAnnouncementRes>> recommendOffCampusAnnouncements(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(name = "roadmap-id", description = "로드맵 ID") @PathVariable(name = "roadmap-id") final Long roadmapId
     ) {

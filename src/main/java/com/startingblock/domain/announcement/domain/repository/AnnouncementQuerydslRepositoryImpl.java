@@ -256,8 +256,17 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
-    public List<Announcement> findOffCampusAnnouncementsBySupportType(final String supportType, final LocalDateTime now) {
-        return List.of();
+    public List<Announcement> findOffCampusAnnouncementsBySupportType(final String supportType) {
+        return queryFactory
+                .selectFrom(announcement)
+                .where(
+                        announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO),
+                        announcement.supportType.contains(supportType),
+                        announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()),
+                        announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull())
+                )
+                .distinct()
+                .fetch();
     }
 
     @Override
@@ -335,6 +344,35 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
         return Stream.of(offCampusAnnouncement, onCampusAnnouncement)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Announcement> findOffCampusAnnouncementsByRoadmapCount() {
+        return queryFactory
+                .selectFrom(announcement)
+                .where(
+                        announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO),
+                        announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()),
+                        announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()),
+                        announcement.roadmapCount.gt(0)
+                )
+                .orderBy(announcement.roadmapCount.desc())
+                .limit(3)
+                .fetch();
+    }
+
+    @Override
+    public List<Announcement> findOffCampusAnnouncementsByInsertDate() {
+        return queryFactory
+                .selectFrom(announcement)
+                .where(
+                        announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO),
+                        announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()),
+                        announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull())
+                )
+                .orderBy(announcement.startDate.desc())
+                .limit(3)
+                .fetch();
     }
 
     private BooleanExpression keywordExpression(final Keyword keyword) {

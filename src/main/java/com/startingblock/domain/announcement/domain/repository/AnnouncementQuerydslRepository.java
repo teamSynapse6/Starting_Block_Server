@@ -25,6 +25,8 @@ public interface AnnouncementQuerydslRepository {
     List<LectureRes> findLectures(Long id, University university);
     List<Announcement> findSupportGroups(Long id, University university, Keyword keyword);
     List<String> findSupportGroupKeywords(University university);
-    List<Announcement> findOffCampusAnnouncementsBySupportType(String supportType, LocalDateTime now);
+    List<Announcement> findOffCampusAnnouncementsBySupportType(String supportType);
+    List<Announcement> findOffCampusAnnouncementsByRoadmapCount();
+    List<Announcement> findOffCampusAnnouncementsByInsertDate();
 
 }

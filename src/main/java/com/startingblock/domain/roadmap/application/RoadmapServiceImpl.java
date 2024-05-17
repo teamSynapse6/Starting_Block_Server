@@ -5,6 +5,7 @@ import com.startingblock.domain.announcement.domain.Lecture;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.domain.repository.LectureRepository;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
+import com.startingblock.domain.announcement.dto.RecommendAnnouncementRes;
 import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
 import com.startingblock.domain.roadmap.dto.*;
 import com.startingblock.domain.announcement.dto.RoadmapSystemRes;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -317,16 +319,43 @@ public class RoadmapServiceImpl implements RoadmapService {
     }
 
     @Override
-    public List<AnnouncementRes> recommendOffCampusAnnouncements(final UserPrincipal userPrincipal, final Long roadmapId) {
+    public List<RecommendAnnouncementRes> recommendOffCampusAnnouncements(final UserPrincipal userPrincipal, final Long roadmapId) {
         Roadmap roadmap = roadmapRepository.findById(roadmapId)
                 .orElseThrow(InvalidRoadmapException::new);
 
         String supportType = roadmap.getTitle();
-        LocalDateTime now = LocalDateTime.now();
 
-        announcementRepository.findOffCampusAnnouncementsBySupportType(supportType, now);
+        List<Announcement> recommendations = new ArrayList<>();
+        int remainingSlots = 3;
 
-        return List.of();
+        // 1순위: 로드맵 Title명에 따라 일치하는 supportType에서 진행중인 공고 반환
+        List<Announcement> activeAnnouncements = announcementRepository.findOffCampusAnnouncementsBySupportType(supportType);
+        if (!activeAnnouncements.isEmpty()) {
+            int count = Math.min(remainingSlots, activeAnnouncements.size());
+            recommendations.addAll(activeAnnouncements.subList(0, count));
+            remainingSlots -= count;
+        }
+
+        // 2순위: 로드맵에 저장하기가 많은 공고 반환
+        if (remainingSlots > 0) {
+            List<Announcement> popularAnnouncements = announcementRepository.findOffCampusAnnouncementsByRoadmapCount();
+            if (!popularAnnouncements.isEmpty()) {
+                int count = Math.min(remainingSlots, popularAnnouncements.size());
+                recommendations.addAll(popularAnnouncements.subList(0, count));
+                remainingSlots -= count;
+            }
+        }
+
+        // 3순위: 업로드일자가 가장 최신인 공고 반환
+        if (remainingSlots > 0) {
+            List<Announcement> latestAnnouncements = announcementRepository.findOffCampusAnnouncementsByInsertDate();
+            if (!latestAnnouncements.isEmpty()) {
+                int count = Math.min(remainingSlots, latestAnnouncements.size());
+                recommendations.addAll(latestAnnouncements.subList(0, count));
+            }
+        }
+
+        return RecommendAnnouncementRes.toDto(recommendations);
     }
 
 }
