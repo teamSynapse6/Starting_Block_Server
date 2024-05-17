@@ -2,6 +2,7 @@ package com.startingblock.domain.roadmap.application;
 
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.Lecture;
+import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.domain.repository.LectureRepository;
 import com.startingblock.domain.announcement.dto.AnnouncementRes;
@@ -356,6 +357,17 @@ public class RoadmapServiceImpl implements RoadmapService {
         }
 
         return RecommendAnnouncementRes.toDto(recommendations);
+    }
+
+    @Override
+    public List<RecommendAnnouncementRes> recommendOnCampusAnnouncements(final UserPrincipal userPrincipal, final Long roadmapId) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        University university = University.of(user.getUniversity());
+
+        List<Announcement> recommendAnnouncements = announcementRepository.findThreeRandomOnCampusAnnouncements(university);
+        return RecommendAnnouncementRes.toDto(recommendAnnouncements);
     }
 
 }

@@ -70,6 +70,20 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
+    public List<Announcement> findThreeRandomOnCampusAnnouncements(final University university) {
+        return queryFactory
+                .selectFrom(announcement)
+                .where(
+                        announcement.announcementType.eq(AnnouncementType.ON_CAMPUS),
+                        announcement.university.eq(university)
+                )
+                .distinct()
+                .orderBy(Expressions.numberTemplate(Double.class, "function('rand')").asc())
+                .limit(3)
+                .fetch();
+    }
+
+    @Override
     public AnnouncementDetailRes findAnnouncementDetail(final Long userId, final Long announcementId) {
         return queryFactory
                 .select(

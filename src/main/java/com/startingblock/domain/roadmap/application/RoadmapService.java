@@ -30,5 +30,6 @@ public interface RoadmapService {
     void deleteRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId);
     List<SavedRoadmapRes> findLectureSavedRoadmap(UserPrincipal userPrincipal, Long lectureId);
     List<RecommendAnnouncementRes> recommendOffCampusAnnouncements(UserPrincipal userPrincipal, Long roadmapId);
+    List<RecommendAnnouncementRes> recommendOnCampusAnnouncements(UserPrincipal userPrincipal, Long roadmapId);
 
 }

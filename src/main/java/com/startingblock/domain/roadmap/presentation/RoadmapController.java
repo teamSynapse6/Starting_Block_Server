@@ -238,4 +238,17 @@ public class RoadmapController {
         return ResponseEntity.ok(roadmapService.recommendOffCampusAnnouncements(userPrincipal, roadmapId));
     }
 
+    @Operation(summary = "교내 공고 추천 조회", description = "교내 공고 추천 조회")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "교내 공고 추천 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RecommendAnnouncementRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "교내 공고 추천 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/{roadmap-id}/recommend/on-campus")
+    public ResponseEntity<List<RecommendAnnouncementRes>> recommendOnCampusAnnouncements(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "roadmap-id", description = "로드맵 ID") @PathVariable(name = "roadmap-id") final Long roadmapId
+    ) {
+        return ResponseEntity.ok(roadmapService.recommendOnCampusAnnouncements(userPrincipal, roadmapId));
+    }
+
 }
