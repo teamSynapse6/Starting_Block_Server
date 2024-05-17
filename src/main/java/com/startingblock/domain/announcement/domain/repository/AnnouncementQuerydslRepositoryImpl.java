@@ -124,6 +124,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이전이거나, 비기한이 없는 공고
                         announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이후이거나, 비기한이 없는 공고
                         announcement.status.eq(Status.ACTIVE),
+                        announcement.announcementType.eq(AnnouncementType.OPEN_DATA).or(announcement.announcementType.eq(AnnouncementType.BIZ_INFO)),
                         businessAgeExpression(businessAge),
                         regionExpression(region),
                         supportTypeExpression(supportType),
