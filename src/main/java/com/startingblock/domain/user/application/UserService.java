@@ -11,5 +11,6 @@ public interface UserService {
     void inactiveCurrentUser(UserPrincipal userPrincipal);
     void signUpCurrentUser(UserPrincipal userPrincipal, SignUpUserReq signUpUserReq);
     UserDto getCurrentUser(UserPrincipal userPrincipal);
+    void updateUserNickname(UserPrincipal userPrincipal, String nickname);
 
 }
