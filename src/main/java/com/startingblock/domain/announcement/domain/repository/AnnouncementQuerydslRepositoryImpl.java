@@ -16,7 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -160,7 +159,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
-    public List<OnCampusAnnouncementRes> findOnCampusAnnouncements(final Long userId, final University university, final Keyword keyword) {
+    public List<OnCampusAnnouncementRes> findOnCampusAnnouncements(final Long userId, final University university, final String search, final Keyword keyword) {
         return queryFactory
                 .select(
                     new QOnCampusAnnouncementRes(
@@ -177,6 +176,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .where(
                         announcement.announcementType.eq(AnnouncementType.ON_CAMPUS),
                         announcement.university.eq(university),
+                        searchExpression(search),
                         keywordExpression(keyword)
                 )
                 .distinct()

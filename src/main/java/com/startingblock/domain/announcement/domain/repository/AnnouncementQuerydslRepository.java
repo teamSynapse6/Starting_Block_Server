@@ -19,7 +19,7 @@ public interface AnnouncementQuerydslRepository {
     List<Announcement> findListOfRoadmapByRoadmapId(Long userId, Long roadmapId, String type);
     List<Announcement> findCustomAnnouncementOnOff(User user, University university);
     List<Announcement> findCustomAnnouncementOff(User user);
-    List<OnCampusAnnouncementRes> findOnCampusAnnouncements(Long userId, University university, Keyword keyword);
+    List<OnCampusAnnouncementRes> findOnCampusAnnouncements(Long userId, University university, String search, Keyword keyword);
     List<SystemRes> findSystems(Long userId, University university);
     List<LectureRes> findLectures(Long id, University university);
     List<Announcement> findSupportGroups(Long id, University university, Keyword keyword);

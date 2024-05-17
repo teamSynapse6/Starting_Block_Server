@@ -110,9 +110,10 @@ public class AnnouncementController {
     @GetMapping("/list/on-campus")
     public ResponseEntity<List<OnCampusAnnouncementRes>> findOnCampusAnnouncements(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "search", description = "검색어") @RequestParam(required = false) final String search,
             @Parameter(name = "keyword", description = "키워드(CLUB/CAMP/CONTEST/LECTURE/MENTORING/ETC/SPACE)") @RequestParam(required = false) final Keyword keyword
     ) {
-        return ResponseEntity.ok(announcementService.findOnCampusAnnouncements(userPrincipal, keyword));
+        return ResponseEntity.ok(announcementService.findOnCampusAnnouncements(userPrincipal, search, keyword));
     }
 
     @Operation(summary = "교내 창업 강의 검색", description = "교내 창업 강의 검색")

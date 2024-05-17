@@ -19,7 +19,7 @@ public interface AnnouncementService {
     void uploadAnnouncementsFile(UserPrincipal userPrincipal);
     List<CustomAnnouncementRes> findCustomAnnouncement(UserPrincipal userPrincipal);
     List<SystemRes> findSystems(UserPrincipal userPrincipal);
-    List<OnCampusAnnouncementRes> findOnCampusAnnouncements(UserPrincipal userPrincipal, Keyword keyword);
+    List<OnCampusAnnouncementRes> findOnCampusAnnouncements(UserPrincipal userPrincipal, String search, Keyword keyword);
     List<LectureRes> findLectures(UserPrincipal userPrincipal);
     List<SupportGroupRes> findSupportGroups(UserPrincipal userPrincipal, Keyword keyword);
     List<String> findSupportGroupKeywords(UserPrincipal userPrincipal);
