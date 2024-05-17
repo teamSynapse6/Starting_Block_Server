@@ -263,7 +263,7 @@ public class RoadmapServiceImpl implements RoadmapService {
 
     @Override
     @Transactional
-    public void addRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId) {
+    public void addRoadmapLecture(final UserPrincipal userPrincipal, final Long roadmapId, final Long lectureId) {
         Roadmap roadmap = roadmapRepository.findRoadmapById(roadmapId)
                 .orElseThrow(InvalidRoadmapException::new);
 
@@ -286,15 +286,18 @@ public class RoadmapServiceImpl implements RoadmapService {
     }
 
     @Override
-    public List<RoadmapLectureRes> findLecturesOfRoadmap(UserPrincipal userPrincipal, Long roadmapId) {
+    public List<RoadmapLectureRes> findLecturesOfRoadmap(final UserPrincipal userPrincipal, final Long roadmapId) {
         List<Lecture> lectures = lectureRepository.findLecturesOfRoadmapsByRoadmapId(userPrincipal.getId(), roadmapId);
+
+        if(lectures.isEmpty())
+            throw new EmptyRoadmapException();
 
         return RoadmapLectureRes.toDto(lectures);
     }
 
     @Override
     @Transactional
-    public void deleteRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId) {
+    public void deleteRoadmapLecture(final UserPrincipal userPrincipal, final Long roadmapId, final Long lectureId) {
         Roadmap roadmap = roadmapRepository.findRoadmapById(roadmapId)
                 .orElseThrow(EmptyRoadmapException::new);
 

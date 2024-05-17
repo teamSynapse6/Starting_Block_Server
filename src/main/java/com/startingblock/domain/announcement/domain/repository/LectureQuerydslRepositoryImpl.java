@@ -17,7 +17,7 @@ public class LectureQuerydslRepositoryImpl implements LectureQuerydslRepository 
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<Lecture> findLecturesOfRoadmapsByRoadmapId(Long userId, Long roadmapId) {
+    public List<Lecture> findLecturesOfRoadmapsByRoadmapId(final Long userId, final Long roadmapId) {
         return queryFactory
                 .select(lecture)
                 .from(roadmap)
@@ -25,11 +25,10 @@ public class LectureQuerydslRepositoryImpl implements LectureQuerydslRepository 
                 .leftJoin(lecture).on(roadmapLecture.lecture.id.eq(lecture.id))
                 .where(
                         roadmap.id.eq(roadmapId),
-                        roadmap.user.id.eq(userId)
+                        roadmap.user.id.eq(userId),
+                        lecture.id.isNotNull()
                 )
                 .fetch();
     }
-
-
 
 }
