@@ -72,7 +72,7 @@ public class UserController {
     @PatchMapping("/nickname")
     public ResponseEntity<Void> updateUserNickname(
             @Parameter(description = "AccessToken 을 입력해주세요.", required = true) @CurrentUser final UserPrincipal userPrincipal,
-            @Parameter(description = "SignUpUserReq 를 확인해주세요.", required = true) @RequestParam final String nickname
+            @Parameter(name = "nickname", description = "nickname", required = true) @RequestParam final String nickname
     ) {
         userService.updateUserNickname(userPrincipal, nickname);
         return ResponseEntity.noContent().build();

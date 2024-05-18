@@ -1,8 +1,12 @@
 package com.startingblock.domain.announcement.domain.repository;
 
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.startingblock.domain.announcement.domain.Lecture;
 
+import com.startingblock.domain.announcement.domain.University;
+import com.startingblock.domain.announcement.dto.QRecommendLectureRes;
+import com.startingblock.domain.announcement.dto.RecommendLectureRes;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -29,6 +33,33 @@ public class LectureQuerydslRepositoryImpl implements LectureQuerydslRepository 
                         lecture.id.isNotNull()
                 )
                 .fetch();
+    }
+
+    @Override
+    public RecommendLectureRes findRandomLectureByUniversity(final Long userId, final University university) {
+        return queryFactory
+                .select(
+                        new QRecommendLectureRes(
+                                lecture.id,
+                                roadmapLecture.lecture.id.isNotNull(),
+                                lecture.title,
+                                lecture.liberal,
+                                lecture.credit,
+                                lecture.session,
+                                lecture.instructor,
+                                lecture.content
+                        )
+                )
+                .from(lecture)
+                .leftJoin(roadmapLecture).on(lecture.id.eq(roadmapLecture.lecture.id).and(roadmapLecture.roadmap.user.id.eq(userId)))
+                .where(
+                        lecture.university.eq(university),
+                        lecture.id.isNotNull()
+                )
+                .distinct()
+                .orderBy(Expressions.numberTemplate(Double.class, "function('rand')").asc())
+                .limit(1)
+                .fetchOne();
     }
 
 }
