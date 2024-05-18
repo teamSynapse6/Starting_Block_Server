@@ -375,6 +375,9 @@ public class RoadmapServiceImpl implements RoadmapService {
         Roadmap roadmap = roadmapRepository.findById(roadmapId)
                 .orElseThrow(InvalidRoadmapException::new);
 
+        if (!Objects.equals(roadmap.getUser().getId(), userPrincipal.getId()))
+            throw new RoadmapMismatchUserException();
+
         University university = University.of(user.getUniversity());
         String title = roadmap.getTitle();
         RecommendLectureRes lecture;
@@ -382,6 +385,29 @@ public class RoadmapServiceImpl implements RoadmapService {
         if (title.equals("창업 교육") || title.equals("아이디어 창출") || title.equals("공간 마련") || title.equals("사업계획서 작성")) {
             lecture = lectureRepository.findRandomLectureByUniversity(user.getId(), university);
             return lecture;
+        }
+
+        return null;
+    }
+
+    @Override
+    public RoadmapSystemRes recommendSystem(final UserPrincipal userPrincipal, final Long roadmapId) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        Roadmap roadmap = roadmapRepository.findById(roadmapId)
+                .orElseThrow(InvalidRoadmapException::new);
+
+        if (!Objects.equals(roadmap.getUser().getId(), userPrincipal.getId()))
+            throw new RoadmapMismatchUserException();
+
+        University university = University.of(user.getUniversity());
+        String title = roadmap.getTitle();
+        RoadmapSystemRes system;
+
+        if (title.equals("창업 교육") || title.equals("아이디어 창출") || title.equals("공간 마련") || title.equals("사업계획서 작성")) {
+            system = announcementRepository.findRandomSystemByUniversity(user.getId(), university);
+            return system;
         }
 
         return null;

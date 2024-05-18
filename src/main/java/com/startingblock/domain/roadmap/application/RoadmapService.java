@@ -1,9 +1,6 @@
 package com.startingblock.domain.roadmap.application;
 
-import com.startingblock.domain.announcement.dto.AnnouncementRes;
-import com.startingblock.domain.announcement.dto.RecommendAnnouncementRes;
-import com.startingblock.domain.announcement.dto.RecommendLectureRes;
-import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
+import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.roadmap.dto.SavedRoadmapRes;
 import com.startingblock.domain.roadmap.dto.RoadmapDetailRes;
 import com.startingblock.domain.roadmap.dto.RoadmapRegisterReq;
@@ -33,5 +30,6 @@ public interface RoadmapService {
     List<RecommendAnnouncementRes> recommendOffCampusAnnouncements(UserPrincipal userPrincipal, Long roadmapId);
     List<RecommendAnnouncementRes> recommendOnCampusAnnouncements(UserPrincipal userPrincipal, Long roadmapId);
     RecommendLectureRes recommendLecture(UserPrincipal userPrincipal, Long roadmapId);
+    RoadmapSystemRes recommendSystem(UserPrincipal userPrincipal, Long roadmapId);
 
 }
