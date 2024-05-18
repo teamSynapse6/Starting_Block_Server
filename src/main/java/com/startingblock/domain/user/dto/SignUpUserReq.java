@@ -8,8 +8,6 @@ import java.time.LocalDate;
 @Data
 public class SignUpUserReq {
 
-    @Schema(type = "string", example = "Jin", description = "닉네임")
-    private String nickname;
     @Schema(type = "string", example = "1996-01-01", description = "생년월일")
     private LocalDate birth;
     @Schema(type = "boolean", example = "true", description = "사업자등록여부")
@@ -18,5 +16,7 @@ public class SignUpUserReq {
     private String residence;
     @Schema(type = "string", example = "서울대학교", description = "대학교")
     private String university;
+    @Schema(type = "integer", example = "1", description = "프로필 번호")
+    private Integer profileNumber;
 
 }

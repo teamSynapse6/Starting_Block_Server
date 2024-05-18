@@ -16,7 +16,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -71,6 +70,20 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
+    public List<Announcement> findThreeRandomOnCampusAnnouncements(final University university) {
+        return queryFactory
+                .selectFrom(announcement)
+                .where(
+                        announcement.announcementType.eq(AnnouncementType.ON_CAMPUS),
+                        announcement.university.eq(university)
+                )
+                .distinct()
+                .orderBy(Expressions.numberTemplate(Double.class, "function('rand')").asc())
+                .limit(3)
+                .fetch();
+    }
+
+    @Override
     public AnnouncementDetailRes findAnnouncementDetail(final Long userId, final Long announcementId) {
         return queryFactory
                 .select(
@@ -89,7 +102,9 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                                 announcement.areaName,
                                 announcement.roadmapCount,
                                 announcement.announcementType.stringValue(),
-                                announcement.contact
+                                announcement.contact,
+                                announcement.contact.isNotNull(),
+                                announcement.isFileUploaded
                         )
                 )
                 .from(announcement)
@@ -122,6 +137,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이전이거나, 비기한이 없는 공고
                         announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이후이거나, 비기한이 없는 공고
                         announcement.status.eq(Status.ACTIVE),
+                        announcement.announcementType.eq(AnnouncementType.OPEN_DATA).or(announcement.announcementType.eq(AnnouncementType.BIZ_INFO)),
                         businessAgeExpression(businessAge),
                         regionExpression(region),
                         supportTypeExpression(supportType),
@@ -157,7 +173,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     }
 
     @Override
-    public List<OnCampusAnnouncementRes> findOnCampusAnnouncements(final Long userId, final University university, final Keyword keyword) {
+    public List<OnCampusAnnouncementRes> findOnCampusAnnouncements(final Long userId, final University university, final String search, final Keyword keyword) {
         return queryFactory
                 .select(
                     new QOnCampusAnnouncementRes(
@@ -174,6 +190,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .where(
                         announcement.announcementType.eq(AnnouncementType.ON_CAMPUS),
                         announcement.university.eq(university),
+                        searchExpression(search),
                         keywordExpression(keyword)
                 )
                 .distinct()
@@ -249,6 +266,126 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         announcement.university.eq(university)
                 )
                 .distinct()
+                .fetch();
+    }
+
+    @Override
+    public List<Announcement> findOffCampusAnnouncementsBySupportType(final String supportType) {
+        return queryFactory
+                .selectFrom(announcement)
+                .where(
+                        announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO),
+                        announcement.supportType.contains(supportType),
+                        announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()),
+                        announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull())
+                )
+                .distinct()
+                .fetch();
+    }
+
+    @Override
+    public List<Announcement> findCustomAnnouncementOff(final User user) {
+        // 첫 번째 쿼리: 조건에 맞는 공고 먼저 조회
+        List<Announcement> announcements = queryFactory
+                .selectFrom(announcement)
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
+                .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO)
+                        .and(
+                                isUserAreaAndSupportTypeMatch(user)
+                                        .or(announcementSupportTypeMatchesRoadmapTitle(user))
+                        )
+                        .and(
+                                announcement.endDate.isNull()
+                                        .or(announcement.endDate.after(LocalDateTime.now()))
+                        ))
+                .groupBy(announcement.id)
+                .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
+                .limit(2)
+                .fetch();
+
+        // 첫 번째 쿼리 결과가 충분하지 않은 경우, 추가 쿼리 실행
+        if (announcements.size() < 2) {
+            List<Announcement> additionalAnnouncements = queryFactory
+                    .selectFrom(announcement)
+                    .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
+                    .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO),
+                            announcement.id.notIn(announcements.stream().map(Announcement::getId).collect(Collectors.toSet()))
+                                    .and(
+                                            announcement.endDate.isNull()
+                                                    .or(announcement.endDate.after(LocalDateTime.now()))
+                                    ))
+                    .groupBy(announcement.id)
+                    .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
+                    .limit(2 - announcements.size())
+                    .fetch();
+            announcements.addAll(additionalAnnouncements);
+        }
+
+        return announcements;
+    }
+
+    @Override
+    public List<Announcement> findCustomAnnouncementOnOff(final User user, final University university) {
+        // BIZ_INFO or OPEN_DATA
+        Announcement offCampusAnnouncement = queryFactory
+                .selectFrom(announcement)
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
+                .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO)
+                        .and(
+                                isUserAreaAndSupportTypeMatch(user)
+                                        .or(announcementSupportTypeMatchesRoadmapTitle(user))
+                        )
+                        .and(
+                                announcement.endDate.isNull()
+                                        .or(announcement.endDate.after(LocalDateTime.now()))
+                        ))
+                .groupBy(announcement.id)
+                .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
+                .limit(1)
+                .fetchOne();
+
+        // ON_CAMPUS
+        Announcement onCampusAnnouncement = queryFactory
+                .selectFrom(announcement)
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
+                .where(announcement.announcementType.eq(AnnouncementType.ON_CAMPUS),
+                        announcement.university.eq(university))
+                .groupBy(announcement.id)
+                .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
+                .limit(1)
+                .fetchOne();
+
+        return Stream.of(offCampusAnnouncement, onCampusAnnouncement)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Announcement> findOffCampusAnnouncementsByRoadmapCount() {
+        return queryFactory
+                .selectFrom(announcement)
+                .where(
+                        announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO),
+                        announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()),
+                        announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()),
+                        announcement.roadmapCount.gt(0)
+                )
+                .orderBy(announcement.roadmapCount.desc())
+                .limit(3)
+                .fetch();
+    }
+
+    @Override
+    public List<Announcement> findOffCampusAnnouncementsByInsertDate() {
+        return queryFactory
+                .selectFrom(announcement)
+                .where(
+                        announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO),
+                        announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()),
+                        announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull())
+                )
+                .orderBy(announcement.startDate.desc())
+                .limit(3)
                 .fetch();
     }
 
@@ -351,89 +488,11 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
         };
     }
 
-    @Override
-    public List<Announcement> findCustomAnnouncementOff(User user) {
-        // 첫 번째 쿼리: 조건에 맞는 공고 먼저 조회
-        List<Announcement> announcements = queryFactory
-                .selectFrom(announcement)
-                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
-                .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO)
-                        .and(
-                                isUserAreaAndSupportTypeMatch(user)
-                                        .or(announcementSupportTypeMatchesRoadmapTitle(user))
-                        )
-                        .and(
-                                announcement.endDate.isNull()
-                                        .or(announcement.endDate.after(LocalDateTime.now()))
-                        ))
-                .groupBy(announcement.id)
-                .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
-                .limit(2)
-                .fetch();
-
-        // 첫 번째 쿼리 결과가 충분하지 않은 경우, 추가 쿼리 실행
-        if (announcements.size() < 2) {
-            List<Announcement> additionalAnnouncements = queryFactory
-                    .selectFrom(announcement)
-                    .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
-                    .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO),
-                            announcement.id.notIn(announcements.stream().map(Announcement::getId).collect(Collectors.toSet()))
-                                    .and(
-                                            announcement.endDate.isNull()
-                                                    .or(announcement.endDate.after(LocalDateTime.now()))
-                                    ))
-                    .groupBy(announcement.id)
-                    .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
-                    .limit(2 - announcements.size())
-                    .fetch();
-            announcements.addAll(additionalAnnouncements);
-        }
-
-        return announcements;
-    }
-
-    @Override
-    public List<Announcement> findCustomAnnouncementOnOff(User user, University university) {
-        // BIZ_INFO or OPEN_DATA
-        Announcement offCampusAnnouncement = queryFactory
-                .selectFrom(announcement)
-                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
-                .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO)
-                        .and(
-                                isUserAreaAndSupportTypeMatch(user)
-                                        .or(announcementSupportTypeMatchesRoadmapTitle(user))
-                        )
-                        .and(
-                                announcement.endDate.isNull()
-                                        .or(announcement.endDate.after(LocalDateTime.now()))
-                        ))
-                .groupBy(announcement.id)
-                .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
-                .limit(1)
-                .fetchOne();
-
-        // ON_CAMPUS
-        Announcement onCampusAnnouncement = queryFactory
-                .selectFrom(announcement)
-                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
-                .where(announcement.announcementType.eq(AnnouncementType.ON_CAMPUS),
-                        announcement.university.eq(university))
-                .groupBy(announcement.id)
-                .orderBy(roadmapAnnouncement.count().desc(), announcement.createdAt.desc())
-                .limit(1)
-                .fetchOne();
-
-        return Stream.of(offCampusAnnouncement, onCampusAnnouncement)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
-    }
-
-
     private BooleanExpression isUserAreaAndSupportTypeMatch(User user) {
         return announcement.areaName.eq(user.getResidence());
     }
 
-    private BooleanExpression announcementSupportTypeMatchesRoadmapTitle(User user) {
+    private BooleanExpression announcementSupportTypeMatchesRoadmapTitle(final User user) {
         QRoadmap roadmap = QRoadmap.roadmap;
 
         JPAQuery<?> subQuery = new JPAQuery<Void>()
@@ -445,4 +504,5 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
 
         return Expressions.booleanTemplate("exists {0}", subQuery);
     }
+
 }

@@ -23,6 +23,7 @@ public class UserDto {
     private Provider provider;
     private String providerId;
     private Role role;
+    private Integer profileNumber;
 
     public static UserDto toDto(User user) {
         return UserDto.builder()
@@ -35,6 +36,7 @@ public class UserDto {
                 .provider(user.getProvider())
                 .providerId(user.getProviderId())
                 .role(user.getRole())
+                .profileNumber(user.getProfileNumber())
                 .build();
     }
 

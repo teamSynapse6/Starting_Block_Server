@@ -51,6 +51,9 @@ public class User extends BaseEntity {
     @Column(name = "role", nullable = false)
     private Role role;
 
+    @Column(name = "profileNumber", nullable = false)
+    private Integer profileNumber;
+
     @Builder
     public User(String nickname, LocalDate birth, String residence, String university, String email, Provider provider, String providerId, Role role) {
         this.nickname = nickname;
@@ -62,6 +65,7 @@ public class User extends BaseEntity {
         this.provider = provider;
         this.providerId = providerId;
         this.role = role;
+        this.profileNumber = 0;
     }
 
     public void updateNickname(String nickname) {
@@ -82,6 +86,10 @@ public class User extends BaseEntity {
 
     public void updateUniversity(String university) {
         this.university = university;
+    }
+
+    public void updateProfileNumber(Integer profileNumber) {
+        this.profileNumber = profileNumber;
     }
 
 }

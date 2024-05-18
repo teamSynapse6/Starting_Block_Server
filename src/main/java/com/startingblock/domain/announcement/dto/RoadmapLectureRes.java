@@ -12,6 +12,7 @@ import java.util.List;
 @Builder
 public class RoadmapLectureRes {
 
+    private Long lectureId;
     private String title;
     private String liberal;
     private Integer credit;
@@ -23,6 +24,7 @@ public class RoadmapLectureRes {
     public static List<RoadmapLectureRes> toDto(final List<Lecture> lectures) {
         return lectures.stream()
                 .map(lecture -> RoadmapLectureRes.builder()
+                        .lectureId(lecture.getId())
                         .title(lecture.getTitle())
                         .liberal(lecture.getLiberal())
                         .credit(lecture.getCredit())

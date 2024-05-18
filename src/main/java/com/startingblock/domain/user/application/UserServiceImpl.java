@@ -51,16 +51,11 @@ public class UserServiceImpl implements UserService {
     public void signUpCurrentUser(final UserPrincipal userPrincipal, final SignUpUserReq signUpUserReq) {
         User user = userRepository.findById(userPrincipal.getId()).orElseThrow(InvalidUserException::new);
 
-        Boolean isExistNickname = userRepository.existsByNickname(signUpUserReq.getNickname());
-        if(isExistNickname) {
-            throw new AlreadyExistNicknameException(signUpUserReq.getNickname());
-        }
-
-        user.updateNickname(signUpUserReq.getNickname());
         user.updateBirth(signUpUserReq.getBirth());
         user.updateIsCompletedBusinessRegistration(signUpUserReq.getIsCompletedBusinessRegistration());
         user.updateResidence(signUpUserReq.getResidence());
         user.updateUniversity(signUpUserReq.getUniversity());
+        user.updateProfileNumber(signUpUserReq.getProfileNumber());
     }
 
     @Override
@@ -69,6 +64,19 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(InvalidUserException::new);
 
         return UserDto.toDto(user);
+    }
+
+    @Override
+    @Transactional
+    public void updateUserNickname(final UserPrincipal userPrincipal, final String nickname) {
+        if (userRepository.existsByNickname(nickname)) {
+            throw new AlreadyExistNicknameException(nickname);
+        }
+
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        user.updateNickname(nickname);
     }
 
 }

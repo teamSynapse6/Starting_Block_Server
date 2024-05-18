@@ -23,29 +23,12 @@ public class AnnouncementDetailRes {
     private Integer saved;
     private String classification;
     private String contact;
-
-    public static AnnouncementDetailRes of(Announcement announcement) {
-        return AnnouncementDetailRes.builder()
-                .id(announcement.getId())
-                .organization(announcement.getOrganizationName())
-                .title(announcement.getTitle())
-                .content(announcement.getContent())
-                .startDate(announcement.getStartDate().toString())
-                .endDate(announcement.getEndDate().toString())
-                .target(announcement.getPostTarget())
-                .targetAge(announcement.getPostTargetAge())
-                .supportType(announcement.getSupportType())
-                .link(announcement.getDetailUrl())
-                .region(announcement.getAreaName())
-                .saved(announcement.getRoadmapCount())
-                .classification(announcement.getAnnouncementType().toString())
-                .contact(announcement.getContact())
-                .build();
-    }
+    private Boolean isContactExist;
+    private Boolean isFileUploaded;
 
     @Builder
     @QueryProjection
-    public AnnouncementDetailRes(Long id, Boolean isBookmarked, String organization, String title, String content, String startDate, String endDate, String target, String targetAge, String supportType, String link, String region, Integer saved, String classification, String contact) {
+    public AnnouncementDetailRes(Long id, Boolean isBookmarked, String organization, String title, String content, String startDate, String endDate, String target, String targetAge, String supportType, String link, String region, Integer saved, String classification, String contact, Boolean isContactExist, Boolean isFileUploaded) {
         this.id = id;
         this.isBookmarked = isBookmarked;
         this.organization = organization;
@@ -61,6 +44,8 @@ public class AnnouncementDetailRes {
         this.saved = saved;
         this.classification = classification;
         this.contact = contact;
+        this.isContactExist = isContactExist;
+        this.isFileUploaded = isFileUploaded;
     }
 
 }

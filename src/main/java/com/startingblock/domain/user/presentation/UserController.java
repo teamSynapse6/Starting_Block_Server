@@ -64,4 +64,18 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "유저 닉네임 입력", description = "닉네임을 입력받습니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "유저 닉네임 입력 성공"),
+            @ApiResponse(responseCode = "400", description = "유저 닉네임 입력 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))}),
+    })
+    @PatchMapping("/nickname")
+    public ResponseEntity<Void> updateUserNickname(
+            @Parameter(description = "AccessToken 을 입력해주세요.", required = true) @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(description = "SignUpUserReq 를 확인해주세요.", required = true) @RequestParam final String nickname
+    ) {
+        userService.updateUserNickname(userPrincipal, nickname);
+        return ResponseEntity.noContent().build();
+    }
+
 }
