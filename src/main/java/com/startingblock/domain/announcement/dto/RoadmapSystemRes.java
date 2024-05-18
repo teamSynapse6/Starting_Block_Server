@@ -1,18 +1,14 @@
 package com.startingblock.domain.announcement.dto;
 
+import com.querydsl.core.annotations.QueryProjection;
 import com.startingblock.domain.announcement.domain.Announcement;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
 import java.util.List;
 
 @Data
-@AllArgsConstructor
-@Builder
 public class RoadmapSystemRes {
 
     private Long announcementId;
@@ -31,6 +27,16 @@ public class RoadmapSystemRes {
                         .isBookmarked(true)
                         .build())
                 .toList();
+    }
+
+    @Builder
+    @QueryProjection
+    public RoadmapSystemRes(Long announcementId, String title, String target, String content, Boolean isBookmarked) {
+        this.announcementId = announcementId;
+        this.title = title;
+        this.target = target;
+        this.content = content;
+        this.isBookmarked = isBookmarked;
     }
 
 }

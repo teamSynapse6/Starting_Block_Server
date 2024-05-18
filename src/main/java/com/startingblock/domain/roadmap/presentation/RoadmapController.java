@@ -1,8 +1,6 @@
 package com.startingblock.domain.roadmap.presentation;
 
-import com.startingblock.domain.announcement.dto.AnnouncementRes;
-import com.startingblock.domain.announcement.dto.RecommendAnnouncementRes;
-import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
+import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.roadmap.dto.RoadmapAnnouncementRes;
 import com.startingblock.domain.roadmap.application.RoadmapService;
 import com.startingblock.domain.roadmap.dto.SavedRoadmapRes;
@@ -249,6 +247,32 @@ public class RoadmapController {
             @Parameter(name = "roadmap-id", description = "로드맵 ID") @PathVariable(name = "roadmap-id") final Long roadmapId
     ) {
         return ResponseEntity.ok(roadmapService.recommendOnCampusAnnouncements(userPrincipal, roadmapId));
+    }
+
+    @Operation(summary = "교내 강의 추천 조회", description = "교내 강의 추천 조회")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "교내 강의 추천 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RecommendLectureRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "교내 강의 추천 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/{roadmap-id}/recommend/class")
+    public ResponseEntity<RecommendLectureRes> recommendLecture(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "roadmap-id", description = "로드맵 ID") @PathVariable(name = "roadmap-id") final Long roadmapId
+    ) {
+        return ResponseEntity.ok(roadmapService.recommendLecture(userPrincipal, roadmapId));
+    }
+
+    @Operation(summary = "교내 제도 추천 조회", description = "교내 제도 추천 조회")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "교내 제도 추천 조회 성공", content = {@Content(mediaType = "application/json", array = @ArraySchema(schema = @Schema(implementation = RoadmapSystemRes.class)))}),
+            @ApiResponse(responseCode = "400", description = "교내 제도 추천 조회 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))})
+    })
+    @GetMapping("/{roadmap-id}/recommend/system")
+    public ResponseEntity<RoadmapSystemRes> recommendSystem(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @Parameter(name = "roadmap-id", description = "로드맵 ID") @PathVariable(name = "roadmap-id") final Long roadmapId
+    ) {
+        return ResponseEntity.ok(roadmapService.recommendSystem(userPrincipal, roadmapId));
     }
 
 }
