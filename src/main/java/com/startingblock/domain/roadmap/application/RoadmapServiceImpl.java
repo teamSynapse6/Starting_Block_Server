@@ -2,8 +2,11 @@ package com.startingblock.domain.roadmap.application;
 
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.Lecture;
+import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.domain.repository.LectureRepository;
+import com.startingblock.domain.announcement.dto.AnnouncementRes;
+import com.startingblock.domain.announcement.dto.RecommendAnnouncementRes;
 import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
 import com.startingblock.domain.roadmap.dto.*;
 import com.startingblock.domain.announcement.dto.RoadmapSystemRes;
@@ -26,6 +29,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -80,8 +85,9 @@ public class RoadmapServiceImpl implements RoadmapService {
         Integer deletedSequence = roadmap.getSequence();
         RoadmapStatus deletedRoadmapStatus = roadmap.getRoadmapStatus();
 
-        // 삭제하는 Roadmap에 속한 RoadmapAnnouncement bulk delete
+        // 삭제하는 Roadmap에 속한 RoadmapAnnouncement, RoadmapLecture bulk delete
         roadmapAnnouncementRepository.bulkDeleteByRoadmapId(roadmapId);
+        roadmapLectureRepository.bulkDeleteByRoadmapId(roadmapId);
 
         // 삭제하는 Roadmap
         roadmapRepository.delete(roadmap);
@@ -262,7 +268,7 @@ public class RoadmapServiceImpl implements RoadmapService {
 
     @Override
     @Transactional
-    public void addRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId) {
+    public void addRoadmapLecture(final UserPrincipal userPrincipal, final Long roadmapId, final Long lectureId) {
         Roadmap roadmap = roadmapRepository.findRoadmapById(roadmapId)
                 .orElseThrow(InvalidRoadmapException::new);
 
@@ -285,15 +291,18 @@ public class RoadmapServiceImpl implements RoadmapService {
     }
 
     @Override
-    public List<RoadmapLectureRes> findLecturesOfRoadmap(UserPrincipal userPrincipal, Long roadmapId) {
+    public List<RoadmapLectureRes> findLecturesOfRoadmap(final UserPrincipal userPrincipal, final Long roadmapId) {
         List<Lecture> lectures = lectureRepository.findLecturesOfRoadmapsByRoadmapId(userPrincipal.getId(), roadmapId);
+
+        if(lectures.isEmpty())
+            throw new EmptyRoadmapException();
 
         return RoadmapLectureRes.toDto(lectures);
     }
 
     @Override
     @Transactional
-    public void deleteRoadmapLecture(UserPrincipal userPrincipal, Long roadmapId, Long lectureId) {
+    public void deleteRoadmapLecture(final UserPrincipal userPrincipal, final Long roadmapId, final Long lectureId) {
         Roadmap roadmap = roadmapRepository.findRoadmapById(roadmapId)
                 .orElseThrow(EmptyRoadmapException::new);
 
@@ -308,6 +317,57 @@ public class RoadmapServiceImpl implements RoadmapService {
 
         lecture.subtractRoadmapCount();
         roadmapLectureRepository.delete(roadmapLecture);
+    }
+
+    @Override
+    public List<RecommendAnnouncementRes> recommendOffCampusAnnouncements(final UserPrincipal userPrincipal, final Long roadmapId) {
+        Roadmap roadmap = roadmapRepository.findById(roadmapId)
+                .orElseThrow(InvalidRoadmapException::new);
+
+        String supportType = roadmap.getTitle();
+
+        List<Announcement> recommendations = new ArrayList<>();
+        int remainingSlots = 3;
+
+        // 1순위: 로드맵 Title명에 따라 일치하는 supportType에서 진행중인 공고 반환
+        List<Announcement> activeAnnouncements = announcementRepository.findOffCampusAnnouncementsBySupportType(supportType);
+        if (!activeAnnouncements.isEmpty()) {
+            int count = Math.min(remainingSlots, activeAnnouncements.size());
+            recommendations.addAll(activeAnnouncements.subList(0, count));
+            remainingSlots -= count;
+        }
+
+        // 2순위: 로드맵에 저장하기가 많은 공고 반환
+        if (remainingSlots > 0) {
+            List<Announcement> popularAnnouncements = announcementRepository.findOffCampusAnnouncementsByRoadmapCount();
+            if (!popularAnnouncements.isEmpty()) {
+                int count = Math.min(remainingSlots, popularAnnouncements.size());
+                recommendations.addAll(popularAnnouncements.subList(0, count));
+                remainingSlots -= count;
+            }
+        }
+
+        // 3순위: 업로드일자가 가장 최신인 공고 반환
+        if (remainingSlots > 0) {
+            List<Announcement> latestAnnouncements = announcementRepository.findOffCampusAnnouncementsByInsertDate();
+            if (!latestAnnouncements.isEmpty()) {
+                int count = Math.min(remainingSlots, latestAnnouncements.size());
+                recommendations.addAll(latestAnnouncements.subList(0, count));
+            }
+        }
+
+        return RecommendAnnouncementRes.toDto(recommendations);
+    }
+
+    @Override
+    public List<RecommendAnnouncementRes> recommendOnCampusAnnouncements(final UserPrincipal userPrincipal, final Long roadmapId) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        University university = University.of(user.getUniversity());
+
+        List<Announcement> recommendAnnouncements = announcementRepository.findThreeRandomOnCampusAnnouncements(university);
+        return RecommendAnnouncementRes.toDto(recommendAnnouncements);
     }
 
 }
