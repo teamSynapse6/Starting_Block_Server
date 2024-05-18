@@ -29,5 +29,6 @@ public interface AnnouncementQuerydslRepository {
     List<Announcement> findOffCampusAnnouncementsBySupportType(String supportType);
     List<Announcement> findOffCampusAnnouncementsByRoadmapCount();
     List<Announcement> findOffCampusAnnouncementsByInsertDate();
+    RoadmapSystemRes findRandomSystemByUniversity(Long id, University university);
 
 }

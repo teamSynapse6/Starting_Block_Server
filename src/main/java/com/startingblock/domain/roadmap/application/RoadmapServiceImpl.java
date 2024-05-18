@@ -5,11 +5,8 @@ import com.startingblock.domain.announcement.domain.Lecture;
 import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.domain.repository.LectureRepository;
-import com.startingblock.domain.announcement.dto.AnnouncementRes;
-import com.startingblock.domain.announcement.dto.RecommendAnnouncementRes;
-import com.startingblock.domain.announcement.dto.RoadmapLectureRes;
+import com.startingblock.domain.announcement.dto.*;
 import com.startingblock.domain.roadmap.dto.*;
-import com.startingblock.domain.announcement.dto.RoadmapSystemRes;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.announcement.exception.InvalidLectureException;
 import com.startingblock.domain.roadmap.domain.Roadmap;
@@ -368,6 +365,52 @@ public class RoadmapServiceImpl implements RoadmapService {
 
         List<Announcement> recommendAnnouncements = announcementRepository.findThreeRandomOnCampusAnnouncements(university);
         return RecommendAnnouncementRes.toDto(recommendAnnouncements);
+    }
+
+    @Override
+    public RecommendLectureRes recommendLecture(final UserPrincipal userPrincipal, final Long roadmapId) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        Roadmap roadmap = roadmapRepository.findById(roadmapId)
+                .orElseThrow(InvalidRoadmapException::new);
+
+        if (!Objects.equals(roadmap.getUser().getId(), userPrincipal.getId()))
+            throw new RoadmapMismatchUserException();
+
+        University university = University.of(user.getUniversity());
+        String title = roadmap.getTitle();
+        RecommendLectureRes lecture;
+
+        if (title.equals("창업 교육") || title.equals("아이디어 창출") || title.equals("공간 마련") || title.equals("사업계획서 작성")) {
+            lecture = lectureRepository.findRandomLectureByUniversity(user.getId(), university);
+            return lecture;
+        }
+
+        return null;
+    }
+
+    @Override
+    public RoadmapSystemRes recommendSystem(final UserPrincipal userPrincipal, final Long roadmapId) {
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+
+        Roadmap roadmap = roadmapRepository.findById(roadmapId)
+                .orElseThrow(InvalidRoadmapException::new);
+
+        if (!Objects.equals(roadmap.getUser().getId(), userPrincipal.getId()))
+            throw new RoadmapMismatchUserException();
+
+        University university = University.of(user.getUniversity());
+        String title = roadmap.getTitle();
+        RoadmapSystemRes system;
+
+        if (title.equals("창업 교육") || title.equals("아이디어 창출") || title.equals("공간 마련") || title.equals("사업계획서 작성")) {
+            system = announcementRepository.findRandomSystemByUniversity(user.getId(), university);
+            return system;
+        }
+
+        return null;
     }
 
 }

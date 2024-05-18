@@ -389,6 +389,30 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .fetch();
     }
 
+    @Override
+    public RoadmapSystemRes findRandomSystemByUniversity(Long id, University university) {
+        return queryFactory
+                .select(
+                        new QRoadmapSystemRes(
+                                announcement.id,
+                                announcement.title,
+                                announcement.postTarget,
+                                announcement.content,
+                                roadmapAnnouncement.announcement.id.isNotNull()
+                        )
+                )
+                .from(announcement)
+                .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement).and(roadmapAnnouncement.roadmap.user.id.eq(id)))
+                .where(
+                        announcement.announcementType.eq(AnnouncementType.SYSTEM),
+                        announcement.university.eq(university)
+                )
+                .distinct()
+                .orderBy(Expressions.numberTemplate(Double.class, "function('rand')").asc())
+                .limit(1)
+                .fetchOne();
+    }
+
     private BooleanExpression keywordExpression(final Keyword keyword) {
         if (keyword == null) return null;
         return announcement.keyword.eq(keyword);
