@@ -24,7 +24,7 @@ public class RecommendAnnouncementRes {
                         .announcementId(announcement.getId())
                         .department(announcement.getBizPrchDprtNm())
                         .detailUrl(announcement.getDetailUrl())
-                        .keyword(announcement.getKeyword().getKeyword())
+                        .keyword(announcement.getKeyword() == null ? null : announcement.getKeyword().getKeyword())
                         .title(announcement.getTitle())
                         .build())
                 .toList();
