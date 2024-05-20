@@ -1,14 +1,19 @@
 package com.startingblock.global.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.Logger;
 import feign.codec.Encoder;
 import feign.form.FormEncoder;
 import lombok.Data;
 import lombok.Getter;
+import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.cloud.openfeign.support.SpringEncoder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 
 
 @Configuration
@@ -22,6 +27,12 @@ public class FeignConfig {
     @Bean
     Logger.Level feignLoggerLevel() {
         return Logger.Level.FULL;
+    }
+
+    @Bean
+    @Primary
+    public Encoder feignEncoder(ObjectMapper objectMapper) {
+        return new SpringEncoder(() -> new HttpMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper)));
     }
 
     @Bean
