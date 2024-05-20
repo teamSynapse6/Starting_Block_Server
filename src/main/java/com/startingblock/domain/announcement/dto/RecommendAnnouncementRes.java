@@ -14,6 +14,8 @@ public class RecommendAnnouncementRes {
 
     private Long announcementId;
     private String department;
+    private String detailUrl;
+    private String keyword;
     private String title;
 
     public static List<RecommendAnnouncementRes> toDto(final List<Announcement> announcements) {
@@ -21,6 +23,8 @@ public class RecommendAnnouncementRes {
                 .map(announcement -> RecommendAnnouncementRes.builder()
                         .announcementId(announcement.getId())
                         .department(announcement.getBizPrchDprtNm())
+                        .detailUrl(announcement.getDetailUrl())
+                        .keyword(announcement.getKeyword().getKeyword())
                         .title(announcement.getTitle())
                         .build())
                 .toList();
