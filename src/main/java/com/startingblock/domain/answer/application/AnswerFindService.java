@@ -47,7 +47,7 @@ public class AnswerFindService {
             AnswerResponseDto.MyWriteResponse myWriteResponse = AnswerResponseDto.MyWriteResponse.builder()
                     .announcementType(findAnnouncement.getAnnouncementType() == AnnouncementType.ON_CAMPUS ? "교내" : "교외")
                     .announcementName(findAnnouncement.getTitle())
-                    .questionWrtierProfile(0) // 추후 유저 프로필 수정 필요
+                    .profileNumber(findUser.getProfileNumber()) // 추후 유저 프로필 수정 필요
                     .questionWriterName(findUser.getNickname())
                     .questionContent(result.getContent())
                     .build();
@@ -75,7 +75,7 @@ public class AnswerFindService {
                 for (Reply tempReply : replies) {
                     replyLists.add(AnswerResponseDto.ReplyList.builder()
                                     .isMine(tempReply.getUser().equals(user))
-                                    .replyWriterProfile(0) // 추후 유저 프로필 수정 필요
+                                    .profileNumber(tempReply.getUser().getProfileNumber()) // 추후 유저 프로필 수정 필요
                                     .replyWriterName(tempReply.getUser().getNickname())
                                     .replyContent(tempReply.getContent())
                                     .createdAt(tempReply.getCreatedAt())
@@ -83,7 +83,7 @@ public class AnswerFindService {
                             .build());
                 }
                 AnswerResponseDto.MyReplyResponse replyResponse = AnswerResponseDto.MyReplyResponse.builder()
-                        .answerWriterProfile(0) // 추후 유저 프로필 수정 필요
+                        .profileNumber(findAnswer.getUser().getProfileNumber()) // 추후 유저 프로필 수정 필요
                         .answerWriterName(findAnswer.getUser().getNickname())
                         .answerContent(findAnswer.getContent())
                         .replyList(replyLists)

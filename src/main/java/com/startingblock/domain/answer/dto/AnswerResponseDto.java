@@ -85,8 +85,8 @@ public class AnswerResponseDto {
         @Schema(type = "String", example = "예비 창업 패키지", description = "공고 이름입니다.")
         String announcementName;
 
-        @Schema(type = "int", example = "1", description = "질문 작성자 프로필 아이콘입니다.")
-        int questionWrtierProfile;
+        @Schema(type = "Integer", example = "1", description = "유저의 프로필 번호입니다.")
+        private Integer profileNumber;
 
         @Schema(type = "String", example = "제이콥", description = "질문 작성자 닉네임입니다.")
         String questionWriterName;
@@ -123,8 +123,8 @@ public class AnswerResponseDto {
     @Builder
     public static class MyReplyResponse{
 
-        @Schema(type = "int", example = "1", description = "답변 작성자 프로필 아이콘입니다.")
-        int answerWriterProfile;
+        @Schema(type = "Integer", example = "1", description = "유저의 프로필 번호입니다.")
+        private Integer profileNumber;
 
         @Schema(type = "String", example = "제이콥", description = "답변 작성자 닉네임입니다.")
         String answerWriterName;
@@ -142,8 +142,8 @@ public class AnswerResponseDto {
         @Schema(type = "boolean", example = "true", description = "내 답글인지, 타 유저의 답글인지 여부입니다.")
         boolean isMine;
 
-        @Schema(type = "int", example = "1", description = "답글 작성자 프로필 아이콘입니다.")
-        int replyWriterProfile;
+        @Schema(type = "Integer", example = "1", description = "유저의 프로필 번호입니다.")
+        private Integer profileNumber;
 
         @Schema(type = "String", example = "제이콥", description = "답글 작성자 닉네임입니다.")
         String replyWriterName;
