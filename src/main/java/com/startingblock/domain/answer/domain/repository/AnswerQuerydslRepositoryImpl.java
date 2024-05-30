@@ -62,6 +62,7 @@ public class AnswerQuerydslRepositoryImpl implements AnswerQuerydslRepository {
                                 .where(answer.user.id.eq(userId))
                                 .exists(),
                         user.nickname,
+                        user.profileNumber,
                         answer.content,
                         answer.createdAt,
                         JPAExpressions.select(heart.count())
