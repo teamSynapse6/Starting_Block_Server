@@ -45,6 +45,7 @@ public class AnswerFindService {
             Announcement findAnnouncement = result.getAnnouncement();
             User findUser = result.getUser();
             AnswerResponseDto.MyWriteResponse myWriteResponse = AnswerResponseDto.MyWriteResponse.builder()
+                    .announcementId(findAnnouncement.getId())
                     .announcementType(findAnnouncement.getAnnouncementType() == AnnouncementType.ON_CAMPUS ? "교내" : "교외")
                     .announcementName(findAnnouncement.getTitle())
                     .profileNumber(findUser.getProfileNumber()) // 추후 유저 프로필 수정 필요

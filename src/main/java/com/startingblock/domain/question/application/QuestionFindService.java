@@ -64,6 +64,7 @@ public class QuestionFindService {
             AnswerResponseDto.ContactAnswerResponse contactAnswer = answerRepository.findContactAnswer(question.getId());
 
             response.add(QuestionResponseDto.MyQuestionListResponse.builder()
+                    .announcementId(announcement.getId())
                     .announcementType(announcement.getAnnouncementType() == AnnouncementType.ON_CAMPUS ? "교내" : "교외")
                     .announcementName(announcement.getTitle())
                     .questionId(question.getId())

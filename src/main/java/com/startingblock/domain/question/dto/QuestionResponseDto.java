@@ -113,6 +113,9 @@ public class QuestionResponseDto {
     @Builder
     public static class MyQuestionListResponse {
 
+        @Schema(type = "Long", example = "1", description = "공고 ID입니다.")
+        private Long announcementId;
+
         @Schema(type = "String", example = "교외", description = "공고 구분입니다.")
         private String announcementType;
 

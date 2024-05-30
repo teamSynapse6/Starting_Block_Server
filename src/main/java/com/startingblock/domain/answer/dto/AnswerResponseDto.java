@@ -79,6 +79,9 @@ public class AnswerResponseDto {
     @Builder
     public static class MyWriteResponse {
 
+        @Schema(type = "Long", example = "1", description = "답변의 ID입니다.")
+        Long announcementId;
+
         @Schema(type = "String", example = "교외", description = "공고 타입입니다.")
         String announcementType;
 
