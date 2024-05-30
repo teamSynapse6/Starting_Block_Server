@@ -3,6 +3,7 @@ package com.startingblock.domain.crawling.oncampus;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.Keyword;
 import com.startingblock.domain.announcement.domain.University;
+import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.crawling.WebDriverManager;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
@@ -32,7 +33,12 @@ import static com.startingblock.domain.crawling.oncampus.constant.SeoulConstant.
 @Slf4j
 public class SeoulUniv extends CampusClassify implements CampusCrawling {
 
+    private final AnnouncementRepository announcementRepository;
     public List<Announcement> announcementList = new ArrayList<>();
+
+    public SeoulUniv(final AnnouncementRepository announcementRepository) {
+        this.announcementRepository = announcementRepository;
+    }
 
     @Override
     public List<Announcement> onCampusCrawling() {
@@ -75,6 +81,9 @@ public class SeoulUniv extends CampusClassify implements CampusCrawling {
                 Keyword keyword = super.classifyAnnouncement(title);
                 log.info("keyword: " + keyword);
 
+                if (announcementRepository.existsByDetailUrl(detailUrl)) { // 이미 존재하면 크롤링 중지, 존재하지 않는 것들만 크롤링한다.
+                    break;
+                }
                 announcementList.add(CampusAnnouncementCreator.createCampusAnnouncement(title, dateTime, detailUrl, University.SEOUL, keyword));
 
                 // 뒤로가기
