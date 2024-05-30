@@ -30,6 +30,7 @@ public class ReplyQuerydslRepositoryImpl implements ReplyQuerydslRepository {
                                 .where(reply.user.id.eq(userId))
                                 .exists(),
                         user.nickname,
+                        user.profileNumber,
                         reply.content,
                         reply.createdAt,
                         JPAExpressions.select(heart.count())

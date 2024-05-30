@@ -86,6 +86,7 @@ public class QuestionFindService {
 
         return QuestionResponseDto.QuestionDetailResponse.builder()
                 .userName(question.getUser().getNickname())
+                .profileNumber(question.getUser().getProfileNumber())
                 .content(question.getContent())
                 .createdAt(question.getCreatedAt())
                 .heartCount(heartRepository.countByQuestionId(questionId))

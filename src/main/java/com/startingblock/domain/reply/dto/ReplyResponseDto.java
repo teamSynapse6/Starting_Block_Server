@@ -19,6 +19,9 @@ public class ReplyResponseDto {
         @Schema(type = "String", example = "예비 창업자", description = "답글을 남긴 유저의 이름입니다.")
         private String userName;
 
+        @Schema(type = "Integer", example = "1", description = "유저의 프로필 번호입니다.")
+        private Integer profileNumber;
+
         @Schema(type = "String", example = "답글을 달겠습니다.", description = "답글의 내용입니다.")
         private String content;
 
@@ -34,10 +37,11 @@ public class ReplyResponseDto {
         @Schema(type = "Long", example = "1", description = "내 답글 하트의 ID입니다.", nullable = true)
         private Long heartId;
 
-        public ReplyResponse(final Long replyId, final Boolean isMyReply, final String userName, final String content, final LocalDateTime createdAt, final Long heartCount, final Boolean isMyHeart, final Long heartId) {
+        public ReplyResponse(final Long replyId, final Boolean isMyReply, final String userName, final Integer profileNumber, final String content, final LocalDateTime createdAt, final Long heartCount, final Boolean isMyHeart, final Long heartId) {
             this.replyId = replyId;
             this.isMyReply = isMyReply;
             this.userName = userName;
+            this.profileNumber = profileNumber;
             this.content = content;
             this.createdAt = createdAt;
             this.heartCount = heartCount != null ? heartCount.intValue() : 0;

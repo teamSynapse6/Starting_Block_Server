@@ -41,6 +41,9 @@ public class AnswerResponseDto {
         @Schema(type = "String", example = "토들러", description = "답변을 남긴 유저의 이름입니다.")
         private String userName;
 
+        @Schema(type = "Integer", example = "1", description = "유저의 프로필 번호입니다.")
+        private Integer profileNumber;
+
         @Schema(type = "String", example = "답변 드리겠습니다.", description = "타 창업자의 답변 내용입니다.")
         private String content;
 
@@ -59,10 +62,11 @@ public class AnswerResponseDto {
         @Setter
         private List<ReplyResponseDto.ReplyResponse> replyResponse;
 
-        public AnswerListResponse(final Long answerId, final Boolean isMyAnswer, final String userName, final String content, final LocalDateTime createdAt, final Long heartCount, final Boolean isMyHeart, final Long heartId) {
+        public AnswerListResponse(final Long answerId, final Boolean isMyAnswer, final String userName, final Integer profileNumber, final String content, final LocalDateTime createdAt, final Long heartCount, final Boolean isMyHeart, final Long heartId) {
             this.answerId = answerId;
             this.isMyAnswer = isMyAnswer;
             this.userName = userName;
+            this.profileNumber = profileNumber;
             this.content = content;
             this.createdAt = createdAt;
             this.heartCount = heartCount != null ? heartCount.intValue() : 0;
