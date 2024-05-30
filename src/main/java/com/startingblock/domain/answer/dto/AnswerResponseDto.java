@@ -41,6 +41,9 @@ public class AnswerResponseDto {
         @Schema(type = "String", example = "토들러", description = "답변을 남긴 유저의 이름입니다.")
         private String userName;
 
+        @Schema(type = "Integer", example = "1", description = "유저의 프로필 번호입니다.")
+        private Integer profileNumber;
+
         @Schema(type = "String", example = "답변 드리겠습니다.", description = "타 창업자의 답변 내용입니다.")
         private String content;
 
@@ -59,10 +62,11 @@ public class AnswerResponseDto {
         @Setter
         private List<ReplyResponseDto.ReplyResponse> replyResponse;
 
-        public AnswerListResponse(final Long answerId, final Boolean isMyAnswer, final String userName, final String content, final LocalDateTime createdAt, final Long heartCount, final Boolean isMyHeart, final Long heartId) {
+        public AnswerListResponse(final Long answerId, final Boolean isMyAnswer, final String userName, final Integer profileNumber, final String content, final LocalDateTime createdAt, final Long heartCount, final Boolean isMyHeart, final Long heartId) {
             this.answerId = answerId;
             this.isMyAnswer = isMyAnswer;
             this.userName = userName;
+            this.profileNumber = profileNumber;
             this.content = content;
             this.createdAt = createdAt;
             this.heartCount = heartCount != null ? heartCount.intValue() : 0;
@@ -75,14 +79,17 @@ public class AnswerResponseDto {
     @Builder
     public static class MyWriteResponse {
 
+        @Schema(type = "Long", example = "1", description = "답변의 ID입니다.")
+        Long announcementId;
+
         @Schema(type = "String", example = "교외", description = "공고 타입입니다.")
         String announcementType;
 
         @Schema(type = "String", example = "예비 창업 패키지", description = "공고 이름입니다.")
         String announcementName;
 
-        @Schema(type = "int", example = "1", description = "질문 작성자 프로필 아이콘입니다.")
-        int questionWrtierProfile;
+        @Schema(type = "Integer", example = "1", description = "유저의 프로필 번호입니다.")
+        private Integer profileNumber;
 
         @Schema(type = "String", example = "제이콥", description = "질문 작성자 닉네임입니다.")
         String questionWriterName;
@@ -119,8 +126,8 @@ public class AnswerResponseDto {
     @Builder
     public static class MyReplyResponse{
 
-        @Schema(type = "int", example = "1", description = "답변 작성자 프로필 아이콘입니다.")
-        int answerWriterProfile;
+        @Schema(type = "Integer", example = "1", description = "유저의 프로필 번호입니다.")
+        private Integer profileNumber;
 
         @Schema(type = "String", example = "제이콥", description = "답변 작성자 닉네임입니다.")
         String answerWriterName;
@@ -138,8 +145,8 @@ public class AnswerResponseDto {
         @Schema(type = "boolean", example = "true", description = "내 답글인지, 타 유저의 답글인지 여부입니다.")
         boolean isMine;
 
-        @Schema(type = "int", example = "1", description = "답글 작성자 프로필 아이콘입니다.")
-        int replyWriterProfile;
+        @Schema(type = "Integer", example = "1", description = "유저의 프로필 번호입니다.")
+        private Integer profileNumber;
 
         @Schema(type = "String", example = "제이콥", description = "답글 작성자 닉네임입니다.")
         String replyWriterName;

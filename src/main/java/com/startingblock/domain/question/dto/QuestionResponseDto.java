@@ -57,6 +57,9 @@ public class QuestionResponseDto {
         @Schema(type = "String", example = "예비 창업자", description = "질문을 남긴 유저의 이름입니다.")
         private String userName;
 
+        @Schema(type = "Integer", example = "1", description = "유저의 프로필 번호입니다.")
+        private Integer profileNumber;
+
         @Schema(type = "String", example = "개별 멘토링 진행시..", description = "질문의 내용입니다.")
         private String content;
 
@@ -109,6 +112,9 @@ public class QuestionResponseDto {
     @Getter
     @Builder
     public static class MyQuestionListResponse {
+
+        @Schema(type = "Long", example = "1", description = "공고 ID입니다.")
+        private Long announcementId;
 
         @Schema(type = "String", example = "교외", description = "공고 구분입니다.")
         private String announcementType;
