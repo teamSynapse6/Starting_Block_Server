@@ -15,4 +15,5 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
 
     List<Announcement> findByAnnouncementTypeAndContactIsNull(AnnouncementType announcementType);
 
+    Boolean existsByDetailUrl(String detailUrl);
 }
