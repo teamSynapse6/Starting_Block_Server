@@ -1,7 +1,6 @@
 package com.startingblock.domain.question.dto;
 
 import com.startingblock.domain.announcement.domain.Announcement;
-import com.startingblock.domain.announcement.domain.AnnouncementType;
 import com.startingblock.domain.answer.dto.AnswerResponseDto;
 import com.startingblock.domain.user.domain.User;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -148,14 +147,16 @@ public class QuestionResponseDto {
     public static class QuestionByMyAnswerAndReply {
         private Announcement announcement;
         private User user;
+        private Long questionId;
         private String content;
         private Long answerOrReplyId;
         @Setter
         private String writeType;
 
-        public QuestionByMyAnswerAndReply(final Announcement announcement, final User user, final String content, final Long answerOrReplyId) {
+        public QuestionByMyAnswerAndReply(final Announcement announcement, final User user, final Long questionId, final String content, final Long answerOrReplyId) {
             this.announcement = announcement;
             this.user = user;
+            this.questionId = questionId;
             this.content = content;
             this.answerOrReplyId = answerOrReplyId;
         }

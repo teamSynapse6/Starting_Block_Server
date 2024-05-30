@@ -89,6 +89,7 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
                 .select(Projections.constructor(QuestionResponseDto.QuestionByMyAnswerAndReply.class,
                         question.announcement,
                         question.user,
+                        question.id,
                         question.content,
                         answer.id))
                 .from(answer)
@@ -103,6 +104,7 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
                 .select(Projections.constructor(QuestionResponseDto.QuestionByMyAnswerAndReply.class,
                         question.announcement,
                         question.user,
+                        question.id,
                         question.content,
                         reply.id))
                 .from(reply)
