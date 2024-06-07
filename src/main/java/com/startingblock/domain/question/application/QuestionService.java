@@ -1,8 +1,10 @@
 package com.startingblock.domain.question.application;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
+import com.startingblock.domain.answer.domain.repository.AnswerRepository;
 import com.startingblock.domain.mail.application.MailService;
 import com.startingblock.domain.mail.dto.MailRequestDto;
 import com.startingblock.domain.question.domain.QAType;
@@ -35,10 +37,11 @@ public class QuestionService {
     private final AnnouncementRepository announcementRepository;
     private final UserRepository userRepository;
     private final MailService mailService;
+    private final QuestionGPTService questionGPTService;
 
     // TODO: 질문하기
     @Transactional
-    public void ask(final UserPrincipal userPrincipal, final QuestionRequestDto.AskQuestionRequest dto) {
+    public void ask(final UserPrincipal userPrincipal, final QuestionRequestDto.AskQuestionRequest dto) throws JsonProcessingException {
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(InvalidUserException::new);
 
@@ -53,10 +56,13 @@ public class QuestionService {
                 .build();
 
         questionRepository.save(question);
+
+        if (question.getQuestionType().equals(QAType.CONTACT)) {
+            questionGPTService.checkDuplicateQuestion(question);
+        }
     }
 
-//    @Scheduled(cron = "0 * * * * *") // 매분 0초마다 실행 (테스트)
-//    @Scheduled(cron = "0 0 9 * * *") // 매일 오전 9시에 실행
+    @Scheduled(cron = "0 0 9 * * *") // 매일 오전 9시에 실행
     public void sendContactEmail() throws MessagingException, UnsupportedEncodingException {
 
         LocalDate today = LocalDate.now();
@@ -83,7 +89,7 @@ public class QuestionService {
             MailRequestDto mail = MailRequestDto.builder()
                     .email(announcement.getContact())
                     .announcement(announcement.getTitle())
-                    .link("https://www.startingblock.co.kr/questions/" + announcement.getId())
+                    .link("https://www.startingblock.co.kr/api/v1/web/question/" + announcement.getId())
                     .build();
             mailService.sendEmailToReceiver(mail);
         }
