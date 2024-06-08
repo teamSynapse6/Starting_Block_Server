@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.startingblock.domain.gpt.dto.DuplicateReq;
 import com.startingblock.domain.gpt.dto.GptMessage;
 import com.startingblock.domain.gpt.dto.GptRes;
+import com.startingblock.domain.gpt.dto.GroupingQuestionReq;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,7 +35,20 @@ public class GptService {
     private String apiKey;
 
     public Long checkDuplicateQuestion(final DuplicateReq duplicateReq) throws JsonProcessingException {
-        List<GptMessage> messages = createGptMessages(duplicateReq, CHECK_DUPLICATE_PROMPT);
+        List<GptMessage> messages = new ArrayList<>();
+
+        // gpt 역할(프롬프트) 설정
+        messages.add(GptMessage.builder()
+                .role(SYSTEM)
+                .content(CHECK_DUPLICATE_PROMPT)
+                .build());
+
+        // 실제 요청
+        messages.add(GptMessage.builder()
+                .role(USER)
+                .content(duplicateReq.toJson())
+                .build());
+
         log.info("Request Messages: {}", messages);
 
         HashMap<String, Object> requestBody = createRequestBody(messages);
@@ -47,23 +61,31 @@ public class GptService {
         return Long.valueOf(response);
     }
 
-    // GPT 에 요청할 메시지를 만드는 메서드
-    private static List<GptMessage> createGptMessages(final DuplicateReq dto, final String prompt) throws JsonProcessingException {
+    public String groupingQuestions(final GroupingQuestionReq questionList) throws JsonProcessingException {
         List<GptMessage> messages = new ArrayList<>();
 
         // gpt 역할(프롬프트) 설정
         messages.add(GptMessage.builder()
                 .role(SYSTEM)
-                .content(prompt)
+                .content(CHECK_SIMILARITY_PROMPT)
                 .build());
 
         // 실제 요청
         messages.add(GptMessage.builder()
                 .role(USER)
-                .content(dto.toJson())
+                .content(questionList.toJson())
                 .build());
 
-        return messages;
+        log.info("Request Messages: {}", messages);
+
+        HashMap<String, Object> requestBody = createRequestBody(messages);
+
+        GptRes chatGptRes = getResponse(createHttpEntity(requestBody));
+
+        String response = chatGptRes.getChoices().get(0).getMessage().getContent();
+        log.info("Response: {}", response);
+
+        return response;
     }
 
     // GPT 에 요청할 파라미터를 만드는 메서드

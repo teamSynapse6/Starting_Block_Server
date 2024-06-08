@@ -6,7 +6,7 @@ import com.startingblock.domain.answer.domain.repository.AnswerRepository;
 import com.startingblock.domain.answer.dto.AnswerRequestDto;
 import com.startingblock.domain.gpt.application.GptService;
 import com.startingblock.domain.gpt.dto.DuplicateReq;
-import com.startingblock.domain.gpt.dto.SimpleDuplicateReq;
+import com.startingblock.domain.gpt.dto.SimpleGPTQuestionReq;
 import com.startingblock.domain.question.domain.QAType;
 import com.startingblock.domain.question.domain.Question;
 import com.startingblock.domain.question.domain.repository.QuestionRepository;
@@ -36,9 +36,9 @@ public class QuestionGPTService {
     public void checkDuplicateQuestion(final Question checkQuestion) throws JsonProcessingException {
         List<Question> questionList = questionRepository.findByAnnouncementIdAndQuestionTypeAndIsAnswerd(
                 checkQuestion.getAnnouncement().getId(), QAType.CONTACT, true);
-        List<SimpleDuplicateReq> oldQuestions = questionList.stream()
-                .map(question -> SimpleDuplicateReq.builder()
-                        .qid(question.getId())
+        List<SimpleGPTQuestionReq> oldQuestions = questionList.stream()
+                .map(question -> SimpleGPTQuestionReq.builder()
+                        .questionId(question.getId())
                         .content(question.getContent())
                         .build())
                 .collect(Collectors.toList());

@@ -3,6 +3,7 @@ package com.startingblock.domain.gpt.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.startingblock.domain.question.dto.QuestionResponseDto;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -10,13 +11,10 @@ import java.util.List;
 
 @Getter
 @Builder
-public class DuplicateReq {
+public class GroupingQuestionReq {
 
-    @JsonProperty("oldQuestions")
-    private List<SimpleGPTQuestionReq> oldQuestions;
-
-    @JsonProperty("newQuestion")
-    private String newQuestion;
+    @JsonProperty("questions")
+    private List<QuestionResponseDto.QuestionSimpleResponse> questions;
 
     public String toJson() throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();

@@ -1,5 +1,6 @@
 package com.startingblock.domain.web.presentation;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.startingblock.domain.answer.application.AnswerService;
 import com.startingblock.domain.answer.dto.AnswerRequestDto;
 import com.startingblock.domain.question.application.QuestionFindService;
@@ -41,7 +42,7 @@ public class WebController {
     @GetMapping(value = "/question/{announcement-id}")
     public ResponseEntity<?> findByAnnouncementForWeb(
             @Parameter(description = "공고의 ID입니다.", required = true) @Valid @PathVariable(name = "announcement-id") final Long announcementId
-    ) {
+    ) throws JsonProcessingException {
         return ResponseEntity.ok(questionFindService.findByAnnouncementForWeb(announcementId));
     }
 

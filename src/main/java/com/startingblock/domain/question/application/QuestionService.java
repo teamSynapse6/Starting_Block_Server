@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
-import com.startingblock.domain.answer.domain.repository.AnswerRepository;
 import com.startingblock.domain.mail.application.MailService;
 import com.startingblock.domain.mail.dto.MailRequestDto;
 import com.startingblock.domain.question.domain.QAType;
