@@ -8,6 +8,7 @@ import com.startingblock.global.infrastructure.feign.PdfClient;
 import com.startingblock.global.infrastructure.feign.dto.PdfUploadRes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -24,6 +25,7 @@ public class AnnouncementPdfUploader {
     private final AnnouncementRepository announcementRepository;
 
     @Transactional
+    @Scheduled(cron = "0 5 4 * * *")
     public void uploadPdf() {
         List<Announcement> announcements = announcementRepository.findAnnouncementsByAnnouncementTypeAndIsFileUploaded(AnnouncementType.BIZ_INFO, false);
 
@@ -38,6 +40,9 @@ public class AnnouncementPdfUploader {
 
             int index = filename.lastIndexOf(".");
             String extension = filename.substring(index + 1);
+            if(extension.equals("png") || extension.equals("jpg") || extension.equals("jpeg")) {
+                return;
+            }
 
             req.add(PdfUploadReq.builder()
                     .id(announcement.getId())
