@@ -1,5 +1,6 @@
 package com.startingblock.domain.question.presentation;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.startingblock.domain.question.application.QuestionFindService;
 import com.startingblock.domain.question.application.QuestionService;
 import com.startingblock.domain.question.dto.QuestionRequestDto;
@@ -43,7 +44,7 @@ public class QuestionController {
     public ResponseEntity<?> ask(
             @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
             @Parameter(description = "Schemas의 AskQuestionRequest를 참고해주세요.", required = true) @Valid @RequestBody final QuestionRequestDto.AskQuestionRequest dto
-    ) {
+    ) throws JsonProcessingException {
         questionService.ask(userPrincipal, dto);
         return ResponseEntity.noContent().build();
     }

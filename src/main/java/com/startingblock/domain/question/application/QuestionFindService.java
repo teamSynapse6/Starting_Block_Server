@@ -1,5 +1,8 @@
 package com.startingblock.domain.question.application;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.startingblock.domain.announcement.application.CampusFindService;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
@@ -9,6 +12,9 @@ import com.startingblock.domain.announcement.exception.InvalidAnnouncementExcept
 import com.startingblock.domain.answer.domain.Answer;
 import com.startingblock.domain.answer.domain.repository.AnswerRepository;
 import com.startingblock.domain.answer.dto.AnswerResponseDto;
+import com.startingblock.domain.gpt.application.GptService;
+import com.startingblock.domain.gpt.dto.GroupingQuestionReq;
+import com.startingblock.domain.gpt.dto.GroupingQuestionRes;
 import com.startingblock.domain.heart.domain.Heart;
 import com.startingblock.domain.heart.domain.repository.HeartRepository;
 import com.startingblock.domain.question.domain.QAType;
@@ -23,7 +29,6 @@ import com.startingblock.domain.user.exception.InvalidUserException;
 import com.startingblock.global.config.security.token.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.checker.units.qual.A;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +49,8 @@ public class QuestionFindService {
     private final HeartRepository heartRepository;
     private final UserRepository userRepository;
     private final ReplyRepository replyRepository;
+    private final GptService gptService;
+    private final ObjectMapper objectMapper;
 
     // TODO: 질문 리스트 조회
     public List<QuestionResponseDto.QuestionListResponse> findByAnnouncement(final UserPrincipal userPrincipal, final Long announcementId) {
@@ -100,7 +107,7 @@ public class QuestionFindService {
     }
 
     // TODO: 웹 - 공고별 질문 리스트 조회
-    public QuestionResponseDto.QuestionListResponseForWeb findByAnnouncementForWeb(final Long announcementId) {
+    public QuestionResponseDto.QuestionListResponseForWeb findByAnnouncementForWeb(final Long announcementId) throws JsonProcessingException {
         Announcement announcement = announcementRepository.findById(announcementId)
                 .orElseThrow(InvalidAnnouncementException::new);
 
@@ -121,11 +128,17 @@ public class QuestionFindService {
                     .content(question.getContent())
                     .build());
         }
+        // gpt로 유사 질문 그룹핑
+        String strOldQuestions = gptService.groupingQuestions(GroupingQuestionReq.builder().questions(oldQuestions).build());
+        List<GroupingQuestionRes> groupingOldQuestions = objectMapper.readValue(strOldQuestions, new TypeReference<List<GroupingQuestionRes>>() {});
+        String strNewQuestions = gptService.groupingQuestions(GroupingQuestionReq.builder().questions(newQuestions).build());
+        List<GroupingQuestionRes> groupingNewQuestions = objectMapper.readValue(strNewQuestions, new TypeReference<List<GroupingQuestionRes>>() {});
+
         return QuestionResponseDto.QuestionListResponseForWeb.builder()
                 .announcementName(announcement.getTitle())
                 .detailUrl(announcement.getDetailUrl())
-                .oldQuestions(oldQuestions)
-                .newQuestions(newQuestions)
+                .oldQuestions(groupingOldQuestions)
+                .newQuestions(groupingNewQuestions)
                 .build();
     }
 
