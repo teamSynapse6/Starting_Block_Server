@@ -34,7 +34,7 @@ public class AnnouncementWriter {
     private final FeignConfig feignConfig;
 
     @Transactional
-    @Scheduled(cron = "0 10 4 * * *")
+    @Scheduled(cron = "0 10 3 * * *")
     public void uploadPdfResultWrite() {
         List<Announcement> announcements = announcementRepository.findAnnouncementsByAnnouncementTypeAndIsFileUploaded(AnnouncementType.BIZ_INFO, false);
         PdfResultRes uploadPdfResult = pdfClient.getUploadPdfResult();
@@ -48,7 +48,7 @@ public class AnnouncementWriter {
     }
 
     @Transactional
-    @Scheduled(cron = "0 0 4 * * *")
+    @Scheduled(cron = "0 0 3 * * *")
     public void refreshAnnouncements() {
         String OPEN_DATA_SERVICE_KEY = feignConfig.getServiceKey().getOpenData();
         String BIZ_INFO_SERVICE_KEY = feignConfig.getServiceKey().getBizInfo();

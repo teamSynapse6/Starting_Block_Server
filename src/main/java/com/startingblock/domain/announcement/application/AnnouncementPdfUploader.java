@@ -25,7 +25,7 @@ public class AnnouncementPdfUploader {
     private final AnnouncementRepository announcementRepository;
 
     @Transactional
-    @Scheduled(cron = "0 5 4 * * *")
+    @Scheduled(cron = "0 5 3 * * *")
     public void uploadPdf() {
         List<Announcement> announcements = announcementRepository.findAnnouncementsByAnnouncementTypeAndIsFileUploaded(AnnouncementType.BIZ_INFO, false);
 
