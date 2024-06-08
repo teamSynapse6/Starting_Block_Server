@@ -1,6 +1,7 @@
 package com.startingblock.domain.answer.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
 import lombok.Getter;
 
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.List;
 public class AnswerRequestDto {
 
     @Getter
+    @Builder
     public static class AnswerRequest {
         @Schema(type = "long", example = "1", description = "질문의 ID입니다.")
         private Long questionId;

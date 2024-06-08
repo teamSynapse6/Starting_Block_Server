@@ -11,4 +11,6 @@ public interface AnswerRepository extends JpaRepository<Answer, Long>, AnswerQue
     Integer countByQuestionIdAndAnswerType(Long questionId, QAType answerType);
 
     List<Answer> findByQuestionId(Long questionId);
+
+    Answer findByQuestionIdAndAnswerType(Long questionId, QAType answerType);
 }
