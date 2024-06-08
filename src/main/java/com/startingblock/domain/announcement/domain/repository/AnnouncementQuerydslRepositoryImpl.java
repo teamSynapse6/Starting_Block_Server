@@ -59,6 +59,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .from(announcement)
                 .leftJoin(roadmapAnnouncement).on(announcement.id.eq(roadmapAnnouncement.announcement.id).and(roadmapAnnouncement.roadmap.user.id.eq(userId)))
                 .where(
+                        announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO),
                         announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이전이거나, 비기한이 없는 공고
                         announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이후이거나, 비기한이 없는 공고
                         announcement.status.eq(Status.ACTIVE)
