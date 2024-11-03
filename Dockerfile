@@ -25,9 +25,12 @@ ENV DISPLAY=:99
 ENV CHROME_BIN=/usr/bin/google-chrome
 ENV CHROME_DRIVER=/usr/local/bin/chromedriver
 
+# 애플리케이션 JAR 복사
 ARG JAR_FILE=build/libs/*.jar
 COPY ${JAR_FILE} app.jar
 
+# 포트 노출
 EXPOSE 8080
 
+# 애플리케이션 시작 명령어
 ENTRYPOINT ["sh", "-c", "Xvfb :99 -ac & java -jar /app.jar"]
