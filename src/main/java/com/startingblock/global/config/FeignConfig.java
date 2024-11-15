@@ -2,6 +2,7 @@ package com.startingblock.global.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.Logger;
+import feign.Request;
 import feign.codec.Encoder;
 import feign.form.FormEncoder;
 import lombok.Data;
@@ -44,6 +45,14 @@ public class FeignConfig {
     public static class ServiceKey {
         private String openData;
         private String bizInfo;
+    }
+
+    @Bean
+    public Request.Options requestOptions() {
+        return new Request.Options(
+                5000, // 연결 타임아웃 (5초)
+                60000 // 읽기 타임아웃 (10초)
+        );
     }
 
 }
