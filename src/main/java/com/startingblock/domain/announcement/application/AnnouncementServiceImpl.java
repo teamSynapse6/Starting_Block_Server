@@ -1,7 +1,6 @@
 package com.startingblock.domain.announcement.application;
 
 import com.startingblock.domain.announcement.domain.Announcement;
-import com.startingblock.domain.announcement.domain.AnnouncementType;
 import com.startingblock.domain.announcement.domain.Keyword;
 import com.startingblock.domain.announcement.domain.University;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
@@ -12,29 +11,17 @@ import com.startingblock.domain.user.domain.Role;
 import com.startingblock.domain.user.domain.User;
 import com.startingblock.domain.user.domain.repository.UserRepository;
 import com.startingblock.domain.user.exception.InvalidUserException;
-import com.startingblock.global.config.FeignConfig;
 import com.startingblock.global.config.security.token.UserPrincipal;
-import com.startingblock.global.infrastructure.feign.BizInfoClient;
-import com.startingblock.global.infrastructure.feign.OpenDataClient;
-import com.startingblock.global.infrastructure.feign.dto.BizInfoAnnouncementRes;
-import com.startingblock.global.infrastructure.feign.dto.NewKStartUpAnnouncementRes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -44,16 +31,16 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private final AnnouncementRepository announcementRepository;
     private final AnnouncementPdfUploader announcementPdfUploader;
     private final AnnouncementWriter announcementWriter;
+    private final AnnouncementManager announcementManager;
+
     private final UserRepository userRepository;
 
     @Override
-    @Transactional
-    @Async
     public void refreshAnnouncementsV1(final UserPrincipal userPrincipal) {
         if (userPrincipal.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals(Role.ADMIN.getValue())))
             throw new PermissionDeniedException();
 
-        announcementWriter.refreshAnnouncements();
+        announcementManager.refreshAnnouncements();
     }
 
     @Override
@@ -179,5 +166,4 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
         return announcementRepository.findSupportGroupKeywords(university);
     }
-
 }
