@@ -18,6 +18,8 @@ public class CampusAnnouncementCreator {
                 .postSN(String.valueOf(UUID.randomUUID()))
                 .title(title)
                 .insertDate(insertDate)
+                .startDate(insertDate)
+                .endDate(insertDate.plusYears(1))
                 .detailUrl(detailUrl)
                 .announcementType(AnnouncementType.ON_CAMPUS)
                 .university(university)
