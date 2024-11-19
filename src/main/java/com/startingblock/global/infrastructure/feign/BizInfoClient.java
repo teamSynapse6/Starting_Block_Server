@@ -14,7 +14,8 @@ public interface BizInfoClient {
     @GetMapping("/uss/rss/bizinfoApi.do")
     BizInfoAnnouncementRes getAnnouncementList(
             @RequestParam("crtfcKey") String crtfcKey,
-            @RequestParam("dataType") String dataType
+            @RequestParam("dataType") String dataType,
+            @RequestParam("searchCnt") int searchCnt
     );
 
 }
