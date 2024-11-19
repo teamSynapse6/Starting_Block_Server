@@ -118,7 +118,8 @@ public class AnnouncementManager {
     public List<Announcement> getBizInfoAnnouncementsSync(List<String> postIds, DateTimeFormatter dateFormatter, DateTimeFormatter dateTimeFormatter) {
         BizInfoAnnouncementRes bizInfoResponse = bizInfoClient.getAnnouncementList(
                 feignConfig.getServiceKey().getBizInfo(),
-                "json"
+                "json",
+                100
         );
 
         return bizInfoResponse.getJsonArray().stream()
