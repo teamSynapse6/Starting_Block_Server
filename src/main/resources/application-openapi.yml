@@ -1,0 +1,41 @@
+# Docker 빌드 시 generateOpenApiDocs 태스크 전용 프로파일
+# 외부 서비스(MySQL, MinIO, Qdrant) 없이 H2 인메모리 DB만으로 앱을 기동해 /api-docs를 생성합니다.
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  mail:
+    host: localhost
+    port: 25
+    username: openapi-dummy
+    password: openapi-dummy
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: dummy
+            client-secret: dummy
+            redirect-uri: http://localhost:18080/login/oauth2/code/kakao
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+            client-name: Kakao
+            scope:
+              - profile_nickname
+              - account_email
+
+server:
+  port: 18080
+
+logging:
+  level:
+    root: WARN
+    com.startingblock: INFO

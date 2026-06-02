@@ -1,0 +1,110 @@
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  output:
+    ansi:
+      enabled: always
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:startingblock}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        show_sql: ${HIBERNATE_SHOW_SQL:true}
+        format_sql: ${HIBERNATE_FORMAT_SQL:false}
+    open-in-view: false
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID:local-disabled}
+            client-secret: ${KAKAO_CLIENT_SECRET:local-disabled}
+            redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:18200/login/oauth2/code/kakao}
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+            client-name: Kakao
+            scope:
+              - profile_nickname
+              - account_email
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-exception: ${SERVER_ERROR_INCLUDE_EXCEPTION:true}
+    include-stacktrace: ${SERVER_ERROR_INCLUDE_STACKTRACE:always}
+
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:18200}
+  auth:
+    token-secret: ${APP_AUTH_TOKEN_SECRET:change-me-local-token-secret-change-me}
+    access-token-expiration-msec: ${APP_AUTH_ACCESS_TOKEN_EXPIRATION_MSEC:3600000}
+    refresh-token-expiration-msec: ${APP_AUTH_REFRESH_TOKEN_EXPIRATION_MSEC:1209600000}
+    kakao-admin-key: ${KAKAO_ADMIN_KEY:}
+  oauth2:
+    authorized-redirect-uris: ${APP_OAUTH2_AUTHORIZED_REDIRECT_URIS:http://localhost:3000/oauth2/redirect,myandroidapp://oauth2/redirect,myiosapp://oauth2/redirect}
+
+feign:
+  client:
+    service-key:
+      open-data: ${OPEN_DATA_SERVICE_KEY:}
+      biz-info: ${BIZ_INFO_SERVICE_KEY:}
+
+gpt:
+  api-key: ${GPT_API_KEY:}
+
+ai-rag:
+  cli:
+    python-executable: ${AI_RAG_PYTHON_EXECUTABLE:python3}
+    working-directory: ${AI_RAG_WORKING_DIRECTORY:ai-rag}
+    timeout-seconds: ${AI_RAG_CLI_TIMEOUT_SECONDS:600}
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: swagger
+    try-it-out-enabled: ${SWAGGER_TRY_IT_OUT_ENABLED:true}
+    filter: ${SWAGGER_FILTER:true}
+    operations-sorter: method
+    display-request-duration: ${SWAGGER_DISPLAY_REQUEST_DURATION:true}
+
+logging:
+  level:
+    org:
+      hibernate:
+        type:
+          descriptor:
+            sql: ${LOGGING_LEVEL_HIBERNATE_SQL:debug}
+    com:
+      startingblock:
+        global:
+          infrastructure:
+            feign: ${LOGGING_LEVEL_FEIGN:debug}

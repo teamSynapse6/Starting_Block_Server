@@ -36,4 +36,17 @@ out/
 ### VS Code ###
 .vscode/
 
-/src/main/resources/application.yml
+### Environment ###
+.env
+.env.*
+!.env.example
+
+### Python AI/RAG ###
+__pycache__/
+*.py[cod]
+ai-rag/app/data/models/
+ai-rag/app/data/*.done
+
+### txt files ###
+*.txt
+!ai-rag/requirements.txt
