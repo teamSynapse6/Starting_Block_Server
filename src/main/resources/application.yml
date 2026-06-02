@@ -62,7 +62,8 @@ server:
 
 app:
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:18200}
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:18200,https://startingblock-api.newlearn.ai.kr}
+    allowed-origin-patterns: ${APP_CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,https://*.newlearn.ai.kr,https://*.startingblock.co.kr}
   auth:
     token-secret: ${APP_AUTH_TOKEN_SECRET:change-me-local-token-secret-change-me}
     access-token-expiration-msec: ${APP_AUTH_ACCESS_TOKEN_EXPIRATION_MSEC:3600000}
@@ -87,6 +88,7 @@ ai-rag:
     timeout-seconds: ${AI_RAG_CLI_TIMEOUT_SECONDS:600}
 
 springdoc:
+  server-url: ${SWAGGER_SERVER_URL:/}
   api-docs:
     path: /api-docs
   swagger-ui:

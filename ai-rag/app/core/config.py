@@ -23,6 +23,7 @@ MINIO_RAW_PREFIX = os.getenv("MINIO_RAW_PREFIX", "raw")
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
+OLLAMA_AUTO_START = _env_bool("OLLAMA_AUTO_START", False)
 OLLAMA_KEEP_ALIVE = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
 OLLAMA_FLASH_ATTENTION = _env_bool("OLLAMA_FLASH_ATTENTION", True)
 OLLAMA_KV_CACHE_TYPE = os.getenv("OLLAMA_KV_CACHE_TYPE", "")

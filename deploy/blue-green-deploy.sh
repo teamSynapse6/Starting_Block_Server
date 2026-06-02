@@ -5,7 +5,7 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NGINX_CONF="${PROJECT_DIR}/deploy/nginx/nginx.conf"
 PROXY_CONTAINER="${PROXY_CONTAINER:-startingblock-proxy}"
 RUN_BACKFILL="${RUN_BACKFILL:-false}"
-STOP_OLD="${STOP_OLD:-false}"
+STOP_OLD="${STOP_OLD:-true}"
 
 cd "${PROJECT_DIR}"
 
@@ -56,11 +56,23 @@ if [[ "${RUN_BACKFILL}" == "true" ]]; then
     /opt/ai-rag-venv/bin/python -m app.scripts.backfill_embeddings
 fi
 
-sed -i -E "s/server spring-(blue|green):8080;/server spring-${TARGET}:8080;/" "${NGINX_CONF}"
+python3 - "${NGINX_CONF}" "${TARGET}" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+target = sys.argv[2]
+content = path.read_text()
+content = re.sub(r"server spring-(blue|green):8080;", f"server spring-{target}:8080;", content)
+path.write_text(content)
+PY
 
 PROXY_STATUS="$(docker inspect -f '{{.State.Status}}' "${PROXY_CONTAINER}" 2>/dev/null || true)"
-if [[ "${PROXY_STATUS}" == "running" ]]; then
-  docker exec "${PROXY_CONTAINER}" nginx -s reload
+if [[ "${PROXY_STATUS}" == "running" ]] \
+  && docker exec "${PROXY_CONTAINER}" nginx -t \
+  && docker exec "${PROXY_CONTAINER}" nginx -s reload; then
+  true
 else
   docker compose up -d --build --force-recreate proxy
 fi
@@ -68,9 +80,11 @@ fi
 echo "Traffic switched: spring-${OLD} -> spring-${TARGET}"
 
 if [[ "${STOP_OLD}" == "true" ]]; then
-  if [[ "${OLD}" == "green" ]]; then
-    docker compose --profile green stop "spring-${OLD}" || true
+  OLD_CONTAINER="startingblock-spring-${OLD}"
+  if docker inspect "${OLD_CONTAINER}" >/dev/null 2>&1; then
+    echo "Removing old container: ${OLD_CONTAINER}"
+    docker rm -f "${OLD_CONTAINER}" >/dev/null
   else
-    docker compose stop "spring-${OLD}" || true
+    echo "Old container not found: ${OLD_CONTAINER}"
   fi
 fi

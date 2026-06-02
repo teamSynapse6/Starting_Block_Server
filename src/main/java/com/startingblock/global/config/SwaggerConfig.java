@@ -20,9 +20,11 @@ public class SwaggerConfig {
     private final String securitySchemeName = "bearerAuth";
 
     @Bean
-    public OpenAPI openAPI(@Value("OpenAPI") String appVersion) {
-        Server prodServer = new Server().url("https://api.startingblock.co.kr").description("운영 서버");
-        Server localServer = new Server().url("http://localhost:18200").description("로컬 서버");
+    public OpenAPI openAPI(
+            @Value("OpenAPI") String appVersion,
+            @Value("${springdoc.server-url:/}") String serverUrl
+    ) {
+        Server currentServer = new Server().url(serverUrl).description("현재 접속 서버");
         Info info = new Info().title("StartingBlock API").version(appVersion)
                 .description("StartingBlock API 입니다.")
                 .termsOfService("https://www.startingblock.co.kr")
@@ -43,7 +45,7 @@ public class SwaggerConfig {
                                 )
                 )
                 .info(info)
-                .servers(List.of(prodServer));
+                .servers(List.of(currentServer));
     }
 
 }

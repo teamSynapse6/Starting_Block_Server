@@ -4,12 +4,11 @@ import subprocess
 import time
 from typing import AsyncIterator
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_ollama import ChatOllama
 from ollama import AsyncClient
 
 from app.api.llm.prompts import instructions
 from app.core.config import (
+    OLLAMA_AUTO_START,
     OLLAMA_BASE_URL,
     OLLAMA_FLASH_ATTENTION,
     OLLAMA_KEEP_ALIVE,
@@ -58,22 +57,41 @@ class OllamaClient:
             raise ValueError("OLLAMA_EMPTY_RESPONSE")
         return content
 
-    def _extract_ollama_timings_ms(self, response_metadata: dict | None) -> dict[str, int]:
-        if not response_metadata:
-            return {}
+    def _build_messages(
+        self,
+        context: str,
+        question: str,
+        history: list[dict] | None,
+        summary_text: str | None,
+    ) -> list[dict]:
+        prompt_system = (
+            f"{instructions.strip()}\n\n"
+            f"[공고 본문]\n{context}\n"
+        )
+        messages: list[dict] = [{"role": "system", "content": prompt_system}]
+        if summary_text and summary_text.strip():
+            messages.append({"role": "system", "content": f"[이전 대화 요약]\n{summary_text.strip()}"})
+        if history:
+            for item in history:
+                role = item.get("role")
+                content = (item.get("content") or "").strip()
+                if not content or role not in ("user", "assistant"):
+                    continue
+                messages.append({"role": role, "content": content})
+        messages.append({"role": "user", "content": question})
+        return messages
 
-        timings: dict[str, int] = {}
+    def _timings_from_response(self, resp) -> dict[str, int]:
+        result: dict[str, int] = {}
         for key in ["total_duration", "load_duration", "prompt_eval_duration", "eval_duration"]:
-            value = response_metadata.get(key)
+            value = getattr(resp, key, None)
             if isinstance(value, (int, float)):
-                timings[f"{key}_ms"] = int(value / 1_000_000)
-
+                result[f"{key}_ms"] = int(value / 1_000_000)
         for key in ["prompt_eval_count", "eval_count"]:
-            value = response_metadata.get(key)
+            value = getattr(resp, key, None)
             if isinstance(value, int):
-                timings[key] = value
-
-        return timings
+                result[key] = value
+        return result
 
     async def rag_chat(
         self,
@@ -84,51 +102,30 @@ class OllamaClient:
     ) -> tuple[str, dict[str, int]]:
         await self.ensure_model_loaded()
 
-        prompt_system = (
-            f"{instructions.strip()}\n\n"
-            f"[공고 본문]\n{context}\n"
-        )
+        messages = self._build_messages(context, question, history, summary_text)
 
-        lc_messages = [SystemMessage(content=prompt_system)]
-        if summary_text and summary_text.strip():
-            lc_messages.append(SystemMessage(content=f"[이전 대화 요약]\n{summary_text.strip()}"))
-
-        if history:
-            for item in history:
-                role = item.get("role")
-                content = (item.get("content") or "").strip()
-                if not content:
-                    continue
-                if role == "user":
-                    lc_messages.append(HumanMessage(content=content))
-                elif role == "assistant":
-                    lc_messages.append(AIMessage(content=content))
-
-        lc_messages.append(HumanMessage(content=question))
-
-        llm = ChatOllama(
-            base_url=self.base_url,
+        response = await self.client.chat(
             model=OLLAMA_MODEL,
-            temperature=0,
+            messages=messages,
+            stream=False,
             keep_alive=OLLAMA_KEEP_ALIVE,
-            num_predict=OLLAMA_NUM_PREDICT,
-            num_ctx=OLLAMA_NUM_CTX,
-            top_p=OLLAMA_TOP_P,
-            top_k=OLLAMA_TOP_K,
-            repeat_penalty=OLLAMA_REPEAT_PENALTY,
+            options={
+                "num_predict": OLLAMA_NUM_PREDICT,
+                "num_ctx": OLLAMA_NUM_CTX,
+                "top_p": OLLAMA_TOP_P,
+                "top_k": OLLAMA_TOP_K,
+                "repeat_penalty": OLLAMA_REPEAT_PENALTY,
+            },
         )
 
-        response = await llm.ainvoke(lc_messages)
         self.last_request_at = time.monotonic()
         self.model_loaded = True
 
-        content = response.content
-        if isinstance(content, list):
-            content = "".join(str(part) for part in content)
-        if not isinstance(content, str) or not content.strip():
+        content = (response.message.content if response.message else "") or ""
+        if not content.strip():
             raise ValueError("OLLAMA_EMPTY_RESPONSE")
 
-        internal_timings = self._extract_ollama_timings_ms(getattr(response, "response_metadata", None))
+        internal_timings = self._timings_from_response(response)
         return content.strip(), internal_timings
 
     async def rag_chat_stream(
@@ -140,59 +137,37 @@ class OllamaClient:
     ) -> AsyncIterator[dict]:
         await self.ensure_model_loaded()
 
-        prompt_system = (
-            f"{instructions.strip()}\n\n"
-            f"[공고 본문]\n{context}\n"
-        )
-
-        lc_messages = [SystemMessage(content=prompt_system)]
-        if summary_text and summary_text.strip():
-            lc_messages.append(SystemMessage(content=f"[이전 대화 요약]\n{summary_text.strip()}"))
-
-        if history:
-            for item in history:
-                role = item.get("role")
-                content = (item.get("content") or "").strip()
-                if not content:
-                    continue
-                if role == "user":
-                    lc_messages.append(HumanMessage(content=content))
-                elif role == "assistant":
-                    lc_messages.append(AIMessage(content=content))
-
-        lc_messages.append(HumanMessage(content=question))
-
-        llm = ChatOllama(
-            base_url=self.base_url,
-            model=OLLAMA_MODEL,
-            temperature=0,
-            keep_alive=OLLAMA_KEEP_ALIVE,
-            num_predict=OLLAMA_NUM_PREDICT,
-            num_ctx=OLLAMA_NUM_CTX,
-            top_p=OLLAMA_TOP_P,
-            top_k=OLLAMA_TOP_K,
-            repeat_penalty=OLLAMA_REPEAT_PENALTY,
-        )
+        messages = self._build_messages(context, question, history, summary_text)
 
         full_parts: list[str] = []
         internal_timings: dict[str, int] = {}
-        raw_metadata: dict = {}
+        last_chunk = None
 
-        async for chunk in llm.astream(lc_messages):
-            chunk_content = chunk.content
-            if isinstance(chunk_content, list):
-                chunk_content = "".join(str(part) for part in chunk_content)
-            if isinstance(chunk_content, str) and chunk_content:
-                full_parts.append(chunk_content)
-                yield {"type": "token", "content": chunk_content}
-
-            metadata = getattr(chunk, "response_metadata", None)
-            if isinstance(metadata, dict) and metadata.get("done"):
-                internal_timings = self._extract_ollama_timings_ms(metadata)
-                raw_metadata = metadata
+        async for chunk in await self.client.chat(
+            model=OLLAMA_MODEL,
+            messages=messages,
+            stream=True,
+            keep_alive=OLLAMA_KEEP_ALIVE,
+            options={
+                "num_predict": OLLAMA_NUM_PREDICT,
+                "num_ctx": OLLAMA_NUM_CTX,
+                "top_p": OLLAMA_TOP_P,
+                "top_k": OLLAMA_TOP_K,
+                "repeat_penalty": OLLAMA_REPEAT_PENALTY,
+            },
+        ):
+            token = (chunk.message.content or "") if chunk.message else ""
+            if token:
+                full_parts.append(token)
+                yield {"type": "token", "content": token}
+            if chunk.done:
+                last_chunk = chunk
 
         self.last_request_at = time.monotonic()
         self.model_loaded = True
+
+        if last_chunk is not None:
+            internal_timings = self._timings_from_response(last_chunk)
 
         full_text = "".join(full_parts).strip()
         if not full_text:
@@ -202,7 +177,7 @@ class OllamaClient:
             "type": "final",
             "content": full_text,
             "internal_timings": internal_timings,
-            "raw_metadata": raw_metadata,
+            "raw_metadata": {},
         }
 
     async def health(self) -> bool:
@@ -215,6 +190,12 @@ class OllamaClient:
     async def ensure_server_running(self):
         if await self.health():
             return
+
+        if not OLLAMA_AUTO_START:
+            raise RuntimeError(
+                "Ollama 서버에 연결할 수 없습니다. "
+                f"OLLAMA_BASE_URL={self.base_url} 값을 확인하고, 호스트 Ollama가 외부 접속을 허용하도록 OLLAMA_HOST=0.0.0.0:11434로 실행되어야 합니다."
+            )
 
         try:
             env = os.environ.copy()

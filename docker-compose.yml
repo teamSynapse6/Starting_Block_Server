@@ -22,6 +22,7 @@ x-spring-environment: &spring-environment
   SOURCE_DIR: /app/processed_file
   EMBEDDING_MODEL_LOCAL_PATH: /data/embedding-models/intfloat__multilingual-e5-large-instruct
   OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+  OLLAMA_AUTO_START: ${OLLAMA_AUTO_START:-false}
   AI_RAG_PYTHON_EXECUTABLE: /opt/ai-rag-venv/bin/python
   AI_RAG_WORKING_DIRECTORY: /app/ai-rag
   TZ: Asia/Seoul

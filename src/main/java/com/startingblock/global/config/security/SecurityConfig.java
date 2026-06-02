@@ -71,6 +71,8 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/login/**","/auth/**", "/oauth2/**", "/api/v1/web/**")
                         .permitAll()
+                        .requestMatchers("/validation", "/announcement", "/announcement/**", "/llm/**")
+                        .permitAll()
                         .requestMatchers("/blog/**")
                         .permitAll()
                         .anyRequest()
