@@ -18,7 +18,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
-        show_sql: ${HIBERNATE_SHOW_SQL:true}
+        show_sql: ${HIBERNATE_SHOW_SQL:false}
         format_sql: ${HIBERNATE_FORMAT_SQL:false}
     open-in-view: false
   mail:
@@ -86,6 +86,19 @@ ai-rag:
     python-executable: ${AI_RAG_PYTHON_EXECUTABLE:python3}
     working-directory: ${AI_RAG_WORKING_DIRECTORY:ai-rag}
     timeout-seconds: ${AI_RAG_CLI_TIMEOUT_SECONDS:600}
+  worker:
+    enabled: ${AI_RAG_WORKER_ENABLED:true}
+    idle-timeout-seconds: ${AI_RAG_WORKER_IDLE_TIMEOUT_SECONDS:60}
+  llm:
+    dynamic-concurrency:
+      enabled: ${LLM_DYNAMIC_CONCURRENCY_ENABLED:true}
+      max-concurrency: ${LLM_DYNAMIC_MAX_CONCURRENCY:0}
+      request-memory-mb: ${LLM_DYNAMIC_REQUEST_MEMORY_MB:4096}
+      min-free-memory-mb: ${LLM_GPU_MIN_FREE_MEMORY_MB:2048}
+      max-gpu-utilization: ${LLM_GPU_MAX_UTILIZATION:92}
+      max-memory-usage-percent: ${LLM_GPU_MAX_MEMORY_USAGE_PERCENT:88}
+      wait-interval-ms: ${LLM_DYNAMIC_WAIT_INTERVAL_MS:1000}
+      wait-timeout-seconds: ${LLM_GPU_WAIT_TIMEOUT_SECONDS:600}
 
 springdoc:
   server-url: ${SWAGGER_SERVER_URL:/}

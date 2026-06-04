@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.startingblock.domain.roadmap.domain.QRoadmap;
+import com.startingblock.domain.roadmap.domain.QRoadmapAnnouncement;
 import static com.startingblock.domain.announcement.domain.QAnnouncement.*;
 import static com.startingblock.domain.roadmap.domain.QRoadmapAnnouncement.*;
 import static com.startingblock.domain.question.domain.QQuestion.*;
@@ -142,9 +144,18 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
     @Override
     public List<Question> findQuestionWaitingAnswerOff(Long userId) {
 
-        // userId가 roadmap에 있는지 확인하여 정렬 가중치 계산
+        QRoadmapAnnouncement subRa = new QRoadmapAnnouncement("subRa");
+        QRoadmap subRoadmap = new QRoadmap("subRoadmap");
+
+        // userId가 해당 공고를 로드맵에 저장했는지 서브쿼리로 확인 (only_full_group_by 대응)
         NumberExpression<Integer> userRoadmapPriority = new CaseBuilder()
-                .when(roadmapAnnouncement.roadmap.user.id.eq(userId)).then(1)
+                .when(JPAExpressions.selectOne()
+                        .from(subRa)
+                        .join(subRa.roadmap, subRoadmap)
+                        .where(subRa.announcement.id.eq(announcement.id)
+                                .and(subRoadmap.user.id.eq(userId)))
+                        .exists())
+                .then(1)
                 .otherwise(0);
         // 공고에 대한 로드맵 저장 횟수를 계산
         NumberExpression<Long> roadmapCount = roadmapAnnouncement.count();
@@ -193,9 +204,18 @@ public class QuestionQuerydslRepositoryImpl implements QuestionQuerydslRepositor
     @Override
     public List<Question> findQuestionWaitingAnswerOnOff(Long userId, University university) {
 
-        // userId가 roadmap에 있는지 확인하여 정렬 가중치 계산
+        QRoadmapAnnouncement subRa = new QRoadmapAnnouncement("subRa");
+        QRoadmap subRoadmap = new QRoadmap("subRoadmap");
+
+        // userId가 해당 공고를 로드맵에 저장했는지 서브쿼리로 확인 (only_full_group_by 대응)
         NumberExpression<Integer> userRoadmapPriority = new CaseBuilder()
-                .when(roadmapAnnouncement.roadmap.user.id.eq(userId)).then(1)
+                .when(JPAExpressions.selectOne()
+                        .from(subRa)
+                        .join(subRa.roadmap, subRoadmap)
+                        .where(subRa.announcement.id.eq(announcement.id)
+                                .and(subRoadmap.user.id.eq(userId)))
+                        .exists())
+                .then(1)
                 .otherwise(0);
 
         // 공고에 대한 로드맵 저장 횟수를 계산

@@ -3,6 +3,7 @@ package com.startingblock.global.presentation;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.startingblock.domain.announcement.dto.PdfUploadReq;
 import com.startingblock.global.infrastructure.airag.AiRagCliClient;
+import com.startingblock.global.infrastructure.airag.AiRagGpuConcurrencyLimiter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,8 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Tag(name = "AI/RAG Legacy API", description = "기존 PDFGPT FastAPI 라우트 호환 API")
@@ -33,7 +36,10 @@ import java.util.concurrent.TimeUnit;
 public class AiRagLegacyController {
 
     private final AiRagCliClient aiRagCliClient;
+    private final AiRagGpuConcurrencyLimiter gpuConcurrencyLimiter;
     private final ObjectMapper objectMapper;
+    private final Map<String, AiRagCliClient.RunningCommand> activeChatCommands = new ConcurrentHashMap<>();
+    private final Set<String> cancelRequestedThreads = ConcurrentHashMap.newKeySet();
 
     @Operation(summary = "저장된 파일 리스트 반환")
     @GetMapping("/validation")
@@ -74,53 +80,105 @@ public class AiRagLegacyController {
     @PostMapping(value = "/llm/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<StreamingResponseBody> chat(@RequestBody final LlmChatRequest request) throws IOException {
         String stdin = objectMapper.writeValueAsString(request);
-        AiRagCliClient.RunningCommand command = aiRagCliClient.startStreaming(List.of("llm-chat"), stdin);
-
+        try {
+            aiRagCliClient.executeProcessOnly(List.of("llm-mark-queued"), stdin);
+        } catch (Exception exception) {
+            log.warn("AI/RAG Redis queue status mark failed thread_id={}", request.thread_id(), exception);
+        }
         StreamingResponseBody body = outputStream -> {
-            if (command.workerStream()) {
-                streamWorkerFrames(command, outputStream);
-                return;
-            }
-
-            try (InputStream inputStream = command.process().getInputStream()) {
-                byte[] buffer = new byte[8192];
-                int read;
-                while ((read = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, read);
-                    outputStream.flush();
-                }
-            }
-
-            boolean finished;
+            AiRagGpuConcurrencyLimiter.Lease lease = null;
+            AiRagCliClient.RunningCommand command = null;
+            long waitedSeconds = 0;
+            gpuConcurrencyLimiter.enterQueue();
             try {
-                finished = command.process().waitFor(command.timeout().toMillis(), TimeUnit.MILLISECONDS);
-            } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-                command.process().destroyForcibly();
-                log.warn("AI/RAG CLI stream interrupted command={} elapsed_ms={}", List.of("llm-chat"), aiRagCliClient.elapsedMillis(command.startedAt()));
-                writeSseError(outputStream, "채팅 처리가 중단되었습니다.");
-                return;
+                long startedWaitingAt = System.nanoTime();
+                while (lease == null) {
+                    if (isCancelRequested(request.thread_id())) {
+                        markCancelled(request.thread_id(), "user_cancelled");
+                        writeSse(outputStream, "status", new CancelStatus("cancelled", "user_cancelled"));
+                        return;
+                    }
+                    lease = gpuConcurrencyLimiter.tryAcquire();
+                    if (lease != null) {
+                        break;
+                    }
+                    writeRawSse(outputStream, "status", gpuConcurrencyLimiter.toStatusJson(gpuConcurrencyLimiter.snapshot(), waitedSeconds));
+                    try {
+                        Thread.sleep(gpuConcurrencyLimiter.waitIntervalMs());
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                        writeSseError(outputStream, "대기열 처리가 중단되었습니다.");
+                        return;
+                    }
+                    waitedSeconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startedWaitingAt);
+                    if (waitedSeconds >= gpuConcurrencyLimiter.waitTimeoutSeconds()) {
+                        writeSseError(outputStream, "GPU 대기열 처리 시간이 초과되었습니다.");
+                        return;
+                    }
+                }
+            } finally {
+                gpuConcurrencyLimiter.leaveQueue();
             }
 
-            if (!finished) {
-                command.process().destroyForcibly();
-                log.warn("AI/RAG CLI stream timeout command={} elapsed_ms={}", List.of("llm-chat"), aiRagCliClient.elapsedMillis(command.startedAt()));
-                writeSseError(outputStream, "채팅 처리 시간이 초과되었습니다.");
-                return;
-            }
+            try {
+                if (isCancelRequested(request.thread_id())) {
+                    markCancelled(request.thread_id(), "user_cancelled");
+                    writeSse(outputStream, "status", new CancelStatus("cancelled", "user_cancelled"));
+                    return;
+                }
+                writeRawSse(outputStream, "status", gpuConcurrencyLimiter.acquiredStatusJson(lease, waitedSeconds));
+                command = aiRagCliClient.startStreamingProcessOnly(List.of("llm-chat"), stdin);
+                activeChatCommands.put(request.thread_id(), command);
 
-            String stderr = command.stderrFuture().join().trim();
-            if (!stderr.isBlank()) {
-                log.warn("AI/RAG CLI stream stderr command={} elapsed_ms={} stderr={}",
-                        List.of("llm-chat"), aiRagCliClient.elapsedMillis(command.startedAt()), aiRagCliClient.abbreviate(stderr));
-            }
+                try (InputStream inputStream = command.process().getInputStream()) {
+                    byte[] buffer = new byte[8192];
+                    int read;
+                    while ((read = inputStream.read(buffer)) != -1) {
+                        try {
+                            outputStream.write(buffer, 0, read);
+                            outputStream.flush();
+                        } catch (IOException exception) {
+                            cancelCommand(request.thread_id(), command, "client_disconnected");
+                            log.info("AI/RAG SSE client disconnected thread_id={} elapsed_ms={}", request.thread_id(), aiRagCliClient.elapsedMillis(command.startedAt()));
+                            return;
+                        }
+                    }
+                }
 
-            if (command.process().exitValue() != 0) {
-                log.warn("AI/RAG CLI stream failed command={} exit={} elapsed_ms={}",
-                        List.of("llm-chat"), command.process().exitValue(), aiRagCliClient.elapsedMillis(command.startedAt()));
-            } else {
-                log.info("AI/RAG CLI stream success command={} elapsed_ms={}",
-                        List.of("llm-chat"), aiRagCliClient.elapsedMillis(command.startedAt()));
+                boolean finished;
+                try {
+                    finished = command.process().waitFor(command.timeout().toMillis(), TimeUnit.MILLISECONDS);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    command.process().destroyForcibly();
+                    log.warn("AI/RAG CLI stream interrupted command={} elapsed_ms={}", List.of("llm-chat"), aiRagCliClient.elapsedMillis(command.startedAt()));
+                    writeSseError(outputStream, "채팅 처리가 중단되었습니다.");
+                    return;
+                }
+
+                if (!finished) {
+                    command.process().destroyForcibly();
+                    log.warn("AI/RAG CLI stream timeout command={} elapsed_ms={}", List.of("llm-chat"), aiRagCliClient.elapsedMillis(command.startedAt()));
+                    writeSseError(outputStream, "채팅 처리 시간이 초과되었습니다.");
+                    return;
+                }
+
+                String stderr = command.stderrFuture().join().trim();
+                if (!stderr.isBlank()) {
+                    log.warn("AI/RAG CLI stream stderr command={} elapsed_ms={} stderr={}",
+                            List.of("llm-chat"), aiRagCliClient.elapsedMillis(command.startedAt()), aiRagCliClient.abbreviate(stderr));
+                }
+
+                if (command.process().exitValue() != 0) {
+                    log.warn("AI/RAG CLI stream failed command={} exit={} elapsed_ms={}",
+                            List.of("llm-chat"), command.process().exitValue(), aiRagCliClient.elapsedMillis(command.startedAt()));
+                } else {
+                    log.info("AI/RAG CLI stream success command={} elapsed_ms={}",
+                            List.of("llm-chat"), aiRagCliClient.elapsedMillis(command.startedAt()));
+                }
+            } finally {
+                activeChatCommands.remove(request.thread_id());
+                gpuConcurrencyLimiter.release();
             }
         };
 
@@ -132,8 +190,45 @@ public class AiRagLegacyController {
                 .body(body);
     }
 
+    @Operation(summary = "RAG 기반 LLM 채팅 진행 상태 조회")
+    @GetMapping(value = "/llm/status", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> conversationStatus(@RequestParam("thread_id") final String threadId) throws IOException {
+        return json(aiRagCliClient.execute(List.of("llm-status", "--thread-id", threadId), null));
+    }
+
+    @Operation(summary = "RAG 기반 LLM 채팅 취소")
+    @PostMapping(value = "/llm/cancel", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> cancelConversation(@RequestParam("thread_id") final String threadId) throws IOException {
+        cancelRequestedThreads.add(threadId);
+        AiRagCliClient.RunningCommand command = activeChatCommands.get(threadId);
+        if (command != null) {
+            destroyCommand(command);
+        }
+        return json(markCancelled(threadId, "user_cancelled"));
+    }
+
     private void streamWorkerFrames(final AiRagCliClient.RunningCommand command, final java.io.OutputStream outputStream) throws IOException {
+        boolean workerStarted = false;
         try {
+            long waitedSeconds = 0;
+            while (!aiRagCliClient.tryBeginWorkerStream(command)) {
+                writeSse(
+                        outputStream,
+                        "status",
+                        new QueueStatus("queue_waiting", aiRagCliClient.workerQueueLength() + 1, waitedSeconds)
+                );
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    writeSseError(outputStream, "대기열 처리가 중단되었습니다.");
+                    return;
+                }
+                waitedSeconds += 1;
+            }
+            workerStarted = true;
+            writeSse(outputStream, "status", new QueueStatus("worker_started", 0, waitedSeconds));
+
             while (true) {
                 Map<String, Object> frame = command.frameQueue().poll(command.timeout().toMillis(), TimeUnit.MILLISECONDS);
                 if (frame == null) {
@@ -171,14 +266,23 @@ public class AiRagLegacyController {
             Thread.currentThread().interrupt();
             writeSseError(outputStream, "채팅 처리가 중단되었습니다.");
         } finally {
-            aiRagCliClient.finishWorkerStream(command);
+            if (workerStarted) {
+                aiRagCliClient.finishWorkerStream(command);
+            } else {
+                aiRagCliClient.cancelWorkerStream(command);
+            }
         }
     }
 
     @Operation(summary = "대화 UUID 삭제")
     @DeleteMapping(value = "/llm/delete", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> deleteConversation(@RequestParam("thread_id") final String threadId) throws IOException {
-        return json(aiRagCliClient.execute(List.of("llm-delete", "--thread-id", threadId), null));
+        try {
+            return json(aiRagCliClient.execute(List.of("llm-delete", "--thread-id", threadId), null));
+        } finally {
+            cancelRequestedThreads.remove(threadId);
+            activeChatCommands.remove(threadId);
+        }
     }
 
     private ResponseEntity<String> json(final String body) {
@@ -193,6 +297,40 @@ public class AiRagLegacyController {
         outputStream.flush();
     }
 
+    private void writeSse(final java.io.OutputStream outputStream, final String event, final Object payload) throws IOException {
+        outputStream.write(("event: " + event + "\ndata: " + objectMapper.writeValueAsString(payload) + "\n\n").getBytes(StandardCharsets.UTF_8));
+        outputStream.flush();
+    }
+
+    private void writeRawSse(final java.io.OutputStream outputStream, final String event, final String jsonPayload) throws IOException {
+        outputStream.write(("event: " + event + "\ndata: " + jsonPayload + "\n\n").getBytes(StandardCharsets.UTF_8));
+        outputStream.flush();
+    }
+
+    private boolean isCancelRequested(final String threadId) {
+        return cancelRequestedThreads.contains(threadId);
+    }
+
+    private String markCancelled(final String threadId, final String reason) throws IOException {
+        return aiRagCliClient.executeProcessOnly(List.of("llm-cancel", "--thread-id", threadId, "--reason", reason), null);
+    }
+
+    private void cancelCommand(final String threadId, final AiRagCliClient.RunningCommand command, final String reason) {
+        cancelRequestedThreads.add(threadId);
+        try {
+            markCancelled(threadId, reason);
+        } catch (Exception exception) {
+            log.warn("AI/RAG cancel mark failed thread_id={} reason={}", threadId, reason, exception);
+        }
+        destroyCommand(command);
+    }
+
+    private void destroyCommand(final AiRagCliClient.RunningCommand command) {
+        if (command != null && command.process() != null && command.process().isAlive()) {
+            command.process().destroyForcibly();
+        }
+    }
+
     public record AnnouncementDeleteRequest(List<Long> id) {
     }
 
@@ -200,5 +338,11 @@ public class AiRagLegacyController {
     }
 
     private record SseError(String detail) {
+    }
+
+    private record QueueStatus(String stage, int position, long waited_seconds) {
+    }
+
+    private record CancelStatus(String stage, String reason) {
     }
 }

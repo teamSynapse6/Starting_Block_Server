@@ -32,8 +32,7 @@ def migrate(source_dir: Path):
 
 
 if __name__ == "__main__":
-    source = os.getenv(
-        "SOURCE_DIR",
-        "/home/feserver/documents/project/starting_block/Starting_Block_Server/processed_file",
-    )
+    source = os.getenv("SOURCE_DIR")
+    if not source:
+        raise SystemExit("SOURCE_DIR 환경 변수를 지정하세요. 예: SOURCE_DIR=/data/processed_file")
     migrate(Path(source))

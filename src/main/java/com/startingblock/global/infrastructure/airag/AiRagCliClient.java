@@ -2,6 +2,8 @@ package com.startingblock.global.infrastructure.airag;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,8 +25,10 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -46,16 +50,36 @@ public class AiRagCliClient {
     @Value("${ai-rag.worker.enabled:true}")
     private boolean workerEnabled;
 
+    @Value("${ai-rag.worker.idle-timeout-seconds:60}")
+    private long workerIdleTimeoutSeconds;
+
     private final Object workerMonitor = new Object();
     private final Semaphore workerSemaphore = new Semaphore(1);
     private final Map<String, BlockingQueue<Map<String, Object>>> workerResponses = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService workerIdleReaper = Executors.newSingleThreadScheduledExecutor();
     private Process workerProcess;
     private BufferedWriter workerWriter;
+    private volatile long lastWorkerActivityAt = System.nanoTime();
+
+    @PostConstruct
+    public void startWorkerIdleReaper() {
+        workerIdleReaper.scheduleAtFixedRate(this::stopWorkerIfIdle, 10, 10, TimeUnit.SECONDS);
+    }
+
+    @PreDestroy
+    public void shutdownWorker() {
+        workerIdleReaper.shutdownNow();
+        stopWorker("application shutdown");
+    }
 
     public String execute(final List<String> arguments, final String stdin) throws IOException {
         if (workerEnabled) {
             return executeWithWorker(arguments, stdin);
         }
+        return executeWithProcess(arguments, stdin);
+    }
+
+    public String executeProcessOnly(final List<String> arguments, final String stdin) throws IOException {
         return executeWithProcess(arguments, stdin);
     }
 
@@ -89,6 +113,7 @@ public class AiRagCliClient {
             return stdout;
         } finally {
             workerResponses.remove(requestId);
+            markWorkerActivity();
             workerSemaphore.release();
         }
     }
@@ -142,23 +167,16 @@ public class AiRagCliClient {
         return startStreamingWithProcess(arguments, stdin);
     }
 
+    public RunningCommand startStreamingProcessOnly(final List<String> arguments, final String stdin) throws IOException {
+        return startStreamingWithProcess(arguments, stdin);
+    }
+
     private RunningCommand startStreamingWithWorker(final List<String> arguments, final String stdin) throws IOException {
         long startedAt = System.nanoTime();
         String requestId = UUID.randomUUID().toString();
         BlockingQueue<Map<String, Object>> queue = new LinkedBlockingQueue<>();
         workerResponses.put(requestId, queue);
-
-        acquireWorker();
-        try {
-            ensureWorkerRunning();
-            log.info("AI/RAG worker stream start command={}", arguments);
-            writeWorkerRequest(requestId, arguments, stdin, true);
-            return new RunningCommand(null, null, Duration.ofSeconds(timeoutSeconds), startedAt, true, requestId, queue);
-        } catch (IOException | RuntimeException exception) {
-            workerResponses.remove(requestId);
-            workerSemaphore.release();
-            throw exception;
-        }
+        return new RunningCommand(null, null, Duration.ofSeconds(timeoutSeconds), startedAt, true, requestId, queue, arguments, stdin);
     }
 
     private RunningCommand startStreamingWithProcess(final List<String> arguments, final String stdin) throws IOException {
@@ -171,7 +189,7 @@ public class AiRagCliClient {
         Process process = processBuilder.start();
         writeStdin(process, stdin);
         CompletableFuture<String> stderrFuture = readAsync(process, false);
-        return new RunningCommand(process, stderrFuture, Duration.ofSeconds(timeoutSeconds), startedAt, false, null, null);
+        return new RunningCommand(process, stderrFuture, Duration.ofSeconds(timeoutSeconds), startedAt, false, null, null, arguments, stdin);
     }
 
     private void writeStdin(final Process process, final String stdin) throws IOException {
@@ -228,6 +246,26 @@ public class AiRagCliClient {
         }
     }
 
+    public boolean tryBeginWorkerStream(final RunningCommand command) throws IOException {
+        if (!workerSemaphore.tryAcquire()) {
+            return false;
+        }
+        try {
+            ensureWorkerRunning();
+            markWorkerActivity();
+            log.info("AI/RAG worker stream start command={}", command.arguments());
+            writeWorkerRequest(command.requestId(), command.arguments(), command.stdin(), true);
+            return true;
+        } catch (IOException | RuntimeException exception) {
+            workerSemaphore.release();
+            throw exception;
+        }
+    }
+
+    public int workerQueueLength() {
+        return workerSemaphore.getQueueLength();
+    }
+
     private void ensureWorkerRunning() throws IOException {
         synchronized (workerMonitor) {
             if (workerProcess != null && workerProcess.isAlive() && workerWriter != null) {
@@ -242,6 +280,7 @@ public class AiRagCliClient {
             workerWriter = new BufferedWriter(new OutputStreamWriter(workerProcess.getOutputStream(), StandardCharsets.UTF_8));
             startWorkerStdoutReader(workerProcess);
             startWorkerStderrReader(workerProcess);
+            markWorkerActivity();
             log.info("AI/RAG worker process started");
         }
     }
@@ -312,18 +351,62 @@ public class AiRagCliClient {
     public void finishWorkerStream(final RunningCommand command) {
         if (command.workerStream()) {
             workerResponses.remove(command.requestId());
+            markWorkerActivity();
             workerSemaphore.release();
         }
     }
 
+    public void cancelWorkerStream(final RunningCommand command) {
+        if (command.workerStream()) {
+            workerResponses.remove(command.requestId());
+        }
+    }
+
     private void restartWorker() {
+        stopWorker("restart requested");
+    }
+
+    private void stopWorkerIfIdle() {
+        if (!workerEnabled || workerIdleTimeoutSeconds <= 0) {
+            return;
+        }
+
+        Process current = workerProcess;
+        if (current == null || !current.isAlive()) {
+            return;
+        }
+
+        long idleMillis = elapsedMillis(lastWorkerActivityAt);
+        if (idleMillis < TimeUnit.SECONDS.toMillis(workerIdleTimeoutSeconds)) {
+            return;
+        }
+
+        if (!workerSemaphore.tryAcquire()) {
+            return;
+        }
+        try {
+            idleMillis = elapsedMillis(lastWorkerActivityAt);
+            if (idleMillis >= TimeUnit.SECONDS.toMillis(workerIdleTimeoutSeconds)) {
+                stopWorker("idle for " + idleMillis + "ms");
+            }
+        } finally {
+            workerSemaphore.release();
+        }
+    }
+
+    private void stopWorker(final String reason) {
         synchronized (workerMonitor) {
             if (workerProcess != null) {
+                log.info("AI/RAG worker process stopping reason={}", reason);
                 workerProcess.destroyForcibly();
             }
             workerProcess = null;
             workerWriter = null;
         }
+    }
+
+    private void markWorkerActivity() {
+        lastWorkerActivityAt = System.nanoTime();
     }
 
     public long elapsedMillis(final long startedAt) {
@@ -344,7 +427,9 @@ public class AiRagCliClient {
             long startedAt,
             boolean workerStream,
             String requestId,
-            BlockingQueue<Map<String, Object>> frameQueue
+            BlockingQueue<Map<String, Object>> frameQueue,
+            List<String> arguments,
+            String stdin
     ) {
     }
 }

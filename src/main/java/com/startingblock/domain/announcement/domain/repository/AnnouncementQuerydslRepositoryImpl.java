@@ -3,6 +3,7 @@ package com.startingblock.domain.announcement.domain.repository;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.startingblock.domain.announcement.domain.*;
@@ -127,13 +128,17 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                                 announcement.title,
                                 Expressions.stringTemplate("COALESCE({0}, {1})", announcement.startDate.stringValue(), announcement.nonDate),
                                 Expressions.stringTemplate("COALESCE({0}, {1})", announcement.endDate.stringValue(), announcement.nonDate),
-                                roadmapAnnouncement.announcement.id.isNotNull(),
+                                JPAExpressions.selectOne()
+                                        .from(roadmapAnnouncement)
+                                        .join(roadmapAnnouncement.roadmap, roadmap)
+                                        .where(roadmapAnnouncement.announcement.id.eq(announcement.id)
+                                                .and(roadmap.user.id.eq(userId)))
+                                        .exists(),
                                 announcement.contact.isNotNull(),
                                 announcement.isFileUploaded
                         )
                 )
                 .from(announcement)
-                .leftJoin(roadmapAnnouncement).on(announcement.id.eq(roadmapAnnouncement.announcement.id).and(roadmapAnnouncement.roadmap.user.id.eq(userId)))
                 .where(
                         announcement.startDate.loe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이전이거나, 비기한이 없는 공고
                         announcement.endDate.goe(LocalDateTime.now()).or(announcement.nonDate.isNotNull()), // 현재 날짜보다 이후이거나, 비기한이 없는 공고
@@ -144,7 +149,6 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                         supportTypeExpression(supportType),
                         searchExpression(search)
                 )
-                .distinct()
                 .orderBy(announcementOrderBy(sort))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize() + 1) // +1 해서 다음 페이지가 있는지 체크

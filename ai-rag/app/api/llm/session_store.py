@@ -27,9 +27,29 @@ class MySQLSessionStore:
 
         return thread_id
 
+    def _serialize_thread(self, thread: LLMThread, messages: list[dict]) -> dict:
+        return {
+            "thread_id": thread.thread_id,
+            "status": thread.status,
+            "created_at": thread.created_at.isoformat() if thread.created_at else self._now(),
+            "last_activity": thread.last_activity.isoformat() if thread.last_activity else self._now(),
+            "announcement_id": thread.announcement_id,
+            "summary_text": thread.summary_text or "",
+            "messages": messages,
+        }
+
     def get_session(self, thread_id: str) -> dict | None:
+        return self.get_session_by_status(thread_id, "active")
+
+    def get_session_any(self, thread_id: str) -> dict | None:
+        return self.get_session_by_status(thread_id, None)
+
+    def get_session_by_status(self, thread_id: str, status: str | None) -> dict | None:
         with get_db_session() as db:
-            thread = db.query(LLMThread).filter(LLMThread.thread_id == thread_id, LLMThread.status == "active").first()
+            query = db.query(LLMThread).filter(LLMThread.thread_id == thread_id)
+            if status is not None:
+                query = query.filter(LLMThread.status == status)
+            thread = query.first()
             if thread is None:
                 return None
 
@@ -41,14 +61,7 @@ class MySQLSessionStore:
             )
             messages = [{"role": row.role, "content": row.content} for row in rows]
 
-        return {
-            "thread_id": thread.thread_id,
-            "created_at": thread.created_at.isoformat() if thread.created_at else self._now(),
-            "last_activity": thread.last_activity.isoformat() if thread.last_activity else self._now(),
-            "announcement_id": thread.announcement_id,
-            "summary_text": thread.summary_text or "",
-            "messages": messages,
-        }
+        return self._serialize_thread(thread, messages)
 
     def save_session(self, thread_id: str, messages: list[dict], announcement_id: int | None):
         with get_db_session() as db:
@@ -81,6 +94,17 @@ class MySQLSessionStore:
         with get_db_session() as db:
             db.query(LLMThread).filter(LLMThread.thread_id == thread_id).delete(synchronize_session=False)
             db.commit()
+
+    def cancel_session(self, thread_id: str):
+        with get_db_session() as db:
+            thread = db.query(LLMThread).filter(LLMThread.thread_id == thread_id).first()
+            if thread is None:
+                return False
+
+            thread.status = "cancelled"
+            thread.last_activity = datetime.now(timezone.utc)
+            db.commit()
+            return True
 
     def save_summary(self, thread_id: str, summary_text: str):
         with get_db_session() as db:

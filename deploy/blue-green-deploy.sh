@@ -6,8 +6,57 @@ NGINX_CONF="${PROJECT_DIR}/deploy/nginx/nginx.conf"
 PROXY_CONTAINER="${PROXY_CONTAINER:-startingblock-proxy}"
 RUN_BACKFILL="${RUN_BACKFILL:-false}"
 STOP_OLD="${STOP_OLD:-true}"
+BUILDX_BUILDER="${BUILDX_BUILDER:-startingblock-builder}"
+BUILD_CACHE_ROOT="${BUILD_CACHE_ROOT:-${HOME}/.cache/startingblock-docker-build/startingblock-spring}"
+PRUNE_OLD_BUILD_CACHE="${PRUNE_OLD_BUILD_CACHE:-true}"
+export DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-1}"
+export COMPOSE_DOCKER_CLI_BUILD="${COMPOSE_DOCKER_CLI_BUILD:-1}"
+export BUILDKIT_PROGRESS="${BUILDKIT_PROGRESS:-plain}"
 
 cd "${PROJECT_DIR}"
+
+ensure_buildx_builder() {
+  if docker buildx inspect "${BUILDX_BUILDER}" >/dev/null 2>&1; then
+    docker buildx use "${BUILDX_BUILDER}" >/dev/null
+  else
+    docker buildx create --name "${BUILDX_BUILDER}" --driver docker-container --use >/dev/null
+  fi
+  docker buildx inspect "${BUILDX_BUILDER}" --bootstrap >/dev/null
+}
+
+build_spring_image() {
+  local cache_next="${BUILD_CACHE_ROOT}.new"
+  local cache_old="${BUILD_CACHE_ROOT}.old"
+  local build_args=(
+    --builder "${BUILDX_BUILDER}"
+    --load
+    --tag startingblock-spring:latest
+    --cache-to "type=local,dest=${cache_next},mode=max"
+  )
+
+  if [[ -d "${BUILD_CACHE_ROOT}" ]]; then
+    build_args+=(--cache-from "type=local,src=${BUILD_CACHE_ROOT}")
+  fi
+
+  mkdir -p "$(dirname "${BUILD_CACHE_ROOT}")"
+  rm -rf "${cache_next}"
+
+  docker buildx build "${build_args[@]}" .
+
+  rm -rf "${cache_old}"
+  if [[ -d "${BUILD_CACHE_ROOT}" ]]; then
+    mv "${BUILD_CACHE_ROOT}" "${cache_old}"
+  fi
+  mv "${cache_next}" "${BUILD_CACHE_ROOT}"
+  rm -rf "${cache_old}"
+}
+
+prune_old_build_cache() {
+  echo "Pruning old Docker build cache..."
+  docker buildx prune --builder "${BUILDX_BUILDER}" -af >/dev/null 2>&1 || true
+  docker builder prune -af >/dev/null 2>&1 || true
+  docker image prune -f >/dev/null 2>&1 || true
+}
 
 ACTIVE="$(grep -Eo 'server spring-(blue|green):8080;' "${NGINX_CONF}" | head -1 | sed -E 's/.*spring-(blue|green).*/\1/' || true)"
 if [[ "${ACTIVE}" == "blue" ]]; then
@@ -27,7 +76,9 @@ fi
 echo "Active color: ${ACTIVE:-none}"
 echo "Deploy target: ${TARGET}"
 
-docker compose "${COMPOSE_PROFILE_ARGS[@]}" up -d --build "spring-${TARGET}"
+ensure_buildx_builder
+build_spring_image
+docker compose "${COMPOSE_PROFILE_ARGS[@]}" up -d --no-build "spring-${TARGET}"
 
 echo "Waiting for spring-${TARGET} health..."
 for _ in $(seq 1 90); do
@@ -87,4 +138,8 @@ if [[ "${STOP_OLD}" == "true" ]]; then
   else
     echo "Old container not found: ${OLD_CONTAINER}"
   fi
+fi
+
+if [[ "${PRUNE_OLD_BUILD_CACHE}" == "true" ]]; then
+  prune_old_build_cache
 fi

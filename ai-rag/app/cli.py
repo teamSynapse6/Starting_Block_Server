@@ -2,6 +2,8 @@ import argparse
 import asyncio
 import json
 import os
+import re
+import subprocess
 import sys
 import tempfile
 import time
@@ -217,8 +219,112 @@ def _safe_serialize(obj: Any) -> Any:
         return None
 
 
+def _split_fallback_units(text: str, max_unit_chars: int = 900) -> list[str]:
+    units: list[str] = []
+    for block in re.split(r"\n\s*\n+", text):
+        block = re.sub(r"[ \t]+", " ", block).strip()
+        if not block:
+            continue
+        if len(block) <= max_unit_chars:
+            units.append(block)
+            continue
+        sentences = re.split(r"(?<=[.!?。！？])\s+|\n+", block)
+        current = ""
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+            if current and len(current) + len(sentence) + 1 > max_unit_chars:
+                units.append(current.strip())
+                current = sentence
+            else:
+                current = f"{current} {sentence}".strip()
+        if current:
+            units.append(current.strip())
+    return units
+
+
+def _query_terms(query: str) -> set[str]:
+    terms = set()
+    for token in re.findall(r"[0-9A-Za-z가-힣]+", query.lower()):
+        if len(token) >= 2:
+            terms.add(token)
+    return terms
+
+
+def _build_keyword_fallback_context(text: str, query: str, max_chars: int, top_k: int) -> tuple[str, int]:
+    terms = _query_terms(query)
+    if not terms:
+        return "", 0
+
+    scored: list[tuple[int, int, str]] = []
+    for index, unit in enumerate(_split_fallback_units(text)):
+        unit_lower = unit.lower()
+        score = sum(1 for term in terms if term in unit_lower)
+        if score > 0:
+            scored.append((score, -index, unit))
+
+    if not scored:
+        return "", 0
+
+    selected = [unit for _, _, unit in sorted(scored, reverse=True)[:max(1, top_k)]]
+    context_parts: list[str] = []
+    current_len = 0
+    for idx, unit in enumerate(selected, start=1):
+        part = f"[fallback:{idx}]\n{unit}"
+        next_len = current_len + len(part) + (2 if context_parts else 0)
+        if context_parts and next_len > max_chars:
+            break
+        if not context_parts and len(part) > max_chars:
+            part = part[:max_chars]
+        context_parts.append(part)
+        current_len += len(part) + 2
+
+    return "\n\n".join(context_parts), len(context_parts)
+
+
 def _sse(event: str, payload: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+def _release_cuda_cache():
+    try:
+        import gc
+        gc.collect()
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+    except Exception:
+        pass
+
+
+def _gpu_stats() -> dict[str, int] | None:
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=utilization.gpu,memory.free,memory.total",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=True,
+        )
+        rows = []
+        for line in result.stdout.splitlines():
+            util, free_mb, total_mb = [int(part.strip()) for part in line.split(",")]
+            rows.append({"utilization": util, "free_memory_mb": free_mb, "total_memory_mb": total_mb})
+        if not rows:
+            return None
+        return {
+            "utilization": max(row["utilization"] for row in rows),
+            "free_memory_mb": sum(row["free_memory_mb"] for row in rows),
+            "total_memory_mb": sum(row["total_memory_mb"] for row in rows),
+        }
+    except Exception:
+        return None
 
 
 def llm_start(_args: argparse.Namespace) -> int:
@@ -240,6 +346,7 @@ def llm_start(_args: argparse.Namespace) -> int:
 
 def llm_delete(args: argparse.Namespace) -> int:
     from app.api.llm.archive_store import MySQLArchiveStore
+    from app.api.llm.generation_store import RedisGenerationStore
     from app.api.llm.session_store import MySQLSessionStore
 
     thread_id = args.thread_id
@@ -249,25 +356,117 @@ def llm_delete(args: argparse.Namespace) -> int:
     store = MySQLSessionStore()
     archive_store = MySQLArchiveStore()
 
-    session = store.get_session(thread_id)
+    session = store.get_session_any(thread_id)
     if session is None:
         return _json_stdout({"id": thread_id, "deleted": False})
 
     try:
         archive_store.archive_session(session)
+        RedisGenerationStore().delete(thread_id)
         return _json_stdout({"id": thread_id, "deleted": True})
     except Exception as error:
         return _json_error(f"세션 삭제 중 오류가 발생했습니다: {error}")
+
+
+def llm_cancel(args: argparse.Namespace) -> int:
+    from app.api.llm.generation_store import RedisGenerationStore
+    from app.api.llm.session_store import MySQLSessionStore
+
+    thread_id = args.thread_id
+    if not thread_id:
+        return _json_error("thread_id 파라미터가 필요합니다.")
+
+    reason = args.reason or "user_cancelled"
+    try:
+        generation = RedisGenerationStore().mark_cancelled(thread_id, reason)
+        db_cancelled = MySQLSessionStore().cancel_session(thread_id)
+        return _json_stdout(
+            {
+                "thread_id": thread_id,
+                "cancelled": True,
+                "db_cancelled": db_cancelled,
+                "generation": generation,
+            }
+        )
+    except Exception as error:
+        traceback.print_exc(file=sys.stderr)
+        return _json_error(f"취소 처리 중 오류가 발생했습니다: {error}")
+
+
+def llm_mark_queued(_args: argparse.Namespace) -> int:
+    from app.api.llm.generation_store import RedisGenerationStore
+
+    try:
+        payload = json.load(sys.stdin)
+    except json.JSONDecodeError as error:
+        return _json_error(f"invalid-json: {error}")
+
+    thread_id = payload.get("thread_id")
+    message = payload.get("message")
+    announcement_id = payload.get("announcement_id")
+    if not thread_id or not message or announcement_id is None:
+        return _json_error("thread_id, message, announcement_id가 필요합니다")
+
+    generation_store = RedisGenerationStore()
+    generation_store.start(thread_id, int(announcement_id), message)
+    generation_store.update(thread_id, status="queued", stage="dynamic_queue_waiting")
+    return _json_stdout({"thread_id": thread_id, "status": "queued", "stage": "dynamic_queue_waiting"})
+
+
+def llm_status(args: argparse.Namespace) -> int:
+    from app.api.llm.generation_store import RedisGenerationStore
+    from app.api.llm.session_store import MySQLSessionStore
+    from app.core.db_models import ensure_database_and_tables
+
+    thread_id = args.thread_id
+    if not thread_id:
+        return _json_error("thread_id 파라미터가 필요합니다.")
+
+    try:
+        store = MySQLSessionStore()
+        generation_store = RedisGenerationStore()
+        try:
+            session = store.get_session_any(thread_id)
+        except Exception:
+            ensure_database_and_tables()
+            session = store.get_session(thread_id)
+        generation = generation_store.get(thread_id)
+
+        return _json_stdout(
+            {
+                "thread_id": thread_id,
+                "session": session,
+                    "generation": generation or {
+                        "thread_id": thread_id,
+                        "status": "idle",
+                        "stage": "idle",
+                        "thinking_response": "",
+                        "partial_response": "",
+                        "error_message": "",
+                        "cancel_requested": False,
+                        "cancel_reason": "",
+                    },
+            }
+        )
+    except Exception as error:
+        traceback.print_exc(file=sys.stderr)
+        return _json_error(f"세션 상태 조회 중 오류가 발생했습니다: {error}")
 
 
 async def _llm_chat_async() -> int:
     from ollama import RequestError, ResponseError
 
     from app.api.announcement.vector_indexer import AnnouncementVectorIndexer
-    from app.api.llm.client import OllamaClient
+    from app.api.llm.client import create_llm_client
+    from app.api.llm.generation_store import RedisGenerationStore
     from app.api.llm.session_store import MySQLSessionStore
     from app.core.config import (
         EMBEDDING_DEVICE,
+        LLM_GPU_MAX_UTILIZATION,
+        LLM_GPU_MIN_FREE_MEMORY_MB,
+        LLM_GPU_WAIT_ENABLED,
+        LLM_GPU_WAIT_INTERVAL_SECONDS,
+        LLM_GPU_WAIT_TIMEOUT_SECONDS,
         LLM_HISTORY_MAX_TURNS,
         LLM_SUMMARY_MAX_CHARS,
         LLM_SUMMARY_RECENT_MESSAGES,
@@ -293,14 +492,18 @@ async def _llm_chat_async() -> int:
         return 1
 
     store = MySQLSessionStore()
+    generation_store = RedisGenerationStore()
     storage = MinioStorage()
     storage.ensure_bucket()
     indexer = AnnouncementVectorIndexer(EMBEDDING_DEVICE)
     indexer.ensure_ready()
-    ollama_client = OllamaClient()
+    llm_client = create_llm_client()
 
     started_at = time.perf_counter()
     checkpoints: list[tuple[str, float]] = [("request_received", started_at)]
+
+    last_partial_save_at = 0.0
+    last_thinking_save_at = 0.0
 
     def emit(event: str, payload_item: dict[str, Any]):
         sys.stdout.write(_sse(event, payload_item))
@@ -308,6 +511,14 @@ async def _llm_chat_async() -> int:
 
     def mark(name: str):
         checkpoints.append((name, time.perf_counter()))
+
+    async def cancel_if_requested(stage: str) -> bool:
+        if await asyncio.to_thread(generation_store.is_cancel_requested, thread_id):
+            await asyncio.to_thread(generation_store.mark_cancelled, thread_id)
+            await asyncio.to_thread(store.cancel_session, thread_id)
+            emit("status", {"stage": "cancelled", "from_stage": stage})
+            return True
+        return False
 
     def build_time_spend(ollama_internal: dict | None = None) -> dict:
         durations_ms: dict[str, int] = {}
@@ -320,24 +531,66 @@ async def _llm_chat_async() -> int:
             durations_ms["ollama_internal"] = ollama_internal
         return durations_ms
 
+    async def wait_for_gpu_capacity():
+        if not LLM_GPU_WAIT_ENABLED:
+            return
+
+        waited = 0.0
+        while waited < LLM_GPU_WAIT_TIMEOUT_SECONDS:
+            stats = _gpu_stats()
+            if stats is None:
+                return
+            busy = (
+                stats["utilization"] >= LLM_GPU_MAX_UTILIZATION
+                or stats["free_memory_mb"] < LLM_GPU_MIN_FREE_MEMORY_MB
+            )
+            if not busy:
+                return
+            emit(
+                "status",
+                {
+                    "stage": "gpu_waiting",
+                    "waited_seconds": int(waited),
+                    **stats,
+                },
+            )
+            await asyncio.to_thread(
+                generation_store.update,
+                thread_id,
+                status="queued",
+                stage="gpu_waiting",
+            )
+            await asyncio.sleep(LLM_GPU_WAIT_INTERVAL_SECONDS)
+            waited += LLM_GPU_WAIT_INTERVAL_SECONDS
+
     try:
         announcement_id = int(announcement_id)
+        await asyncio.to_thread(generation_store.start, thread_id, announcement_id, message)
         emit("status", {"stage": "request_received"})
+        await asyncio.to_thread(generation_store.update, thread_id, status="queued", stage="request_received")
+        if await cancel_if_requested("request_received"):
+            return 0
 
         session_task = asyncio.to_thread(store.get_session, thread_id)
-        ollama_task = asyncio.create_task(ollama_client.ensure_model_loaded())
+        llm_ready_task = asyncio.create_task(llm_client.ensure_model_loaded())
         rag_task = asyncio.to_thread(indexer.search_chunks, announcement_id, message, RAG_TOP_K)
 
         session = await session_task
         mark("session_loaded")
+        if await cancel_if_requested("session_loaded"):
+            llm_ready_task.cancel()
+            return 0
         if session is None:
-            ollama_task.cancel()
+            llm_ready_task.cancel()
+            await asyncio.to_thread(generation_store.update, thread_id, status="failed", stage="session_missing", error_message="세션을 찾을 수 없습니다", finished=True)
             emit("error", {"detail": "세션을 찾을 수 없습니다"})
             return 0
         emit("status", {"stage": "session_loaded"})
+        await asyncio.to_thread(generation_store.update, thread_id, status="running", stage="session_loaded", started=True)
 
         if session.get("announcement_id") is not None and session.get("announcement_id") != announcement_id:
-            ollama_task.cancel()
+            llm_ready_task.cancel()
+            await asyncio.to_thread(generation_store.update, thread_id, status="failed", stage="announcement_mismatch", error_message="세션의 announcement_id와 요청값이 다릅니다", finished=True)
             emit("error", {"detail": "세션의 announcement_id와 요청값이 다릅니다"})
             return 0
 
@@ -361,53 +614,116 @@ async def _llm_chat_async() -> int:
 
         mark("history_optimized")
         emit("status", {"stage": "history_optimized"})
+        await asyncio.to_thread(generation_store.update, thread_id, status="running", stage="history_optimized")
+        if await cancel_if_requested("history_optimized"):
+            llm_ready_task.cancel()
+            return 0
 
-        chunks, _ = await asyncio.gather(rag_task, ollama_task)
+        chunks, _ = await asyncio.gather(rag_task, llm_ready_task)
+        indexer = None
+        _release_cuda_cache()
         mark("rag_searched")
         emit("status", {"stage": "rag_searched", "chunk_count": len(chunks)})
-        mark("ollama_model_ready")
-        emit("status", {"stage": "ollama_model_ready"})
+        await asyncio.to_thread(generation_store.update, thread_id, status="running", stage="rag_searched")
+        mark("llm_model_ready")
+        emit("status", {"stage": "llm_model_ready"})
+        await asyncio.to_thread(generation_store.update, thread_id, status="running", stage="llm_model_ready")
+        if await cancel_if_requested("llm_model_ready"):
+            return 0
 
         if chunks:
-            rag_context = "\n\n".join(chunk.page_content for chunk in chunks)
+            rag_context = "\n\n".join(
+                f"[chunk:{idx}]\n{chunk.page_content}"
+                for idx, chunk in enumerate(chunks, start=1)
+            )
             if len(rag_context) > RAG_CONTEXT_MAX_CHARS:
                 rag_context = rag_context[:RAG_CONTEXT_MAX_CHARS]
             mark("rag_context_prepared")
             emit("status", {"stage": "rag_context_prepared"})
+            await asyncio.to_thread(generation_store.update, thread_id, status="running", stage="rag_context_prepared")
         else:
             announcement_text = await asyncio.to_thread(storage.get_processed_text, announcement_id)
             if announcement_text is None:
+                await asyncio.to_thread(generation_store.update, thread_id, status="failed", stage="announcement_missing", error_message="공고 파일을 찾을 수 없습니다", finished=True)
                 emit("error", {"detail": "공고 파일을 찾을 수 없습니다"})
                 return 0
-            rag_context = announcement_text[:RAG_CONTEXT_MAX_CHARS]
+            rag_context, fallback_count = _build_keyword_fallback_context(
+                announcement_text,
+                message,
+                RAG_CONTEXT_MAX_CHARS,
+                RAG_TOP_K,
+            )
             mark("fallback_context_loaded")
-            emit("status", {"stage": "fallback_context_loaded"})
+            emit("status", {"stage": "fallback_context_loaded", "snippet_count": fallback_count})
+            await asyncio.to_thread(generation_store.update, thread_id, status="running", stage="fallback_context_loaded")
 
         if not rag_context.strip():
-            emit("error", {"detail": "공고 파일을 찾을 수 없습니다"})
+            rag_context = ""
+
+        await wait_for_gpu_capacity()
+        if await cancel_if_requested("gpu_ready"):
             return 0
+        await asyncio.to_thread(generation_store.update, thread_id, status="running", stage="llm_generating")
 
         full_response = ""
-        ollama_internal_timings: dict = {}
-        ollama_log: dict = {}
-        async for item in ollama_client.rag_chat_stream(
+        full_thinking = ""
+        llm_internal_timings: dict = {}
+        llm_log: dict = {}
+        async for item in llm_client.rag_chat_stream(
             question=message,
             context=rag_context,
             history=context_history_messages,
             summary_text=summary_text,
         ):
             item_type = item.get("type")
-            if item_type == "token":
+            if item_type == "thinking":
+                thinking = item.get("content", "")
+                full_thinking += thinking
+                emit("thinking", {"text": thinking})
+                now = time.monotonic()
+                if now - last_thinking_save_at >= 0.5:
+                    await asyncio.to_thread(
+                        generation_store.update,
+                        thread_id,
+                        status="running",
+                        stage="llm_thinking",
+                        thinking_response=full_thinking,
+                    )
+                    last_thinking_save_at = now
+                if await cancel_if_requested("llm_thinking"):
+                    return 0
+            elif item_type == "token":
                 token = item.get("content", "")
                 full_response += token
                 emit("token", {"text": token})
+                now = time.monotonic()
+                if now - last_partial_save_at >= 0.5:
+                    await asyncio.to_thread(
+                        generation_store.update,
+                        thread_id,
+                        status="running",
+                        stage="llm_generating",
+                        partial_response=full_response,
+                    )
+                    last_partial_save_at = now
+                if await cancel_if_requested("llm_generating"):
+                    return 0
             elif item_type == "final":
                 full_response = item.get("content", "")
-                ollama_internal_timings = item.get("internal_timings", {})
-                ollama_log = item.get("raw_metadata", {})
+                full_thinking = item.get("thinking", full_thinking)
+                llm_internal_timings = item.get("internal_timings", {})
+                llm_log = item.get("raw_metadata", {})
+                await asyncio.to_thread(
+                    generation_store.update,
+                    thread_id,
+                    status="running",
+                    stage="llm_response_generated",
+                    thinking_response=full_thinking,
+                    partial_response=full_response,
+                )
 
-        mark("ollama_response_generated")
-        emit("status", {"stage": "ollama_response_generated"})
+        mark("llm_response_generated")
+        emit("status", {"stage": "llm_response_generated"})
 
         updated_messages = full_history_messages + [
             {"role": "user", "content": message},
@@ -416,30 +732,39 @@ async def _llm_chat_async() -> int:
         saved = await asyncio.to_thread(store.save_session, thread_id, updated_messages, announcement_id)
         mark("session_saved")
         if not saved:
+            await asyncio.to_thread(generation_store.update, thread_id, status="failed", stage="session_save_failed", error_message="세션 저장에 실패했습니다", finished=True)
             emit("error", {"detail": "세션 저장에 실패했습니다"})
             return 0
         emit("status", {"stage": "session_saved"})
+        await asyncio.to_thread(generation_store.update, thread_id, status="completed", stage="session_saved", partial_response=full_response, finished=True)
 
         mark("response_ready")
         emit(
             "done",
             {
                 "response": full_response,
-                "time_spend": build_time_spend(ollama_internal_timings),
-                "log": {"metadata": _safe_serialize(ollama_log) if ollama_log else {}, "server_log": []},
+                "thinking": full_thinking,
+                "time_spend": build_time_spend(llm_internal_timings),
+                "log": {"metadata": _safe_serialize(llm_log) if llm_log else {}, "server_log": []},
             },
         )
         return 0
     except (RequestError, ResponseError):
         traceback.print_exc(file=sys.stderr)
+        await asyncio.to_thread(generation_store.update, thread_id, status="failed", stage="ollama_error", error_message="Ollama 호출 중 오류가 발생했습니다.", finished=True)
         emit("error", {"detail": "Ollama 호출 중 오류가 발생했습니다."})
         return 0
     except ValueError:
         traceback.print_exc(file=sys.stderr)
+        await asyncio.to_thread(generation_store.update, thread_id, status="failed", stage="empty_response", error_message="Ollama 응답이 비어 있습니다.", finished=True)
         emit("error", {"detail": "Ollama 응답이 비어 있습니다."})
         return 0
     except Exception:
         traceback.print_exc(file=sys.stderr)
+        try:
+            await asyncio.to_thread(generation_store.update, thread_id, status="failed", stage="chat_error", error_message="채팅 처리 중 오류가 발생했습니다.", finished=True)
+        except Exception:
+            pass
         emit("error", {"detail": "채팅 처리 중 오류가 발생했습니다."})
         return 0
 
@@ -461,6 +786,14 @@ def main() -> int:
     subparsers.add_parser("delete-announcement").set_defaults(func=delete_announcement)
     subparsers.add_parser("llm-start").set_defaults(func=llm_start)
     subparsers.add_parser("llm-chat").set_defaults(func=llm_chat)
+    subparsers.add_parser("llm-mark-queued").set_defaults(func=llm_mark_queued)
+    cancel_parser = subparsers.add_parser("llm-cancel")
+    cancel_parser.add_argument("--thread-id", required=True)
+    cancel_parser.add_argument("--reason", default="user_cancelled")
+    cancel_parser.set_defaults(func=llm_cancel)
+    status_parser = subparsers.add_parser("llm-status")
+    status_parser.add_argument("--thread-id", required=True)
+    status_parser.set_defaults(func=llm_status)
     delete_parser = subparsers.add_parser("llm-delete")
     delete_parser.add_argument("--thread-id", required=True)
     delete_parser.set_defaults(func=llm_delete)

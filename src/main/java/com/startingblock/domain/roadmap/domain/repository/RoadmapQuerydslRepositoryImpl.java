@@ -62,7 +62,6 @@ public class RoadmapQuerydslRepositoryImpl implements RoadmapQuerydslRepository 
                         roadmapAnnouncement.announcement.id.eq(announcementId)
                 )
                 .where(roadmap.user.id.eq(userId))
-                .distinct()
                 .orderBy(roadmap.sequence.asc())
                 .fetch();
     }
@@ -83,7 +82,6 @@ public class RoadmapQuerydslRepositoryImpl implements RoadmapQuerydslRepository 
                         roadmapLecture.lecture.id.eq(lectureId)
                 )
                 .where(roadmap.user.id.eq(id))
-                .distinct()
                 .orderBy(roadmap.sequence.asc())
                 .fetch();
     }

@@ -19,12 +19,32 @@ x-spring-environment: &spring-environment
   KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:-local-disabled}
   KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-local-disabled}
   KAKAO_REDIRECT_URI: ${KAKAO_REDIRECT_URI:-http://localhost:18200/login/oauth2/code/kakao}
-  SOURCE_DIR: /app/processed_file
+  SOURCE_DIR: ${SOURCE_DIR:-/data/processed_file}
   EMBEDDING_MODEL_LOCAL_PATH: /data/embedding-models/intfloat__multilingual-e5-large-instruct
   OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:e4b}
   OLLAMA_AUTO_START: ${OLLAMA_AUTO_START:-false}
+  OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-60s}
+  OLLAMA_THINK: ${OLLAMA_THINK:-true}
+  OLLAMA_SCHED_SPREAD: ${OLLAMA_SCHED_SPREAD:-true}
+  OLLAMA_MODEL_IDLE_SECONDS: ${OLLAMA_MODEL_IDLE_SECONDS:-60}
+  OLLAMA_IDLE_SWEEP_INTERVAL_SECONDS: ${OLLAMA_IDLE_SWEEP_INTERVAL_SECONDS:-5}
+  LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+  REDIS_URL: ${REDIS_URL:-redis://proxy:6379/0}
+  LLM_GENERATION_STATUS_TTL_SECONDS: ${LLM_GENERATION_STATUS_TTL_SECONDS:-86400}
+  LLM_GPU_WAIT_ENABLED: ${LLM_GPU_WAIT_ENABLED:-true}
+  LLM_GPU_MAX_UTILIZATION: ${LLM_GPU_MAX_UTILIZATION:-92}
+  LLM_GPU_MIN_FREE_MEMORY_MB: ${LLM_GPU_MIN_FREE_MEMORY_MB:-2048}
+  LLM_GPU_MAX_MEMORY_USAGE_PERCENT: ${LLM_GPU_MAX_MEMORY_USAGE_PERCENT:-88}
+  LLM_DYNAMIC_CONCURRENCY_ENABLED: ${LLM_DYNAMIC_CONCURRENCY_ENABLED:-true}
+  LLM_DYNAMIC_MAX_CONCURRENCY: ${LLM_DYNAMIC_MAX_CONCURRENCY:-0}
+  LLM_DYNAMIC_REQUEST_MEMORY_MB: ${LLM_DYNAMIC_REQUEST_MEMORY_MB:-4096}
+  LLM_DYNAMIC_WAIT_INTERVAL_MS: ${LLM_DYNAMIC_WAIT_INTERVAL_MS:-1000}
   AI_RAG_PYTHON_EXECUTABLE: /opt/ai-rag-venv/bin/python
   AI_RAG_WORKING_DIRECTORY: /app/ai-rag
+  AI_RAG_WORKER_ENABLED: ${AI_RAG_WORKER_ENABLED:-true}
+  AI_RAG_WORKER_IDLE_TIMEOUT_SECONDS: ${AI_RAG_WORKER_IDLE_TIMEOUT_SECONDS:-60}
+  SPRING_MVC_ASYNC_REQUEST_TIMEOUT: ${SPRING_MVC_ASYNC_REQUEST_TIMEOUT:-600000}
   TZ: Asia/Seoul
 
 x-spring-common: &spring-common
@@ -40,8 +60,9 @@ x-spring-common: &spring-common
     - "6333"
   extra_hosts:
     - "host.docker.internal:host-gateway"
+  depends_on:
+    - proxy
   volumes:
-    - ./processed_file:/app/processed_file:ro
     - /data/embedding-models:/data/embedding-models
   deploy:
     resources:
@@ -60,8 +81,11 @@ services:
     restart: unless-stopped
     ports:
       - "${SERVER_PORT:-18200}:18200"
+    expose:
+      - "6379"
     volumes:
       - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /data/redis:/data/redis
 
   spring-blue:
     <<: *spring-common
@@ -71,7 +95,6 @@ services:
       SERVICE_COLOR: blue
       QDRANT_STORAGE_PATH: /data/qdrant
     volumes:
-      - ./processed_file:/app/processed_file:ro
       - /data/embedding-models:/data/embedding-models
       - /data/qdrant-blue:/data/qdrant
 
@@ -85,6 +108,5 @@ services:
       SERVICE_COLOR: green
       QDRANT_STORAGE_PATH: /data/qdrant
     volumes:
-      - ./processed_file:/app/processed_file:ro
       - /data/embedding-models:/data/embedding-models
       - /data/qdrant-green:/data/qdrant
