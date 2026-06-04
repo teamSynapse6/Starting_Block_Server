@@ -453,6 +453,51 @@ def llm_status(args: argparse.Namespace) -> int:
         return _json_error(f"세션 상태 조회 중 오류가 발생했습니다: {error}")
 
 
+def llm_history(args: argparse.Namespace) -> int:
+    from app.api.llm.session_store import MySQLSessionStore
+    from app.core.db_models import ensure_database_and_tables
+
+    thread_id = args.thread_id
+    if not thread_id:
+        return _json_error("thread_id 파라미터가 필요합니다.")
+
+    try:
+        store = MySQLSessionStore()
+        try:
+            session = store.get_session_any(thread_id)
+        except Exception:
+            ensure_database_and_tables()
+            session = store.get_session_any(thread_id)
+        return _json_stdout({"thread_id": thread_id, "session": session})
+    except Exception as error:
+        traceback.print_exc(file=sys.stderr)
+        return _json_error(f"대화 기록 조회 중 오류가 발생했습니다: {error}")
+
+
+def llm_events(args: argparse.Namespace) -> int:
+    from app.api.llm.generation_store import RedisGenerationStore
+
+    thread_id = args.thread_id
+    if not thread_id:
+        return _json_error("thread_id 파라미터가 필요합니다.")
+
+    try:
+        store = RedisGenerationStore()
+        after_seq = int(args.after_seq or 0)
+        generation = store.get(thread_id)
+        return _json_stdout(
+            {
+                "thread_id": thread_id,
+                "after_seq": after_seq,
+                "events": store.events_after(thread_id, after_seq),
+                "generation": generation,
+            }
+        )
+    except Exception as error:
+        traceback.print_exc(file=sys.stderr)
+        return _json_error(f"SSE 이벤트 조회 중 오류가 발생했습니다: {error}")
+
+
 async def _llm_chat_async() -> int:
     from ollama import RequestError, ResponseError
 
@@ -506,6 +551,10 @@ async def _llm_chat_async() -> int:
     last_thinking_save_at = 0.0
 
     def emit(event: str, payload_item: dict[str, Any]):
+        try:
+            generation_store.append_event(thread_id, event, payload_item)
+        except Exception:
+            traceback.print_exc(file=sys.stderr)
         sys.stdout.write(_sse(event, payload_item))
         sys.stdout.flush()
 
@@ -748,16 +797,19 @@ async def _llm_chat_async() -> int:
                 "log": {"metadata": _safe_serialize(llm_log) if llm_log else {}, "server_log": []},
             },
         )
+        await asyncio.to_thread(generation_store.finish, thread_id)
         return 0
     except (RequestError, ResponseError):
         traceback.print_exc(file=sys.stderr)
         await asyncio.to_thread(generation_store.update, thread_id, status="failed", stage="ollama_error", error_message="Ollama 호출 중 오류가 발생했습니다.", finished=True)
         emit("error", {"detail": "Ollama 호출 중 오류가 발생했습니다."})
+        await asyncio.to_thread(generation_store.finish, thread_id)
         return 0
     except ValueError:
         traceback.print_exc(file=sys.stderr)
         await asyncio.to_thread(generation_store.update, thread_id, status="failed", stage="empty_response", error_message="Ollama 응답이 비어 있습니다.", finished=True)
         emit("error", {"detail": "Ollama 응답이 비어 있습니다."})
+        await asyncio.to_thread(generation_store.finish, thread_id)
         return 0
     except Exception:
         traceback.print_exc(file=sys.stderr)
@@ -766,6 +818,7 @@ async def _llm_chat_async() -> int:
         except Exception:
             pass
         emit("error", {"detail": "채팅 처리 중 오류가 발생했습니다."})
+        await asyncio.to_thread(generation_store.finish, thread_id)
         return 0
 
 
@@ -794,6 +847,13 @@ def main() -> int:
     status_parser = subparsers.add_parser("llm-status")
     status_parser.add_argument("--thread-id", required=True)
     status_parser.set_defaults(func=llm_status)
+    history_parser = subparsers.add_parser("llm-history")
+    history_parser.add_argument("--thread-id", required=True)
+    history_parser.set_defaults(func=llm_history)
+    events_parser = subparsers.add_parser("llm-events")
+    events_parser.add_argument("--thread-id", required=True)
+    events_parser.add_argument("--after-seq", default="0")
+    events_parser.set_defaults(func=llm_events)
     delete_parser = subparsers.add_parser("llm-delete")
     delete_parser.add_argument("--thread-id", required=True)
     delete_parser.set_defaults(func=llm_delete)

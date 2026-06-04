@@ -58,7 +58,9 @@ docker compose exec spring-blue curl http://127.0.0.1:6333/collections
 
 ## AI/RAG 초기화
 
-LLM 채팅은 Ollama를 사용합니다. 기본 모델은 `.env`의 아래 값입니다.
+LLM 채팅은 Ollama `generate` API를 사용합니다. 사용자별 요청은 서버에서 단일
+prompt로 구성해 전달하므로 Ollama chat context를 공유하지 않습니다. 기본 모델은
+`.env`의 아래 값입니다.
 
 ```env
 OLLAMA_MODEL=gemma4:e4b
@@ -71,6 +73,21 @@ OLLAMA_MODEL_IDLE_SECONDS=60
 
 ```bash
 curl "http://localhost:18200/llm/status?thread_id={thread_id}"
+```
+
+SSE를 다시 연결하려면 `/llm/stream`을 사용합니다. Redis에 남아 있는 이벤트를
+처음부터 재생한 뒤, 진행 중인 생성에 이어 붙습니다.
+
+```bash
+curl -N "http://localhost:18200/llm/stream?thread_id={thread_id}"
+curl -N "http://localhost:18200/llm/stream?thread_id={thread_id}&after_seq={last_seq}"
+```
+
+생성이 완료되면 Redis 이벤트는 짧은 TTL 뒤 정리되고, 이후 대화 내용은 DB에서
+조회합니다.
+
+```bash
+curl "http://localhost:18200/llm/history?thread_id={thread_id}"
 ```
 
 Ollama 동시 요청은 GPU 상태에 따라 동적으로 제한합니다. `/llm/chat` 요청은

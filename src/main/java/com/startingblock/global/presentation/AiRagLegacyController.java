@@ -1,6 +1,7 @@
 package com.startingblock.global.presentation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.startingblock.domain.announcement.dto.PdfUploadReq;
 import com.startingblock.global.infrastructure.airag.AiRagCliClient;
 import com.startingblock.global.infrastructure.airag.AiRagGpuConcurrencyLimiter;
@@ -89,30 +90,44 @@ public class AiRagLegacyController {
             AiRagGpuConcurrencyLimiter.Lease lease = null;
             AiRagCliClient.RunningCommand command = null;
             long waitedSeconds = 0;
+            boolean clientConnected = true;
             gpuConcurrencyLimiter.enterQueue();
             try {
                 long startedWaitingAt = System.nanoTime();
                 while (lease == null) {
                     if (isCancelRequested(request.thread_id())) {
                         markCancelled(request.thread_id(), "user_cancelled");
-                        writeSse(outputStream, "status", new CancelStatus("cancelled", "user_cancelled"));
+                        if (clientConnected) {
+                            writeSse(outputStream, "status", new CancelStatus("cancelled", "user_cancelled"));
+                        }
                         return;
                     }
                     lease = gpuConcurrencyLimiter.tryAcquire();
                     if (lease != null) {
                         break;
                     }
-                    writeRawSse(outputStream, "status", gpuConcurrencyLimiter.toStatusJson(gpuConcurrencyLimiter.snapshot(), waitedSeconds));
+                    if (clientConnected) {
+                        try {
+                            writeRawSse(outputStream, "status", gpuConcurrencyLimiter.toStatusJson(gpuConcurrencyLimiter.snapshot(), waitedSeconds));
+                        } catch (IOException exception) {
+                            clientConnected = false;
+                            log.info("AI/RAG SSE client disconnected while queued; generation will continue thread_id={}", request.thread_id());
+                        }
+                    }
                     try {
                         Thread.sleep(gpuConcurrencyLimiter.waitIntervalMs());
                     } catch (InterruptedException exception) {
                         Thread.currentThread().interrupt();
-                        writeSseError(outputStream, "대기열 처리가 중단되었습니다.");
+                        if (clientConnected) {
+                            writeSseError(outputStream, "대기열 처리가 중단되었습니다.");
+                        }
                         return;
                     }
                     waitedSeconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startedWaitingAt);
                     if (waitedSeconds >= gpuConcurrencyLimiter.waitTimeoutSeconds()) {
-                        writeSseError(outputStream, "GPU 대기열 처리 시간이 초과되었습니다.");
+                        if (clientConnected) {
+                            writeSseError(outputStream, "GPU 대기열 처리 시간이 초과되었습니다.");
+                        }
                         return;
                     }
                 }
@@ -123,10 +138,19 @@ public class AiRagLegacyController {
             try {
                 if (isCancelRequested(request.thread_id())) {
                     markCancelled(request.thread_id(), "user_cancelled");
-                    writeSse(outputStream, "status", new CancelStatus("cancelled", "user_cancelled"));
+                    if (clientConnected) {
+                        writeSse(outputStream, "status", new CancelStatus("cancelled", "user_cancelled"));
+                    }
                     return;
                 }
-                writeRawSse(outputStream, "status", gpuConcurrencyLimiter.acquiredStatusJson(lease, waitedSeconds));
+                if (clientConnected) {
+                    try {
+                        writeRawSse(outputStream, "status", gpuConcurrencyLimiter.acquiredStatusJson(lease, waitedSeconds));
+                    } catch (IOException exception) {
+                        clientConnected = false;
+                        log.info("AI/RAG SSE client disconnected before worker start; generation continues thread_id={}", request.thread_id());
+                    }
+                }
                 command = aiRagCliClient.startStreamingProcessOnly(List.of("llm-chat"), stdin);
                 activeChatCommands.put(request.thread_id(), command);
 
@@ -134,13 +158,15 @@ public class AiRagLegacyController {
                     byte[] buffer = new byte[8192];
                     int read;
                     while ((read = inputStream.read(buffer)) != -1) {
-                        try {
-                            outputStream.write(buffer, 0, read);
-                            outputStream.flush();
-                        } catch (IOException exception) {
-                            cancelCommand(request.thread_id(), command, "client_disconnected");
-                            log.info("AI/RAG SSE client disconnected thread_id={} elapsed_ms={}", request.thread_id(), aiRagCliClient.elapsedMillis(command.startedAt()));
-                            return;
+                        if (clientConnected) {
+                            try {
+                                outputStream.write(buffer, 0, read);
+                                outputStream.flush();
+                            } catch (IOException exception) {
+                                clientConnected = false;
+                                log.info("AI/RAG SSE client disconnected; generation continues thread_id={} elapsed_ms={}",
+                                        request.thread_id(), aiRagCliClient.elapsedMillis(command.startedAt()));
+                            }
                         }
                     }
                 }
@@ -194,6 +220,88 @@ public class AiRagLegacyController {
     @GetMapping(value = "/llm/status", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> conversationStatus(@RequestParam("thread_id") final String threadId) throws IOException {
         return json(aiRagCliClient.execute(List.of("llm-status", "--thread-id", threadId), null));
+    }
+
+    @Operation(summary = "RAG 기반 LLM 채팅 SSE 재연결")
+    @GetMapping(value = "/llm/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<StreamingResponseBody> conversationStream(
+            @RequestParam("thread_id") final String threadId,
+            @RequestParam(value = "after_seq", defaultValue = "0") final long afterSeq
+    ) {
+        StreamingResponseBody body = outputStream -> {
+            long currentSeq = Math.max(afterSeq, 0);
+            long idleLoops = 0;
+            while (true) {
+                String raw;
+                try {
+                    raw = aiRagCliClient.execute(List.of("llm-events", "--thread-id", threadId, "--after-seq", String.valueOf(currentSeq)), null);
+                } catch (Exception exception) {
+                    log.warn("AI/RAG SSE replay failed thread_id={}", threadId, exception);
+                    writeSseError(outputStream, "SSE 이벤트를 조회하는 동안 오류가 발생했습니다.");
+                    return;
+                }
+
+                JsonNode root = objectMapper.readTree(raw);
+                JsonNode events = root.path("events");
+                boolean wrote = false;
+                if (events.isArray()) {
+                    for (JsonNode eventNode : events) {
+                        long seq = eventNode.path("seq").asLong(currentSeq);
+                        String event = eventNode.path("event").asText("status");
+                        JsonNode data = eventNode.path("data");
+                        try {
+                            writeRawSse(outputStream, event, objectMapper.writeValueAsString(data));
+                        } catch (IOException exception) {
+                            log.info("AI/RAG replay SSE client disconnected thread_id={} last_seq={}", threadId, currentSeq);
+                            return;
+                        }
+                        currentSeq = Math.max(currentSeq, seq);
+                        wrote = true;
+                    }
+                }
+
+                JsonNode generation = root.path("generation");
+                String status = generation.path("status").asText("");
+                if (Set.of("completed", "failed", "cancelled").contains(status)) {
+                    return;
+                }
+                if (generation.isMissingNode() || generation.isNull()) {
+                    writeSse(outputStream, "status", new StreamStatus("not_running", currentSeq));
+                    return;
+                }
+
+                idleLoops = wrote ? 0 : idleLoops + 1;
+                if (idleLoops % 20 == 0) {
+                    try {
+                        writeSse(outputStream, "status", new StreamStatus("stream_waiting", currentSeq));
+                    } catch (IOException exception) {
+                        log.info("AI/RAG replay SSE client disconnected thread_id={} last_seq={}", threadId, currentSeq);
+                        return;
+                    }
+                }
+
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    writeSseError(outputStream, "SSE 재연결 처리가 중단되었습니다.");
+                    return;
+                }
+            }
+        };
+
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noCache())
+                .header(HttpHeaders.CONNECTION, "keep-alive")
+                .header("X-Accel-Buffering", "no")
+                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .body(body);
+    }
+
+    @Operation(summary = "대화 기록 조회")
+    @GetMapping(value = "/llm/history", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> conversationHistory(@RequestParam("thread_id") final String threadId) throws IOException {
+        return json(aiRagCliClient.execute(List.of("llm-history", "--thread-id", threadId), null));
     }
 
     @Operation(summary = "RAG 기반 LLM 채팅 취소")
@@ -344,5 +452,8 @@ public class AiRagLegacyController {
     }
 
     private record CancelStatus(String stage, String reason) {
+    }
+
+    private record StreamStatus(String stage, long last_seq) {
     }
 }

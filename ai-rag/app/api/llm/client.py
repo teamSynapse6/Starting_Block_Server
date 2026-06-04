@@ -65,6 +65,29 @@ def build_rag_messages(
     return messages
 
 
+def build_rag_prompt(
+    context: str,
+    question: str,
+    history: list[dict] | None,
+    summary_text: str | None,
+) -> str:
+    messages = build_rag_messages(context, question, history, summary_text)
+    sections: list[str] = []
+    for message in messages:
+        role = message.get("role", "user")
+        content = (message.get("content") or "").strip()
+        if not content:
+            continue
+        if role == "system":
+            sections.append(f"[시스템 지침]\n{content}")
+        elif role == "assistant":
+            sections.append(f"[이전 답변]\n{content}")
+        else:
+            sections.append(f"[사용자 질문]\n{content}")
+    sections.append("[답변]\n")
+    return "\n\n".join(sections)
+
+
 class OllamaLlmClient:
     def __init__(self):
         self.base_url = OLLAMA_BASE_URL.rstrip("/")
@@ -75,10 +98,15 @@ class OllamaLlmClient:
 
     async def chat(self, messages: list[dict]) -> str:
         await self.ensure_model_loaded()
+        prompt = "\n\n".join(
+            f"[{message.get('role', 'user')}]\n{(message.get('content') or '').strip()}"
+            for message in messages
+            if (message.get("content") or "").strip()
+        )
 
-        response = await self.client.chat(
+        response = await self.client.generate(
             model=OLLAMA_MODEL,
-            messages=messages,
+            prompt=prompt,
             stream=False,
             think=OLLAMA_THINK,
             keep_alive=OLLAMA_KEEP_ALIVE,
@@ -94,7 +122,7 @@ class OllamaLlmClient:
         self.last_request_at = time.monotonic()
         self.model_loaded = True
 
-        content = (response.message.content if response.message else "") or ""
+        content = getattr(response, "response", "") or ""
         if not content:
             raise ValueError("OLLAMA_EMPTY_RESPONSE")
         return content
@@ -120,11 +148,11 @@ class OllamaLlmClient:
     ) -> tuple[str, dict[str, int]]:
         await self.ensure_model_loaded()
 
-        messages = build_rag_messages(context, question, history, summary_text)
+        prompt = build_rag_prompt(context, question, history, summary_text)
 
-        response = await self.client.chat(
+        response = await self.client.generate(
             model=OLLAMA_MODEL,
-            messages=messages,
+            prompt=prompt,
             stream=False,
             think=OLLAMA_THINK,
             keep_alive=OLLAMA_KEEP_ALIVE,
@@ -140,7 +168,7 @@ class OllamaLlmClient:
         self.last_request_at = time.monotonic()
         self.model_loaded = True
 
-        content = (response.message.content if response.message else "") or ""
+        content = getattr(response, "response", "") or ""
         if not content.strip():
             raise ValueError("OLLAMA_EMPTY_RESPONSE")
 
@@ -156,16 +184,16 @@ class OllamaLlmClient:
     ) -> AsyncIterator[dict]:
         await self.ensure_model_loaded()
 
-        messages = build_rag_messages(context, question, history, summary_text)
+        prompt = build_rag_prompt(context, question, history, summary_text)
 
         full_parts: list[str] = []
         thinking_parts: list[str] = []
         internal_timings: dict[str, int] = {}
         last_chunk = None
 
-        async for chunk in await self.client.chat(
+        async for chunk in await self.client.generate(
             model=OLLAMA_MODEL,
-            messages=messages,
+            prompt=prompt,
             stream=True,
             think=OLLAMA_THINK,
             keep_alive=OLLAMA_KEEP_ALIVE,
@@ -177,12 +205,12 @@ class OllamaLlmClient:
                 "repeat_penalty": OLLAMA_REPEAT_PENALTY,
             },
         ):
-            thinking_token = (getattr(chunk.message, "thinking", "") or "") if chunk.message else ""
+            thinking_token = getattr(chunk, "thinking", "") or ""
             if thinking_token:
                 thinking_parts.append(thinking_token)
                 yield {"type": "thinking", "content": thinking_token}
 
-            token = (chunk.message.content or "") if chunk.message else ""
+            token = getattr(chunk, "response", "") or ""
             if token:
                 full_parts.append(token)
                 yield {"type": "token", "content": token}
