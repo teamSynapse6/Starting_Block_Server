@@ -1,7 +1,7 @@
 package com.startingblock.domain.announcement.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.querydsl.core.annotations.QueryProjection;
-import com.startingblock.domain.announcement.domain.Announcement;
 import lombok.Builder;
 import lombok.Data;
 
@@ -25,6 +25,8 @@ public class AnnouncementDetailRes {
     private String contact;
     private Boolean isContactExist;
     private Boolean isFileUploaded;
+    @JsonProperty("thread_id")
+    private String threadId = "";
 
     @Builder
     @QueryProjection

@@ -100,6 +100,14 @@ ai-rag:
       wait-interval-ms: ${LLM_DYNAMIC_WAIT_INTERVAL_MS:1000}
       wait-timeout-seconds: ${LLM_GPU_WAIT_TIMEOUT_SECONDS:600}
 
+notification:
+  firebase:
+    enabled: ${FIREBASE_ENABLED:false}
+    project-id: ${FIREBASE_PROJECT_ID:}
+    service-account-json: ${FIREBASE_SERVICE_ACCOUNT_JSON:}
+    service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:}
+    android-channel-id: ${FCM_ANDROID_CHANNEL_ID:fcm_default}
+
 springdoc:
   server-url: ${SWAGGER_SERVER_URL:/}
   api-docs:

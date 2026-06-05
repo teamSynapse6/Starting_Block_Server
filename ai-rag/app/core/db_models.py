@@ -49,6 +49,7 @@ class LLMThread(Base):
     __tablename__ = "llm_threads"
 
     thread_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(Integer, nullable=True, index=True)
     announcement_id = Column(Integer, nullable=True)
     status = Column(String(16), nullable=False, default="active", index=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utc_now)
@@ -59,7 +60,10 @@ class LLMThread(Base):
 
     messages = relationship("LLMMessage", back_populates="thread", cascade="all, delete-orphan", passive_deletes=True)
 
-    __table_args__ = (Index("ix_llm_threads_status_last_activity", "status", "last_activity"),)
+    __table_args__ = (
+        Index("ix_llm_threads_status_last_activity", "status", "last_activity"),
+        Index("ix_llm_threads_user_status_last_activity", "user_id", "status", "last_activity"),
+    )
 
 
 class LLMMessage(Base):
@@ -109,6 +113,7 @@ def ensure_database_and_tables():
 def _ensure_llm_thread_columns():
     with engine.begin() as connection:
         columns_to_ensure = {
+            "user_id": "ALTER TABLE llm_threads ADD COLUMN user_id BIGINT NULL",
             "summary_text": "ALTER TABLE llm_threads ADD COLUMN summary_text TEXT NULL",
             "summary_updated_at": "ALTER TABLE llm_threads ADD COLUMN summary_updated_at DATETIME NULL",
         }
@@ -125,6 +130,30 @@ def _ensure_llm_thread_columns():
                     """
                 ),
                 {"schema": MYSQL_DB_NAME, "column_name": column_name},
+            ).scalar()
+
+            if int(exists or 0) == 0:
+                connection.execute(text(ddl))
+
+        indexes_to_ensure = {
+            "ix_llm_threads_user_status_last_activity": (
+                "CREATE INDEX ix_llm_threads_user_status_last_activity "
+                "ON llm_threads (user_id, status, last_activity)"
+            ),
+        }
+
+        for index_name, ddl in indexes_to_ensure.items():
+            exists = connection.execute(
+                text(
+                    """
+                    SELECT COUNT(*)
+                    FROM information_schema.STATISTICS
+                    WHERE TABLE_SCHEMA = :schema
+                      AND TABLE_NAME = 'llm_threads'
+                      AND INDEX_NAME = :index_name
+                    """
+                ),
+                {"schema": MYSQL_DB_NAME, "index_name": index_name},
             ).scalar()
 
             if int(exists or 0) == 0:

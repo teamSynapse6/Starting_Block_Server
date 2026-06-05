@@ -327,17 +327,18 @@ def _gpu_stats() -> dict[str, int] | None:
         return None
 
 
-def llm_start(_args: argparse.Namespace) -> int:
+def llm_start(args: argparse.Namespace) -> int:
     from app.api.llm.session_store import MySQLSessionStore
     from app.core.db_models import ensure_database_and_tables
 
     try:
         store = MySQLSessionStore()
+        user_id = args.user_id
         try:
-            thread_id = store.create_session()
+            thread_id = store.create_session(user_id)
         except Exception:
             ensure_database_and_tables()
-            thread_id = store.create_session()
+            thread_id = store.create_session(user_id)
         return _json_stdout({"thread_id": thread_id})
     except Exception as error:
         traceback.print_exc(file=sys.stderr)
@@ -837,7 +838,9 @@ def main() -> int:
     get_parser.set_defaults(func=get_announcement)
 
     subparsers.add_parser("delete-announcement").set_defaults(func=delete_announcement)
-    subparsers.add_parser("llm-start").set_defaults(func=llm_start)
+    start_parser = subparsers.add_parser("llm-start")
+    start_parser.add_argument("--user-id", type=int, default=None)
+    start_parser.set_defaults(func=llm_start)
     subparsers.add_parser("llm-chat").set_defaults(func=llm_chat)
     subparsers.add_parser("llm-mark-queued").set_defaults(func=llm_mark_queued)
     cancel_parser = subparsers.add_parser("llm-cancel")

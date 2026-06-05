@@ -3,9 +3,17 @@ package com.startingblock.global.presentation;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.startingblock.domain.announcement.dto.PdfUploadReq;
+import com.startingblock.domain.notification.application.NotificationService;
+import com.startingblock.global.config.security.token.CurrentUser;
+import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.infrastructure.airag.AiRagCliClient;
 import com.startingblock.global.infrastructure.airag.AiRagGpuConcurrencyLimiter;
+import com.startingblock.global.infrastructure.airag.LlmConversationQueryRepository;
+import com.startingblock.global.infrastructure.airag.LlmConversationSummaryRes;
+import com.startingblock.global.error.DefaultAuthenticationException;
+import com.startingblock.global.payload.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +46,8 @@ public class AiRagLegacyController {
 
     private final AiRagCliClient aiRagCliClient;
     private final AiRagGpuConcurrencyLimiter gpuConcurrencyLimiter;
+    private final LlmConversationQueryRepository llmConversationQueryRepository;
+    private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
     private final Map<String, AiRagCliClient.RunningCommand> activeChatCommands = new ConcurrentHashMap<>();
     private final Set<String> cancelRequestedThreads = ConcurrentHashMap.newKeySet();
@@ -73,8 +83,20 @@ public class AiRagLegacyController {
 
     @Operation(summary = "대화 UUID 생성")
     @PostMapping(value = "/llm/start", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> startConversation() throws IOException {
-        return json(aiRagCliClient.execute(List.of("llm-start"), null));
+    public ResponseEntity<String> startConversation(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) throws IOException {
+        UserPrincipal currentUser = requireUser(userPrincipal);
+        return json(aiRagCliClient.execute(List.of("llm-start", "--user-id", String.valueOf(currentUser.getId())), null));
+    }
+
+    @Operation(summary = "사용자 활성 대화 목록 조회")
+    @GetMapping(value = "/llm/list", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<LlmConversationSummaryRes>> listConversations(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        UserPrincipal currentUser = requireUser(userPrincipal);
+        return ResponseEntity.ok(llmConversationQueryRepository.findActiveConversations(currentUser.getId()));
     }
 
     @Operation(summary = "RAG 기반 LLM 채팅")
@@ -201,6 +223,7 @@ public class AiRagLegacyController {
                 } else {
                     log.info("AI/RAG CLI stream success command={} elapsed_ms={}",
                             List.of("llm-chat"), aiRagCliClient.elapsedMillis(command.startedAt()));
+                    notificationService.sendLlmComplete(request.thread_id());
                 }
             } finally {
                 activeChatCommands.remove(request.thread_id());
@@ -417,6 +440,13 @@ public class AiRagLegacyController {
 
     private boolean isCancelRequested(final String threadId) {
         return cancelRequestedThreads.contains(threadId);
+    }
+
+    private UserPrincipal requireUser(final UserPrincipal userPrincipal) {
+        if (userPrincipal == null) {
+            throw new DefaultAuthenticationException(ErrorCode.INVALID_AUTHENTICATION);
+        }
+        return userPrincipal;
     }
 
     private String markCancelled(final String threadId, final String reason) throws IOException {

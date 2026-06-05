@@ -98,6 +98,7 @@ services:
     volumes:
       - /data/embedding-models:/data/embedding-models
       - /data/qdrant-blue:/data/qdrant
+      - ./secrets:/app/secrets:ro
 
   spring-green:
     <<: *spring-common
@@ -111,3 +112,4 @@ services:
     volumes:
       - /data/embedding-models:/data/embedding-models
       - /data/qdrant-green:/data/qdrant
+      - ./secrets:/app/secrets:ro

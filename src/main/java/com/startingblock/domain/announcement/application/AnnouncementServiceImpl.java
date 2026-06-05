@@ -12,6 +12,9 @@ import com.startingblock.domain.user.domain.User;
 import com.startingblock.domain.user.domain.repository.UserRepository;
 import com.startingblock.domain.user.exception.InvalidUserException;
 import com.startingblock.global.config.security.token.UserPrincipal;
+import com.startingblock.global.error.DefaultAuthenticationException;
+import com.startingblock.global.infrastructure.airag.LlmConversationQueryRepository;
+import com.startingblock.global.payload.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +35,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private final AnnouncementPdfUploader announcementPdfUploader;
     private final AnnouncementWriter announcementWriter;
     private final AnnouncementManager announcementManager;
+    private final LlmConversationQueryRepository llmConversationQueryRepository;
 
     private final UserRepository userRepository;
 
@@ -60,10 +64,15 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
     @Override
     public AnnouncementDetailRes findAnnouncementDetailById(final UserPrincipal userPrincipal, final Long announcementId) {
-        AnnouncementDetailRes announcementDetail = announcementRepository.findAnnouncementDetail(userPrincipal.getId(), announcementId);
+        UserPrincipal currentUser = requireUser(userPrincipal);
+        AnnouncementDetailRes announcementDetail = announcementRepository.findAnnouncementDetail(currentUser.getId(), announcementId);
 
         if (announcementDetail == null)
             throw new InvalidAnnouncementException();
+
+        announcementDetail.setThreadId(llmConversationQueryRepository
+                .findLatestActiveThreadId(currentUser.getId(), announcementId)
+                .orElse(""));
 
         return announcementDetail;
     }
@@ -165,5 +174,12 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         University university = University.of(user.getUniversity());
 
         return announcementRepository.findSupportGroupKeywords(university);
+    }
+
+    private UserPrincipal requireUser(final UserPrincipal userPrincipal) {
+        if (userPrincipal == null) {
+            throw new DefaultAuthenticationException(ErrorCode.INVALID_AUTHENTICATION);
+        }
+        return userPrincipal;
     }
 }

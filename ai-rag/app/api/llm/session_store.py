@@ -11,12 +11,13 @@ class MySQLSessionStore:
     def _now(self) -> str:
         return datetime.now(timezone.utc).isoformat()
 
-    def create_session(self) -> str:
+    def create_session(self, user_id: int | None = None) -> str:
         thread_id = str(uuid.uuid4())
 
         with get_db_session() as db:
             thread = LLMThread(
                 thread_id=thread_id,
+                user_id=user_id,
                 announcement_id=None,
                 status="active",
                 created_at=datetime.now(timezone.utc),

@@ -29,7 +29,6 @@ public class CustomOncePerRequestFilter extends OncePerRequestFilter{
         return path.equals("/validation")
                 || path.equals("/announcement")
                 || path.startsWith("/announcement/")
-                || path.startsWith("/llm/")
                 || path.startsWith("/swagger")
                 || path.startsWith("/swagger-ui/")
                 || path.startsWith("/api-docs")
