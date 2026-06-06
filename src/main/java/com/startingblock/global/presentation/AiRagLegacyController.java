@@ -240,10 +240,80 @@ public class AiRagLegacyController {
     }
 
     @Operation(summary = "온디바이스 LLM 답변 생성을 위한 RAG 검색")
-    @PostMapping(value = "/llm/retrieval", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> retrieval(@RequestBody final LlmChatRequest request) throws IOException {
+    @PostMapping(value = "/llm/retrieval", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<StreamingResponseBody> retrieval(@RequestBody final LlmChatRequest request) throws IOException {
         String stdin = objectMapper.writeValueAsString(request);
-        return json(aiRagCliClient.execute(List.of("llm-retrieval"), stdin));
+        StreamingResponseBody body = outputStream -> {
+            AiRagCliClient.RunningCommand command = null;
+            boolean clientConnected = true;
+            try {
+                command = aiRagCliClient.startStreamingProcessOnly(List.of("llm-retrieval"), stdin);
+
+                try (InputStream inputStream = command.process().getInputStream()) {
+                    byte[] buffer = new byte[8192];
+                    int read;
+                    while ((read = inputStream.read(buffer)) != -1) {
+                        if (clientConnected) {
+                            try {
+                                outputStream.write(buffer, 0, read);
+                                outputStream.flush();
+                            } catch (IOException exception) {
+                                clientConnected = false;
+                                log.info("AI/RAG retrieval SSE client disconnected; retrieval continues thread_id={} elapsed_ms={}",
+                                        request.thread_id(), aiRagCliClient.elapsedMillis(command.startedAt()));
+                            }
+                        }
+                    }
+                }
+
+                boolean finished;
+                try {
+                    finished = command.process().waitFor(command.timeout().toMillis(), TimeUnit.MILLISECONDS);
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    command.process().destroyForcibly();
+                    log.warn("AI/RAG retrieval stream interrupted command={} elapsed_ms={}", List.of("llm-retrieval"), aiRagCliClient.elapsedMillis(command.startedAt()));
+                    if (clientConnected) {
+                        writeSseError(outputStream, "검색 처리가 중단되었습니다.");
+                    }
+                    return;
+                }
+
+                if (!finished) {
+                    command.process().destroyForcibly();
+                    log.warn("AI/RAG retrieval stream timeout command={} elapsed_ms={}", List.of("llm-retrieval"), aiRagCliClient.elapsedMillis(command.startedAt()));
+                    if (clientConnected) {
+                        writeSseError(outputStream, "검색 처리 시간이 초과되었습니다.");
+                    }
+                    return;
+                }
+
+                String stderr = command.stderrFuture().join().trim();
+                if (!stderr.isBlank()) {
+                    log.warn("AI/RAG retrieval stream stderr command={} elapsed_ms={} stderr={}",
+                            List.of("llm-retrieval"), aiRagCliClient.elapsedMillis(command.startedAt()), aiRagCliClient.abbreviate(stderr));
+                }
+
+                if (command.process().exitValue() != 0) {
+                    log.warn("AI/RAG retrieval stream failed command={} exit={} elapsed_ms={}",
+                            List.of("llm-retrieval"), command.process().exitValue(), aiRagCliClient.elapsedMillis(command.startedAt()));
+                } else {
+                    log.info("AI/RAG retrieval stream success command={} elapsed_ms={}",
+                            List.of("llm-retrieval"), aiRagCliClient.elapsedMillis(command.startedAt()));
+                }
+            } finally {
+                if (command != null) {
+                    activeChatCommands.remove(request.thread_id());
+                }
+            }
+        };
+
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noCache())
+                .header(HttpHeaders.CONNECTION, "keep-alive")
+                .header("X-Accel-Buffering", "no")
+                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .body(body);
     }
 
     @Operation(summary = "온디바이스 LLM 생성 답변 저장")

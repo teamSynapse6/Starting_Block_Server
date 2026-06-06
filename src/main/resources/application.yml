@@ -136,7 +136,11 @@ logging:
       hibernate:
         type:
           descriptor:
-            sql: ${LOGGING_LEVEL_HIBERNATE_SQL:debug}
+            sql: ${LOGGING_LEVEL_HIBERNATE_SQL:warn}
+        SQL: ${LOGGING_LEVEL_HIBERNATE_SQL:warn}
+        orm:
+          jdbc:
+            bind: ${LOGGING_LEVEL_HIBERNATE_BIND:warn}
     com:
       startingblock:
         global:

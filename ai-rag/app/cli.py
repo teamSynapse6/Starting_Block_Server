@@ -493,60 +493,87 @@ def llm_retrieval(_args: argparse.Namespace) -> int:
     try:
         payload = json.load(sys.stdin)
     except json.JSONDecodeError as error:
-        return _json_error(f"invalid-json: {error}")
+        sys.stdout.write(_sse("error", {"detail": f"invalid-json: {error}"}))
+        sys.stdout.flush()
+        return 1
 
     thread_id = payload.get("thread_id")
     message = payload.get("message")
     announcement_id = payload.get("announcement_id")
     if not thread_id or not message or announcement_id is None:
-        return _json_error("thread_id, message, announcement_id가 필요합니다")
+        sys.stdout.write(_sse("error", {"detail": "thread_id, message, announcement_id가 필요합니다"}))
+        sys.stdout.flush()
+        return 1
+
+    generation_store: RedisGenerationStore | None = None
+
+    def emit(event: str, payload_item: dict[str, Any]):
+        if generation_store is not None:
+            try:
+                generation_store.append_event(thread_id, event, payload_item)
+            except Exception:
+                traceback.print_exc(file=sys.stderr)
+        sys.stdout.write(_sse(event, payload_item))
+        sys.stdout.flush()
 
     try:
         announcement_id = int(announcement_id)
         ensure_database_and_tables()
         store = MySQLSessionStore()
         generation_store = RedisGenerationStore()
+        generation_store.start(thread_id, announcement_id, message)
+        emit("status", {"stage": "request_received"})
+        generation_store.update(thread_id, status="running", stage="request_received", started=True)
+
+        emit("status", {"stage": "storage_preparing"})
         storage = MinioStorage()
         storage.ensure_bucket()
+
+        emit("status", {"stage": "vector_index_preparing"})
         indexer = AnnouncementVectorIndexer(EMBEDDING_DEVICE)
         indexer.ensure_ready()
 
         session = store.get_session(thread_id)
         if session is None:
-            return _json_error("세션을 찾을 수 없습니다")
+            generation_store.update(thread_id, status="failed", stage="session_missing", error_message="세션을 찾을 수 없습니다", finished=True)
+            emit("error", {"detail": "세션을 찾을 수 없습니다"})
+            generation_store.finish(thread_id)
+            return 0
+        emit("status", {"stage": "session_loaded"})
+        generation_store.update(thread_id, status="running", stage="session_loaded")
         if session.get("announcement_id") is not None and session.get("announcement_id") != announcement_id:
-            return _json_error("세션의 announcement_id와 요청값이 다릅니다")
+            generation_store.update(thread_id, status="failed", stage="announcement_mismatch", error_message="세션의 announcement_id와 요청값이 다릅니다", finished=True)
+            emit("error", {"detail": "세션의 announcement_id와 요청값이 다릅니다"})
+            generation_store.finish(thread_id)
+            return 0
 
-        generation_store.start(thread_id, announcement_id, message)
-        generation_store.update(thread_id, status="running", stage="retrieval_started", started=True)
+        emit("status", {"stage": "retrieval_started"})
+        generation_store.update(thread_id, status="running", stage="retrieval_started")
+
+        announcement_text = storage.get_processed_text(announcement_id)
+        if announcement_text is None:
+            generation_store.update(
+                thread_id,
+                status="failed",
+                stage="announcement_missing",
+                error_message="공고 파일을 찾을 수 없습니다",
+                finished=True,
+            )
+            emit("error", {"detail": "공고 파일을 찾을 수 없습니다"})
+            generation_store.finish(thread_id)
+            return 0
 
         chunks = indexer.search_chunks(announcement_id, message, RAG_TOP_K)
         retrieval_data: list[str] = []
-        raw_data: list[dict[str, Any]] = []
         if chunks:
+            emit("status", {"stage": "retrieval_searched", "chunk_count": len(chunks)})
+            generation_store.update(thread_id, status="running", stage="retrieval_searched")
             for index, chunk in enumerate(chunks, start=1):
                 content = chunk.page_content
                 retrieval_data.append(content)
-                raw_data.append(
-                    {
-                        "rank": index,
-                        "source": "vector",
-                        "content": content,
-                        "metadata": _safe_serialize(chunk.metadata),
-                    }
-                )
         else:
-            announcement_text = storage.get_processed_text(announcement_id)
-            if announcement_text is None:
-                generation_store.update(
-                    thread_id,
-                    status="failed",
-                    stage="announcement_missing",
-                    error_message="공고 파일을 찾을 수 없습니다",
-                    finished=True,
-                )
-                return _json_error("공고 파일을 찾을 수 없습니다")
-
+            emit("status", {"stage": "fallback_context_loading"})
+            generation_store.update(thread_id, status="running", stage="fallback_context_loading")
             fallback_context, _ = _build_keyword_fallback_context(
                 announcement_text,
                 message,
@@ -554,15 +581,8 @@ def llm_retrieval(_args: argparse.Namespace) -> int:
                 RAG_TOP_K,
             )
             retrieval_data = _fallback_context_to_items(fallback_context)
-            raw_data = [
-                {
-                    "rank": index,
-                    "source": "keyword_fallback",
-                    "content": content,
-                    "metadata": {"announcement_id": announcement_id},
-                }
-                for index, content in enumerate(retrieval_data, start=1)
-            ]
+            emit("status", {"stage": "fallback_context_loaded", "snippet_count": len(retrieval_data)})
+            generation_store.update(thread_id, status="running", stage="fallback_context_loaded")
 
         messages = session.get("messages", [])
         last_message = messages[-1] if messages else {}
@@ -571,6 +591,8 @@ def llm_retrieval(_args: argparse.Namespace) -> int:
             and (last_message.get("content") or "") == message
         )
         if not already_saved:
+            emit("status", {"stage": "user_message_saving"})
+            generation_store.update(thread_id, status="running", stage="user_message_saving")
             saved = store.append_message(thread_id, "user", message, announcement_id)
             if not saved:
                 generation_store.update(
@@ -580,20 +602,26 @@ def llm_retrieval(_args: argparse.Namespace) -> int:
                     error_message="사용자 질문 저장에 실패했습니다",
                     finished=True,
                 )
-                return _json_error("사용자 질문 저장에 실패했습니다")
+                emit("error", {"detail": "사용자 질문 저장에 실패했습니다"})
+                generation_store.finish(thread_id)
+                return 0
 
-        generation_store.update(thread_id, status="completed", stage="retrieval_completed")
-        return _json_stdout(
-            {
-                "retrevial_result_num": len(retrieval_data),
-                "retrevial_data": retrieval_data,
-                "raw_data": raw_data,
-            }
-        )
-    except Exception as error:
+        result = {
+            "retrevial_result_num": len(retrieval_data),
+            "retrevial_data": retrieval_data,
+            "raw_data": [announcement_text],
+        }
+        generation_store.update(thread_id, status="completed", stage="retrieval_completed", finished=True)
+        emit("status", {"stage": "retrieval_completed", "chunk_count": len(retrieval_data)})
+        emit("done", result)
+        generation_store.finish(thread_id)
+        return 0
+    except Exception:
         traceback.print_exc(file=sys.stderr)
         try:
-            RedisGenerationStore().update(
+            if generation_store is None:
+                generation_store = RedisGenerationStore()
+            generation_store.update(
                 str(thread_id or ""),
                 status="failed",
                 stage="retrieval_error",
@@ -602,7 +630,12 @@ def llm_retrieval(_args: argparse.Namespace) -> int:
             )
         except Exception:
             pass
-        return _json_error(f"검색 처리 중 오류가 발생했습니다: {error}")
+        emit("error", {"detail": "검색 처리 중 오류가 발생했습니다."})
+        try:
+            generation_store.finish(thread_id)
+        except Exception:
+            pass
+        return 0
 
 
 def llm_reply_save(_args: argparse.Namespace) -> int:
