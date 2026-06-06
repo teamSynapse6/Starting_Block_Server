@@ -60,7 +60,15 @@ class MySQLSessionStore:
                 .order_by(LLMMessage.seq.asc())
                 .all()
             )
-            messages = [{"role": row.role, "content": row.content} for row in rows]
+            messages = [
+                {
+                    "role": row.role,
+                    "content": row.content,
+                    "compute_type": row.compute_type,
+                    "model_name": row.model_name,
+                }
+                for row in rows
+            ]
 
         return self._serialize_thread(thread, messages)
 
@@ -83,11 +91,55 @@ class MySQLSessionStore:
                     seq=seq,
                     role=message.get("role", "user"),
                     content=message.get("content", ""),
+                    compute_type=message.get("compute_type"),
+                    model_name=message.get("model_name"),
                     created_at=datetime.now(timezone.utc),
                 )
                 db.add(row)
                 seq += 1
 
+            db.commit()
+            return True
+
+    def append_message(
+        self,
+        thread_id: str,
+        role: str,
+        content: str,
+        announcement_id: int | None,
+        compute_type: str | None = None,
+        model_name: str | None = None,
+    ):
+        with get_db_session() as db:
+            thread = db.query(LLMThread).filter(LLMThread.thread_id == thread_id, LLMThread.status == "active").first()
+            if thread is None:
+                return False
+
+            if thread.announcement_id is not None and announcement_id is not None and thread.announcement_id != announcement_id:
+                return False
+
+            thread.last_activity = datetime.now(timezone.utc)
+            if thread.announcement_id is None:
+                thread.announcement_id = announcement_id
+
+            latest_seq = (
+                db.query(LLMMessage.seq)
+                .filter(LLMMessage.thread_id == thread_id)
+                .order_by(LLMMessage.seq.desc())
+                .first()
+            )
+            next_seq = int(latest_seq[0]) + 1 if latest_seq else 1
+
+            row = LLMMessage(
+                thread_id=thread_id,
+                seq=next_seq,
+                role=role,
+                content=content,
+                compute_type=compute_type,
+                model_name=model_name,
+                created_at=datetime.now(timezone.utc),
+            )
+            db.add(row)
             db.commit()
             return True
 

@@ -239,6 +239,20 @@ public class AiRagLegacyController {
                 .body(body);
     }
 
+    @Operation(summary = "온디바이스 LLM 답변 생성을 위한 RAG 검색")
+    @PostMapping(value = "/llm/retrieval", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> retrieval(@RequestBody final LlmChatRequest request) throws IOException {
+        String stdin = objectMapper.writeValueAsString(request);
+        return json(aiRagCliClient.execute(List.of("llm-retrieval"), stdin));
+    }
+
+    @Operation(summary = "온디바이스 LLM 생성 답변 저장")
+    @PostMapping(value = "/llm/reply-save", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> saveReply(@RequestBody final LlmReplySaveRequest request) throws IOException {
+        String stdin = objectMapper.writeValueAsString(request);
+        return json(aiRagCliClient.execute(List.of("llm-reply-save"), stdin));
+    }
+
     @Operation(summary = "RAG 기반 LLM 채팅 진행 상태 조회")
     @GetMapping(value = "/llm/status", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> conversationStatus(@RequestParam("thread_id") final String threadId) throws IOException {
@@ -473,6 +487,9 @@ public class AiRagLegacyController {
     }
 
     public record LlmChatRequest(String thread_id, String message, Long announcement_id) {
+    }
+
+    public record LlmReplySaveRequest(String thread_id, Long announcement_id, String model_name, String reply) {
     }
 
     private record SseError(String detail) {

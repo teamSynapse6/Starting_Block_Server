@@ -32,6 +32,7 @@ dependencies {
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 	implementation 'com.google.firebase:firebase-admin:9.9.0'
+	implementation 'io.minio:minio:8.5.17'
 
 	// mail
 	implementation 'org.springframework.boot:spring-boot-starter-mail'

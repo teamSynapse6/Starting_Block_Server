@@ -283,6 +283,13 @@ def _build_keyword_fallback_context(text: str, query: str, max_chars: int, top_k
     return "\n\n".join(context_parts), len(context_parts)
 
 
+def _fallback_context_to_items(context: str) -> list[str]:
+    if not context:
+        return []
+    parts = re.split(r"\n\n(?=\[fallback:\d+\]\n)", context)
+    return [re.sub(r"^\[fallback:\d+\]\n", "", part).strip() for part in parts if part.strip()]
+
+
 def _sse(event: str, payload: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
@@ -475,6 +482,181 @@ def llm_history(args: argparse.Namespace) -> int:
         return _json_error(f"대화 기록 조회 중 오류가 발생했습니다: {error}")
 
 
+def llm_retrieval(_args: argparse.Namespace) -> int:
+    from app.api.announcement.vector_indexer import AnnouncementVectorIndexer
+    from app.api.llm.generation_store import RedisGenerationStore
+    from app.api.llm.session_store import MySQLSessionStore
+    from app.core.config import EMBEDDING_DEVICE, RAG_CONTEXT_MAX_CHARS, RAG_TOP_K
+    from app.core.db_models import ensure_database_and_tables
+    from app.core.storage import MinioStorage
+
+    try:
+        payload = json.load(sys.stdin)
+    except json.JSONDecodeError as error:
+        return _json_error(f"invalid-json: {error}")
+
+    thread_id = payload.get("thread_id")
+    message = payload.get("message")
+    announcement_id = payload.get("announcement_id")
+    if not thread_id or not message or announcement_id is None:
+        return _json_error("thread_id, message, announcement_id가 필요합니다")
+
+    try:
+        announcement_id = int(announcement_id)
+        ensure_database_and_tables()
+        store = MySQLSessionStore()
+        generation_store = RedisGenerationStore()
+        storage = MinioStorage()
+        storage.ensure_bucket()
+        indexer = AnnouncementVectorIndexer(EMBEDDING_DEVICE)
+        indexer.ensure_ready()
+
+        session = store.get_session(thread_id)
+        if session is None:
+            return _json_error("세션을 찾을 수 없습니다")
+        if session.get("announcement_id") is not None and session.get("announcement_id") != announcement_id:
+            return _json_error("세션의 announcement_id와 요청값이 다릅니다")
+
+        generation_store.start(thread_id, announcement_id, message)
+        generation_store.update(thread_id, status="running", stage="retrieval_started", started=True)
+
+        chunks = indexer.search_chunks(announcement_id, message, RAG_TOP_K)
+        retrieval_data: list[str] = []
+        raw_data: list[dict[str, Any]] = []
+        if chunks:
+            for index, chunk in enumerate(chunks, start=1):
+                content = chunk.page_content
+                retrieval_data.append(content)
+                raw_data.append(
+                    {
+                        "rank": index,
+                        "source": "vector",
+                        "content": content,
+                        "metadata": _safe_serialize(chunk.metadata),
+                    }
+                )
+        else:
+            announcement_text = storage.get_processed_text(announcement_id)
+            if announcement_text is None:
+                generation_store.update(
+                    thread_id,
+                    status="failed",
+                    stage="announcement_missing",
+                    error_message="공고 파일을 찾을 수 없습니다",
+                    finished=True,
+                )
+                return _json_error("공고 파일을 찾을 수 없습니다")
+
+            fallback_context, _ = _build_keyword_fallback_context(
+                announcement_text,
+                message,
+                RAG_CONTEXT_MAX_CHARS,
+                RAG_TOP_K,
+            )
+            retrieval_data = _fallback_context_to_items(fallback_context)
+            raw_data = [
+                {
+                    "rank": index,
+                    "source": "keyword_fallback",
+                    "content": content,
+                    "metadata": {"announcement_id": announcement_id},
+                }
+                for index, content in enumerate(retrieval_data, start=1)
+            ]
+
+        messages = session.get("messages", [])
+        last_message = messages[-1] if messages else {}
+        already_saved = (
+            last_message.get("role") == "user"
+            and (last_message.get("content") or "") == message
+        )
+        if not already_saved:
+            saved = store.append_message(thread_id, "user", message, announcement_id)
+            if not saved:
+                generation_store.update(
+                    thread_id,
+                    status="failed",
+                    stage="user_message_save_failed",
+                    error_message="사용자 질문 저장에 실패했습니다",
+                    finished=True,
+                )
+                return _json_error("사용자 질문 저장에 실패했습니다")
+
+        generation_store.update(thread_id, status="completed", stage="retrieval_completed")
+        return _json_stdout(
+            {
+                "retrevial_result_num": len(retrieval_data),
+                "retrevial_data": retrieval_data,
+                "raw_data": raw_data,
+            }
+        )
+    except Exception as error:
+        traceback.print_exc(file=sys.stderr)
+        try:
+            RedisGenerationStore().update(
+                str(thread_id or ""),
+                status="failed",
+                stage="retrieval_error",
+                error_message="검색 처리 중 오류가 발생했습니다.",
+                finished=True,
+            )
+        except Exception:
+            pass
+        return _json_error(f"검색 처리 중 오류가 발생했습니다: {error}")
+
+
+def llm_reply_save(_args: argparse.Namespace) -> int:
+    from app.api.llm.generation_store import RedisGenerationStore
+    from app.api.llm.session_store import MySQLSessionStore
+    from app.core.db_models import ensure_database_and_tables
+
+    try:
+        payload = json.load(sys.stdin)
+    except json.JSONDecodeError as error:
+        return _json_error(f"invalid-json: {error}")
+
+    thread_id = payload.get("thread_id")
+    announcement_id = payload.get("announcement_id")
+    model_name = (payload.get("model_name") or "").strip()
+    reply = payload.get("reply")
+    if not thread_id or announcement_id is None or not model_name or not reply:
+        return _json_error("thread_id, announcement_id, model_name, reply가 필요합니다")
+
+    try:
+        announcement_id = int(announcement_id)
+        ensure_database_and_tables()
+        store = MySQLSessionStore()
+        session = store.get_session(thread_id)
+        if session is None:
+            return _json_error("세션을 찾을 수 없습니다")
+        if session.get("announcement_id") is not None and session.get("announcement_id") != announcement_id:
+            return _json_error("세션의 announcement_id와 요청값이 다릅니다")
+
+        saved = store.append_message(
+            thread_id,
+            "assistant",
+            reply,
+            announcement_id,
+            compute_type="on-device",
+            model_name=model_name,
+        )
+        if not saved:
+            return _json_error("답변 저장에 실패했습니다")
+
+        generation_store = RedisGenerationStore()
+        generation_store.update(
+            thread_id,
+            status="completed",
+            stage="reply_saved",
+            partial_response=reply,
+            finished=True,
+        )
+        return _json_stdout({"thread_id": thread_id, "saved": True})
+    except Exception as error:
+        traceback.print_exc(file=sys.stderr)
+        return _json_error(f"답변 저장 중 오류가 발생했습니다: {error}")
+
+
 def llm_events(args: argparse.Namespace) -> int:
     from app.api.llm.generation_store import RedisGenerationStore
 
@@ -517,6 +699,7 @@ async def _llm_chat_async() -> int:
         LLM_SUMMARY_MAX_CHARS,
         LLM_SUMMARY_RECENT_MESSAGES,
         LLM_SUMMARY_TRIGGER_MESSAGES,
+        OLLAMA_MODEL,
         RAG_CONTEXT_MAX_CHARS,
         RAG_TOP_K,
     )
@@ -777,7 +960,12 @@ async def _llm_chat_async() -> int:
 
         updated_messages = full_history_messages + [
             {"role": "user", "content": message},
-            {"role": "assistant", "content": full_response},
+            {
+                "role": "assistant",
+                "content": full_response,
+                "compute_type": "server",
+                "model_name": OLLAMA_MODEL,
+            },
         ]
         saved = await asyncio.to_thread(store.save_session, thread_id, updated_messages, announcement_id)
         mark("session_saved")
@@ -842,6 +1030,8 @@ def main() -> int:
     start_parser.add_argument("--user-id", type=int, default=None)
     start_parser.set_defaults(func=llm_start)
     subparsers.add_parser("llm-chat").set_defaults(func=llm_chat)
+    subparsers.add_parser("llm-retrieval").set_defaults(func=llm_retrieval)
+    subparsers.add_parser("llm-reply-save").set_defaults(func=llm_reply_save)
     subparsers.add_parser("llm-mark-queued").set_defaults(func=llm_mark_queued)
     cancel_parser = subparsers.add_parser("llm-cancel")
     cancel_parser.add_argument("--thread-id", required=True)

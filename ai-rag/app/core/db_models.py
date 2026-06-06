@@ -74,6 +74,8 @@ class LLMMessage(Base):
     seq = Column(Integer, nullable=False)
     role = Column(String(20), nullable=False)
     content = Column(Text, nullable=False)
+    compute_type = Column(String(32), nullable=True)
+    model_name = Column(String(128), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=_utc_now)
 
     thread = relationship("LLMThread", back_populates="messages")
@@ -126,6 +128,28 @@ def _ensure_llm_thread_columns():
                     FROM information_schema.COLUMNS
                     WHERE TABLE_SCHEMA = :schema
                       AND TABLE_NAME = 'llm_threads'
+                      AND COLUMN_NAME = :column_name
+                    """
+                ),
+                {"schema": MYSQL_DB_NAME, "column_name": column_name},
+            ).scalar()
+
+            if int(exists or 0) == 0:
+                connection.execute(text(ddl))
+
+        message_columns_to_ensure = {
+            "compute_type": "ALTER TABLE llm_messages ADD COLUMN compute_type VARCHAR(32) NULL",
+            "model_name": "ALTER TABLE llm_messages ADD COLUMN model_name VARCHAR(128) NULL",
+        }
+
+        for column_name, ddl in message_columns_to_ensure.items():
+            exists = connection.execute(
+                text(
+                    """
+                    SELECT COUNT(*)
+                    FROM information_schema.COLUMNS
+                    WHERE TABLE_SCHEMA = :schema
+                      AND TABLE_NAME = 'llm_messages'
                       AND COLUMN_NAME = :column_name
                     """
                 ),

@@ -52,6 +52,8 @@ public class LlmConversationQueryRepository {
                     seq INT NOT NULL,
                     role VARCHAR(20) NOT NULL,
                     content TEXT NOT NULL,
+                    compute_type VARCHAR(32) NULL,
+                    model_name VARCHAR(128) NULL,
                     created_at DATETIME NOT NULL,
                     INDEX ix_llm_messages_thread_id (thread_id),
                     UNIQUE KEY uq_llm_messages_thread_seq (thread_id, seq),
@@ -64,6 +66,8 @@ public class LlmConversationQueryRepository {
         ensureColumn("llm_threads", "user_id", "ALTER TABLE llm_threads ADD COLUMN user_id BIGINT NULL");
         ensureColumn("llm_threads", "summary_text", "ALTER TABLE llm_threads ADD COLUMN summary_text TEXT NULL");
         ensureColumn("llm_threads", "summary_updated_at", "ALTER TABLE llm_threads ADD COLUMN summary_updated_at DATETIME NULL");
+        ensureColumn("llm_messages", "compute_type", "ALTER TABLE llm_messages ADD COLUMN compute_type VARCHAR(32) NULL");
+        ensureColumn("llm_messages", "model_name", "ALTER TABLE llm_messages ADD COLUMN model_name VARCHAR(128) NULL");
         ensureIndex(
                 "llm_threads",
                 "ix_llm_threads_user_status_last_activity",

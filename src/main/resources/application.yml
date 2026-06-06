@@ -7,6 +7,10 @@ spring:
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
+  servlet:
+    multipart:
+      max-file-size: ${MODEL_UPLOAD_MAX_FILE_SIZE:100MB}
+      max-request-size: ${MODEL_UPLOAD_MAX_REQUEST_SIZE:100MB}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:startingblock}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
@@ -99,6 +103,13 @@ ai-rag:
       max-memory-usage-percent: ${LLM_GPU_MAX_MEMORY_USAGE_PERCENT:88}
       wait-interval-ms: ${LLM_DYNAMIC_WAIT_INTERVAL_MS:1000}
       wait-timeout-seconds: ${LLM_GPU_WAIT_TIMEOUT_SECONDS:600}
+
+minio:
+  endpoint: ${MINIO_ENDPOINT:host.docker.internal:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  secure: ${MINIO_SECURE:false}
+  bucket: ${MINIO_BUCKET:startingblock-pdfgpt}
 
 notification:
   firebase:
