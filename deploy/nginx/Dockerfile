@@ -1,6 +1,10 @@
 FROM nginx:alpine
 
-RUN apk add --no-cache redis
+ENV TZ=Asia/Seoul
+
+RUN apk add --no-cache redis tzdata \
+    && cp /usr/share/zoneinfo/Asia/Seoul /etc/localtime \
+    && echo "Asia/Seoul" > /etc/timezone
 
 COPY nginx.conf /etc/nginx/nginx.conf
 

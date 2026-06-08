@@ -51,3 +51,5 @@ ai-rag/app/data/*.done
 ### txt files ###
 *.txt
 !ai-rag/requirements.txt
+
+Starting_Block_Model-upload/

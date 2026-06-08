@@ -1,6 +1,8 @@
 package com.startingblock.global.infrastructure.model;
 
 import io.minio.BucketExistsArgs;
+import io.minio.CopyObjectArgs;
+import io.minio.CopySource;
 import io.minio.GetObjectArgs;
 import io.minio.GetObjectResponse;
 import io.minio.ListObjectsArgs;
@@ -22,8 +24,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -33,6 +37,8 @@ public class ModelStorageService {
 
     private static final String MODEL_PREFIX = "model/";
     private static final String UPLOAD_PREFIX = MODEL_PREFIX + ".uploads/";
+    private static final String LEGACY_CHUNK_PREFIX = MODEL_PREFIX + ".chunks/";
+    private static final String LEGACY_MODEL_PREFIX = MODEL_PREFIX + ".legacy/";
     private static final Pattern SAFE_NAME = Pattern.compile("^[A-Za-z0-9._-]+$");
 
     private final MinioClient minioClient;
@@ -40,6 +46,9 @@ public class ModelStorageService {
 
     @Value("${minio.bucket:startingblock-pdfgpt}")
     private String bucket;
+
+    @Value("${model.download-chunk-size-bytes:104857600}")
+    private long downloadChunkSizeBytes;
 
     public ModelChunkUploadRes uploadChunk(
             final String rawModelName,
@@ -94,15 +103,13 @@ public class ModelStorageService {
                 totalSize += stat.size();
             }
 
+            removeObjectIfExists(modelKey(modelName));
+            removeObjectIfExists(legacyModelKey(modelName));
+            removeObjectsByPrefix(legacyModelChunkPrefix(modelName));
+
+            ChunkSummary downloadChunkSummary;
             try (InputStream stream = new MinioSequenceInputStream(minioClient, bucket, chunkKeys)) {
-                minioClient.putObject(
-                        PutObjectArgs.builder()
-                                .bucket(bucket)
-                                .object(modelKey(modelName))
-                                .stream(stream, totalSize, -1)
-                                .contentType("application/octet-stream")
-                                .build()
-                );
+                downloadChunkSummary = writeDownloadChunks(modelName, totalSize, stream);
             }
 
             for (String key : chunkKeys) {
@@ -114,7 +121,7 @@ public class ModelStorageService {
                 );
             }
 
-            return new ModelUploadCompleteRes(modelName, totalSize);
+            return new ModelUploadCompleteRes(modelName, totalSize, downloadChunkSummary.count());
         } catch (ErrorResponseException exception) {
             if ("NoSuchKey".equals(exception.errorResponse().code())) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "업로드되지 않은 chunk가 있습니다.", exception);
@@ -128,7 +135,8 @@ public class ModelStorageService {
     public List<ModelInfoRes> listModels() {
         try {
             ensureBucket();
-            List<ModelInfoRes> models = new ArrayList<>();
+            Map<String, Long> legacyFullObjects = new LinkedHashMap<>();
+            Map<String, ChunkSummary> chunkSummaries = new LinkedHashMap<>();
             Iterable<io.minio.Result<Item>> results = minioClient.listObjects(
                     ListObjectsArgs.builder()
                             .bucket(bucket)
@@ -139,14 +147,58 @@ public class ModelStorageService {
             for (io.minio.Result<Item> result : results) {
                 Item item = result.get();
                 String objectName = item.objectName();
-                if (item.isDir() || objectName.startsWith(UPLOAD_PREFIX) || objectName.equals(MODEL_PREFIX)) {
+                if (item.isDir()
+                        || objectName.startsWith(UPLOAD_PREFIX)
+                        || objectName.startsWith(LEGACY_CHUNK_PREFIX)
+                        || objectName.startsWith(LEGACY_MODEL_PREFIX)
+                        || objectName.equals(MODEL_PREFIX)) {
                     continue;
                 }
-                String modelName = objectName.substring(MODEL_PREFIX.length());
-                if (modelName.isBlank() || modelName.contains("/")) {
+                String relativeName = objectName.substring(MODEL_PREFIX.length());
+                if (relativeName.isBlank()) {
                     continue;
                 }
-                models.add(new ModelInfoRes(modelName, item.size()));
+                int separatorIndex = relativeName.indexOf('/');
+                if (separatorIndex < 0) {
+                    if (isSafeModelName(relativeName)) {
+                        legacyFullObjects.put(relativeName, item.size());
+                    }
+                    continue;
+                }
+
+                String modelName = relativeName.substring(0, separatorIndex);
+                String chunkName = relativeName.substring(separatorIndex + 1);
+                if (!isSafeModelName(modelName) || !isChunkObjectName(chunkName)) {
+                    continue;
+                }
+                ChunkSummary previous = chunkSummaries.getOrDefault(modelName, new ChunkSummary(0, 0));
+                chunkSummaries.put(modelName, new ChunkSummary(previous.count() + 1, previous.size() + item.size()));
+            }
+
+            List<ModelInfoRes> models = new ArrayList<>();
+            for (Map.Entry<String, Long> legacyFullObject : legacyFullObjects.entrySet()) {
+                String modelName = legacyFullObject.getKey();
+                long fullSize = legacyFullObject.getValue();
+                ChunkSummary chunkSummary = chunkSummaries.get(modelName);
+                if (chunkSummary == null || chunkSummary.size() != fullSize) {
+                    chunkSummary = rebuildDownloadChunksFromModel(modelName, fullSize);
+                    chunkSummaries.put(modelName, chunkSummary);
+                } else {
+                    prepareLegacyModelSource(modelName);
+                }
+            }
+
+            for (Map.Entry<String, ChunkSummary> chunkEntry : chunkSummaries.entrySet()) {
+                ChunkSummary chunkSummary = chunkEntry.getValue();
+                if (chunkSummary.count() > 0) {
+                    ModelNameParts nameParts = splitStorageModelName(chunkEntry.getKey());
+                    models.add(new ModelInfoRes(
+                            nameParts.modelName(),
+                            nameParts.format(),
+                            chunkSummary.size(),
+                            chunkSummary.count()
+                    ));
+                }
             }
             return models;
         } catch (Exception exception) {
@@ -157,20 +209,11 @@ public class ModelStorageService {
     public ModelDownload download(final String rawModelName, final Long userId) {
         String modelName = normalizeModelName(rawModelName);
         try {
-            StatObjectResponse stat = minioClient.statObject(
-                    StatObjectArgs.builder()
-                            .bucket(bucket)
-                            .object(modelKey(modelName))
-                            .build()
-            );
-            GetObjectResponse stream = minioClient.getObject(
-                    GetObjectArgs.builder()
-                            .bucket(bucket)
-                            .object(modelKey(modelName))
-                            .build()
-            );
-            modelDownloadHistoryRepository.save(userId, modelName, stat.size());
-            return new ModelDownload(modelName, stat.size(), stream);
+            ChunkSummary chunkSummary = ensureModelChunks(modelName);
+            List<String> chunkKeys = modelChunkKeys(modelName, chunkSummary.count());
+            InputStream stream = new MinioSequenceInputStream(minioClient, bucket, chunkKeys);
+            modelDownloadHistoryRepository.save(userId, modelName, chunkSummary.size());
+            return new ModelDownload(modelName, chunkSummary.size(), stream);
         } catch (ErrorResponseException exception) {
             if ("NoSuchKey".equals(exception.errorResponse().code())) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "모델 파일을 찾을 수 없습니다.", exception);
@@ -178,6 +221,61 @@ public class ModelStorageService {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "모델 다운로드 준비 중 오류가 발생했습니다.", exception);
         } catch (Exception exception) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "모델 다운로드 준비 중 오류가 발생했습니다.", exception);
+        }
+    }
+
+    public ModelDownload downloadChunk(final String rawModelName, final int chunkNum, final Long userId) {
+        try {
+            String modelName = resolveStoredModelName(rawModelName);
+            int chunkIndex = toChunkIndex(chunkNum);
+            ModelObjectInfo objectInfo = modelChunkObjectInfo(modelName, chunkIndex);
+
+            GetObjectResponse stream = minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(objectInfo.objectName())
+                            .build()
+            );
+            modelDownloadHistoryRepository.save(userId, modelName, objectInfo.size());
+            return new ModelDownload(downloadChunkFileName(modelName, chunkNum), objectInfo.size(), stream);
+        } catch (ErrorResponseException exception) {
+            if ("NoSuchKey".equals(exception.errorResponse().code())) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "모델 chunk 파일을 찾을 수 없습니다.", exception);
+            }
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "모델 chunk 다운로드 준비 중 오류가 발생했습니다.", exception);
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "모델 chunk 다운로드 준비 중 오류가 발생했습니다.", exception);
+        }
+    }
+
+    public ModelDownloadInfo downloadInfo(final String rawModelName) {
+        String modelName = normalizeModelName(rawModelName);
+        try {
+            ChunkSummary chunkSummary = ensureModelChunks(modelName);
+            return new ModelDownloadInfo(modelName, chunkSummary.size());
+        } catch (ErrorResponseException exception) {
+            if ("NoSuchKey".equals(exception.errorResponse().code())) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "모델 파일을 찾을 수 없습니다.", exception);
+            }
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "모델 다운로드 정보 조회 중 오류가 발생했습니다.", exception);
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "모델 다운로드 정보 조회 중 오류가 발생했습니다.", exception);
+        }
+    }
+
+    public ModelDownloadInfo downloadChunkInfo(final String rawModelName, final int chunkNum) {
+        try {
+            String modelName = resolveStoredModelName(rawModelName);
+            int chunkIndex = toChunkIndex(chunkNum);
+            ModelObjectInfo objectInfo = modelChunkObjectInfo(modelName, chunkIndex);
+            return new ModelDownloadInfo(downloadChunkFileName(modelName, chunkNum), objectInfo.size());
+        } catch (ErrorResponseException exception) {
+            if ("NoSuchKey".equals(exception.errorResponse().code())) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "모델 chunk 파일을 찾을 수 없습니다.", exception);
+            }
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "모델 chunk 다운로드 정보 조회 중 오류가 발생했습니다.", exception);
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "모델 chunk 다운로드 정보 조회 중 오류가 발생했습니다.", exception);
         }
     }
 
@@ -202,7 +300,7 @@ public class ModelStorageService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "model_name은 영문, 숫자, 점, 밑줄, 하이픈만 사용할 수 있습니다.");
         }
         String lower = modelName.toLowerCase(Locale.ROOT);
-        if (lower.equals(".") || lower.equals("..") || lower.startsWith(".uploads")) {
+        if (lower.equals(".") || lower.equals("..") || lower.startsWith(".uploads") || lower.startsWith(".chunks")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "사용할 수 없는 model_name입니다.");
         }
         return modelName;
@@ -232,20 +330,356 @@ public class ModelStorageService {
         return UPLOAD_PREFIX + uploadId + "/" + String.format("%08d.part", chunkIndex);
     }
 
+    private String modelChunkPrefix(final String modelName) {
+        return MODEL_PREFIX + modelName + "/";
+    }
+
+    private String legacyModelChunkPrefix(final String modelName) {
+        return LEGACY_CHUNK_PREFIX + modelName + "/";
+    }
+
+    private String modelChunkKey(final String modelName, final int chunkIndex) {
+        return modelChunkPrefix(modelName) + String.format("%08d.part", chunkIndex);
+    }
+
     private String modelKey(final String modelName) {
         return MODEL_PREFIX + modelName;
+    }
+
+    private String legacyModelKey(final String modelName) {
+        return LEGACY_MODEL_PREFIX + modelName;
+    }
+
+    private ModelObjectInfo modelObjectInfo(final String modelName) throws Exception {
+        try {
+            StatObjectResponse stat = minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(modelKey(modelName))
+                            .build()
+            );
+            return new ModelObjectInfo(modelKey(modelName), stat.size());
+        } catch (ErrorResponseException exception) {
+            if (!"NoSuchKey".equals(exception.errorResponse().code())) {
+                throw exception;
+            }
+        }
+
+        StatObjectResponse stat = minioClient.statObject(
+                StatObjectArgs.builder()
+                        .bucket(bucket)
+                        .object(legacyModelKey(modelName))
+                        .build()
+        );
+        return new ModelObjectInfo(legacyModelKey(modelName), stat.size());
+    }
+
+    private ModelObjectInfo modelChunkObjectInfo(final String modelName, final int chunkNum) throws Exception {
+        ensureModelChunks(modelName);
+        String objectName = modelChunkKey(modelName, chunkNum);
+        StatObjectResponse stat = minioClient.statObject(
+                StatObjectArgs.builder()
+                        .bucket(bucket)
+                        .object(objectName)
+                        .build()
+        );
+        return new ModelObjectInfo(objectName, stat.size());
+    }
+
+    private int toChunkIndex(final int chunkNum) {
+        if (chunkNum <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "chunk_num은 1 이상이어야 합니다.");
+        }
+        return chunkNum - 1;
+    }
+
+    private String resolveStoredModelName(final String rawModelName) throws Exception {
+        String requestedModelName = normalizeModelName(rawModelName);
+        if (storedModelExists(requestedModelName)) {
+            return requestedModelName;
+        }
+
+        List<String> matches = findStoredModelNames(requestedModelName);
+        if (matches.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "모델 파일을 찾을 수 없습니다.");
+        }
+        if (matches.size() > 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "동일한 model_name의 여러 format이 존재합니다.");
+        }
+        return matches.get(0);
+    }
+
+    private boolean storedModelExists(final String modelName) throws Exception {
+        if (chunkSummary(modelName).count() > 0) {
+            return true;
+        }
+        return objectExists(modelKey(modelName)) || objectExists(legacyModelKey(modelName));
+    }
+
+    private boolean objectExists(final String objectName) throws Exception {
+        try {
+            minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(objectName)
+                            .build()
+            );
+            return true;
+        } catch (ErrorResponseException exception) {
+            if ("NoSuchKey".equals(exception.errorResponse().code())) {
+                return false;
+            }
+            throw exception;
+        }
+    }
+
+    private List<String> findStoredModelNames(final String publicModelName) throws Exception {
+        List<String> matches = new ArrayList<>();
+        Iterable<io.minio.Result<Item>> results = minioClient.listObjects(
+                ListObjectsArgs.builder()
+                        .bucket(bucket)
+                        .prefix(MODEL_PREFIX)
+                        .recursive(true)
+                        .build()
+        );
+        for (io.minio.Result<Item> result : results) {
+            Item item = result.get();
+            if (item.isDir()) {
+                continue;
+            }
+            String objectName = item.objectName();
+            if (objectName.startsWith(UPLOAD_PREFIX) || objectName.startsWith(LEGACY_CHUNK_PREFIX)) {
+                continue;
+            }
+
+            String storageModelName = null;
+            if (objectName.startsWith(LEGACY_MODEL_PREFIX)) {
+                storageModelName = objectName.substring(LEGACY_MODEL_PREFIX.length());
+            } else if (objectName.startsWith(MODEL_PREFIX)) {
+                String relativeName = objectName.substring(MODEL_PREFIX.length());
+                int separatorIndex = relativeName.indexOf('/');
+                storageModelName = separatorIndex < 0 ? relativeName : relativeName.substring(0, separatorIndex);
+            }
+            if (!isSafeModelName(storageModelName)) {
+                continue;
+            }
+
+            ModelNameParts nameParts = splitStorageModelName(storageModelName);
+            if (nameParts.modelName().equals(publicModelName) && !matches.contains(storageModelName)) {
+                matches.add(storageModelName);
+            }
+        }
+        return matches;
+    }
+
+    private String downloadChunkFileName(final String storageModelName, final int chunkNum) {
+        return storageModelName + "." + String.format("%08d.part", chunkNum);
+    }
+
+    private ModelNameParts splitStorageModelName(final String storageModelName) {
+        int separatorIndex = storageModelName.lastIndexOf('.');
+        if (separatorIndex <= 0 || separatorIndex == storageModelName.length() - 1) {
+            return new ModelNameParts(storageModelName, "");
+        }
+        return new ModelNameParts(
+                storageModelName.substring(0, separatorIndex),
+                storageModelName.substring(separatorIndex + 1)
+        );
+    }
+
+    private ChunkSummary ensureModelChunks(final String modelName) throws Exception {
+        ChunkSummary chunkSummary = chunkSummary(modelName);
+        if (chunkSummary.count() > 0) {
+            return chunkSummary;
+        }
+        ModelObjectInfo legacyObjectInfo = modelObjectInfo(modelName);
+        return rebuildDownloadChunksFromModel(modelName, legacyObjectInfo.size());
+    }
+
+    private ChunkSummary chunkSummary(final String modelName) throws Exception {
+        int count = 0;
+        long size = 0;
+        Iterable<io.minio.Result<Item>> results = minioClient.listObjects(
+                ListObjectsArgs.builder()
+                        .bucket(bucket)
+                        .prefix(modelChunkPrefix(modelName))
+                        .recursive(true)
+                        .build()
+        );
+        for (io.minio.Result<Item> result : results) {
+            Item item = result.get();
+            if (!item.isDir() && isChunkObjectName(item.objectName().substring(modelChunkPrefix(modelName).length()))) {
+                count += 1;
+                size += item.size();
+            }
+        }
+        return new ChunkSummary(count, size);
+    }
+
+    private List<String> modelChunkKeys(final String modelName, final int chunkCount) {
+        List<String> chunkKeys = new ArrayList<>();
+        for (int index = 0; index < chunkCount; index++) {
+            chunkKeys.add(modelChunkKey(modelName, index));
+        }
+        return chunkKeys;
+    }
+
+    private ChunkSummary rebuildDownloadChunksFromModel(final String modelName, final long totalSize) throws Exception {
+        ModelObjectInfo sourceObjectInfo = prepareLegacyModelSource(modelName);
+        try (InputStream stream = minioClient.getObject(
+                GetObjectArgs.builder()
+                        .bucket(bucket)
+                        .object(sourceObjectInfo.objectName())
+                        .build()
+        )) {
+            return writeDownloadChunks(modelName, sourceObjectInfo.size(), stream);
+        }
+    }
+
+    private ModelObjectInfo prepareLegacyModelSource(final String modelName) throws Exception {
+        try {
+            StatObjectResponse stat = minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(modelKey(modelName))
+                            .build()
+            );
+            minioClient.copyObject(
+                    CopyObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(legacyModelKey(modelName))
+                            .source(CopySource.builder()
+                                    .bucket(bucket)
+                                    .object(modelKey(modelName))
+                                    .build())
+                            .build()
+            );
+            removeObjectIfExists(modelKey(modelName));
+            return new ModelObjectInfo(legacyModelKey(modelName), stat.size());
+        } catch (ErrorResponseException exception) {
+            if (!"NoSuchKey".equals(exception.errorResponse().code())) {
+                throw exception;
+            }
+        }
+
+        StatObjectResponse stat = minioClient.statObject(
+                StatObjectArgs.builder()
+                        .bucket(bucket)
+                        .object(legacyModelKey(modelName))
+                        .build()
+        );
+        return new ModelObjectInfo(legacyModelKey(modelName), stat.size());
+    }
+
+    private ChunkSummary writeDownloadChunks(final String modelName, final long totalSize, final InputStream source) throws Exception {
+        long chunkSizeBytes = normalizedDownloadChunkSizeBytes();
+        removeObjectsByPrefix(modelChunkPrefix(modelName));
+
+        int chunkIndex = 0;
+        long remaining = totalSize;
+        while (remaining > 0) {
+            long currentChunkSize = Math.min(chunkSizeBytes, remaining);
+            BoundedInputStream chunkStream = new BoundedInputStream(source, currentChunkSize);
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(modelChunkKey(modelName, chunkIndex))
+                            .stream(chunkStream, currentChunkSize, -1)
+                            .contentType("application/octet-stream")
+                            .build()
+            );
+            if (chunkStream.consumed() != currentChunkSize) {
+                throw new IOException("모델 다운로드 chunk 생성 중 원본 스트림이 예상보다 일찍 종료되었습니다.");
+            }
+            remaining -= currentChunkSize;
+            chunkIndex += 1;
+        }
+        return new ChunkSummary(chunkIndex, totalSize);
+    }
+
+    private long normalizedDownloadChunkSizeBytes() {
+        if (downloadChunkSizeBytes <= 0) {
+            throw new IllegalStateException("model.download-chunk-size-bytes는 1 이상이어야 합니다.");
+        }
+        return downloadChunkSizeBytes;
+    }
+
+    private void removeObjectsByPrefix(final String prefix) throws Exception {
+        Iterable<io.minio.Result<Item>> results = minioClient.listObjects(
+                ListObjectsArgs.builder()
+                        .bucket(bucket)
+                        .prefix(prefix)
+                        .recursive(true)
+                        .build()
+        );
+        for (io.minio.Result<Item> result : results) {
+            Item item = result.get();
+            if (!item.isDir()) {
+                minioClient.removeObject(
+                        RemoveObjectArgs.builder()
+                                .bucket(bucket)
+                                .object(item.objectName())
+                                .build()
+                );
+            }
+        }
+    }
+
+    private void removeObjectIfExists(final String objectName) throws Exception {
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(objectName)
+                            .build()
+            );
+        } catch (ErrorResponseException exception) {
+            if (!"NoSuchKey".equals(exception.errorResponse().code())) {
+                throw exception;
+            }
+        }
+    }
+
+    private boolean isSafeModelName(final String modelName) {
+        if (modelName == null || modelName.isBlank() || !SAFE_NAME.matcher(modelName).matches()) {
+            return false;
+        }
+        String lower = modelName.toLowerCase(Locale.ROOT);
+        return !lower.equals(".")
+                && !lower.equals("..")
+                && !lower.startsWith(".uploads")
+                && !lower.startsWith(".chunks");
+    }
+
+    private boolean isChunkObjectName(final String objectName) {
+        return objectName != null
+                && !objectName.isBlank()
+                && !objectName.contains("/")
+                && objectName.endsWith(".part");
     }
 
     public record ModelChunkUploadRes(String model_name, String upload_id, int chunk_index, int total_chunks, long size) {
     }
 
-    public record ModelUploadCompleteRes(String model_name, long size) {
+    public record ModelUploadCompleteRes(String model_name, long size, int chunk_count) {
     }
 
-    public record ModelInfoRes(String model_name, long size) {
+    public record ModelInfoRes(String model_name, String format, long size, int chunk_count) {
     }
 
     public record ModelDownload(String modelName, long size, InputStream stream) {
+    }
+
+    public record ModelDownloadInfo(String modelName, long size) {
+    }
+
+    private record ModelObjectInfo(String objectName, long size) {
+    }
+
+    private record ChunkSummary(int count, long size) {
+    }
+
+    private record ModelNameParts(String modelName, String format) {
     }
 
     private static class MinioSequenceInputStream extends InputStream {
@@ -310,6 +744,43 @@ public class ModelStorageService {
                 current.close();
                 current = null;
             }
+        }
+    }
+
+    private static class BoundedInputStream extends InputStream {
+        private final InputStream delegate;
+        private long remaining;
+        private long consumed;
+
+        private BoundedInputStream(final InputStream delegate, final long limit) {
+            this.delegate = delegate;
+            this.remaining = limit;
+        }
+
+        @Override
+        public int read() throws IOException {
+            byte[] buffer = new byte[1];
+            int read = read(buffer, 0, 1);
+            return read == -1 ? -1 : buffer[0] & 0xff;
+        }
+
+        @Override
+        public int read(final byte[] buffer, final int offset, final int length) throws IOException {
+            if (remaining <= 0) {
+                return -1;
+            }
+            int maxLength = (int) Math.min(length, remaining);
+            int read = delegate.read(buffer, offset, maxLength);
+            if (read == -1) {
+                return -1;
+            }
+            remaining -= read;
+            consumed += read;
+            return read;
+        }
+
+        private long consumed() {
+            return consumed;
         }
     }
 }

@@ -1,7 +1,6 @@
 import uuid
-from datetime import datetime, timezone
 
-from app.core.db_models import LLMMessage, LLMThread, get_db_session
+from app.core.db_models import LLMMessage, LLMThread, get_db_session, kst_now
 
 
 class MySQLSessionStore:
@@ -9,7 +8,7 @@ class MySQLSessionStore:
         pass
 
     def _now(self) -> str:
-        return datetime.now(timezone.utc).isoformat()
+        return kst_now().isoformat()
 
     def create_session(self, user_id: int | None = None) -> str:
         thread_id = str(uuid.uuid4())
@@ -20,8 +19,8 @@ class MySQLSessionStore:
                 user_id=user_id,
                 announcement_id=None,
                 status="active",
-                created_at=datetime.now(timezone.utc),
-                last_activity=datetime.now(timezone.utc),
+                created_at=kst_now(),
+                last_activity=kst_now(),
             )
             db.add(thread)
             db.commit()
@@ -78,7 +77,7 @@ class MySQLSessionStore:
             if thread is None:
                 return False
 
-            thread.last_activity = datetime.now(timezone.utc)
+            thread.last_activity = kst_now()
             if thread.announcement_id is None:
                 thread.announcement_id = announcement_id
 
@@ -93,7 +92,7 @@ class MySQLSessionStore:
                     content=message.get("content", ""),
                     compute_type=message.get("compute_type"),
                     model_name=message.get("model_name"),
-                    created_at=datetime.now(timezone.utc),
+                    created_at=kst_now(),
                 )
                 db.add(row)
                 seq += 1
@@ -118,7 +117,7 @@ class MySQLSessionStore:
             if thread.announcement_id is not None and announcement_id is not None and thread.announcement_id != announcement_id:
                 return False
 
-            thread.last_activity = datetime.now(timezone.utc)
+            thread.last_activity = kst_now()
             if thread.announcement_id is None:
                 thread.announcement_id = announcement_id
 
@@ -137,7 +136,7 @@ class MySQLSessionStore:
                 content=content,
                 compute_type=compute_type,
                 model_name=model_name,
-                created_at=datetime.now(timezone.utc),
+                created_at=kst_now(),
             )
             db.add(row)
             db.commit()
@@ -155,7 +154,7 @@ class MySQLSessionStore:
                 return False
 
             thread.status = "cancelled"
-            thread.last_activity = datetime.now(timezone.utc)
+            thread.last_activity = kst_now()
             db.commit()
             return True
 
@@ -166,7 +165,7 @@ class MySQLSessionStore:
                 return False
 
             thread.summary_text = summary_text
-            thread.summary_updated_at = datetime.now(timezone.utc)
+            thread.summary_updated_at = kst_now()
             db.commit()
             return True
 

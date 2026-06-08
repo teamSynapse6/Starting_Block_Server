@@ -97,11 +97,53 @@ def delete_announcement(_args: argparse.Namespace) -> int:
     )
 
 
+def question_duplicate(_args: argparse.Namespace) -> int:
+    from app.api.llm.question_compression import check_duplicate
+
+    try:
+        payload = json.load(sys.stdin)
+    except json.JSONDecodeError as error:
+        return _json_error(f"invalid-json: {error}")
+
+    try:
+        result = asyncio.run(check_duplicate(payload))
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
+        result = {"questionId": 0}
+    return _json_stdout(result)
+
+
+def question_group(_args: argparse.Namespace) -> int:
+    from app.api.llm.question_compression import group_questions
+
+    try:
+        payload = json.load(sys.stdin)
+    except json.JSONDecodeError as error:
+        return _json_error(f"invalid-json: {error}")
+
+    questions = payload.get("questions") or []
+    try:
+        result = asyncio.run(group_questions(payload))
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
+        result = [
+            {
+                "questionId": [int(item.get("questionId", item.get("qid")))],
+                "content": str(item.get("content") or "").strip(),
+            }
+            for item in questions
+            if item.get("content") and item.get("questionId", item.get("qid")) is not None
+        ]
+    print(json.dumps(result, ensure_ascii=False))
+    return 0
+
+
 def upload(_args: argparse.Namespace) -> int:
     import httpx
 
     from app.api.announcement.file_pipeline import (
         convert_hwp_path_to_text,
+        convert_hwpx_bytes_to_text,
         convert_pdf_bytes_to_text,
         detect_file_format,
     )
@@ -129,7 +171,7 @@ def upload(_args: argparse.Namespace) -> int:
         for item in items:
             file_id = int(item["id"])
             file_format = str(item["format"]).lower()
-            if file_format not in {"hwp", "pdf", "txt"}:
+            if file_format not in {"hwp", "hwpx", "pdf", "txt"}:
                 failed_items.append(file_id)
                 continue
 
@@ -152,6 +194,8 @@ def upload(_args: argparse.Namespace) -> int:
                         temp_file.write(file_bytes)
                         temp_file_path = temp_file.name
                     text = convert_hwp_path_to_text(temp_file_path)
+                elif actual_format == "hwpx":
+                    text = convert_hwpx_bytes_to_text(file_bytes)
                 else:
                     text = file_bytes.decode("utf-8", errors="replace")
 
@@ -1054,6 +1098,8 @@ def main() -> int:
 
     subparsers.add_parser("validation").set_defaults(func=validation)
     subparsers.add_parser("upload").set_defaults(func=upload)
+    subparsers.add_parser("question-duplicate").set_defaults(func=question_duplicate)
+    subparsers.add_parser("question-group").set_defaults(func=question_group)
     get_parser = subparsers.add_parser("get-announcement")
     get_parser.add_argument("--id", required=True)
     get_parser.set_defaults(func=get_announcement)

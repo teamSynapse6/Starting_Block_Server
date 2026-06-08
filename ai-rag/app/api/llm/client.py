@@ -5,6 +5,7 @@ import time
 from typing import AsyncIterator, Protocol
 
 from ollama import AsyncClient
+from ollama._types import ResponseError
 
 from app.api.llm.prompts import instructions
 from app.core.config import (
@@ -96,6 +97,22 @@ class OllamaLlmClient:
         self.last_request_at = 0.0
         self._lock = asyncio.Lock()
 
+    async def _generate(self, **kwargs):
+        if OLLAMA_THINK is not None:
+            kwargs["think"] = OLLAMA_THINK
+        try:
+            return await self.client.generate(**kwargs)
+        except TypeError as error:
+            if "think" not in kwargs or "think" not in str(error):
+                raise
+            kwargs.pop("think", None)
+            return await self.client.generate(**kwargs)
+        except ResponseError as error:
+            if "think" not in kwargs or "think" not in str(error).lower():
+                raise
+            kwargs.pop("think", None)
+            return await self.client.generate(**kwargs)
+
     async def chat(self, messages: list[dict]) -> str:
         await self.ensure_model_loaded()
         prompt = "\n\n".join(
@@ -104,11 +121,10 @@ class OllamaLlmClient:
             if (message.get("content") or "").strip()
         )
 
-        response = await self.client.generate(
+        response = await self._generate(
             model=OLLAMA_MODEL,
             prompt=prompt,
             stream=False,
-            think=OLLAMA_THINK,
             keep_alive=OLLAMA_KEEP_ALIVE,
             options={
                 "num_predict": OLLAMA_NUM_PREDICT,
@@ -150,11 +166,10 @@ class OllamaLlmClient:
 
         prompt = build_rag_prompt(context, question, history, summary_text)
 
-        response = await self.client.generate(
+        response = await self._generate(
             model=OLLAMA_MODEL,
             prompt=prompt,
             stream=False,
-            think=OLLAMA_THINK,
             keep_alive=OLLAMA_KEEP_ALIVE,
             options={
                 "num_predict": OLLAMA_NUM_PREDICT,
@@ -191,11 +206,10 @@ class OllamaLlmClient:
         internal_timings: dict[str, int] = {}
         last_chunk = None
 
-        async for chunk in await self.client.generate(
+        async for chunk in await self._generate(
             model=OLLAMA_MODEL,
             prompt=prompt,
             stream=True,
-            think=OLLAMA_THINK,
             keep_alive=OLLAMA_KEEP_ALIVE,
             options={
                 "num_predict": OLLAMA_NUM_PREDICT,

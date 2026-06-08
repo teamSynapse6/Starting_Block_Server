@@ -41,27 +41,49 @@ public class OpenData implements OffCampusCrawling {
                     firstAccess = false;
                 }
                 try {
-                    WebElement emailElement = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(EMAIL_XPATH)));
-                    log.info("emailElement: " + emailElement.getText());
-                    Pattern pattern = Pattern.compile(EMAIL_REGEX); // 이메을 찾는 정규표현식
-                    Matcher matcher = pattern.matcher(emailElement.getText());
-
-                    if (matcher.find()) { // 이메일이 존재하는 경우
-                        String email = matcher.group();
-                        log.info("email: " + email);
+                    String email = findEmail(driver, wait);
+                    if (email != null) { // 이메일이 존재하는 경우
+                        log.info("email: {}", email);
                         announcement.updateContact(email);
                     } else{
                         log.info("이메일이 존재하지 않음.");
                     }
                 } catch (Exception e) {
-                    log.warn(e.getMessage());
+                    log.warn("이메일 크롤링 실패 announcementId={}, url={}", announcement.getId(), announcement.getDetailUrl(), e);
                 }
             }
         } catch (Exception e) {
-            log.error(e.getMessage());
+            log.error("K-Startup 이메일 크롤링 드라이버 실행 실패", e);
         } finally {
             WebDriverManager.closeDriver(); // 작업이 끝나면 드라이버를 닫음
         }
+    }
+
+    private String findEmail(WebDriver driver, WebDriverWait wait) {
+        try {
+            WebElement emailElement = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(EMAIL_XPATH)));
+            log.info("emailElement: {}", emailElement.getText());
+            return extractEmail(emailElement.getText());
+        } catch (Exception exception) {
+            log.warn("이메일 XPath 탐색 실패, body fallback 시도: {}", exception.getMessage());
+        }
+
+        try {
+            WebElement body = driver.findElement(By.tagName("body"));
+            return extractEmail(body.getText());
+        } catch (Exception exception) {
+            log.warn("이메일 body fallback 실패: {}", exception.getMessage());
+            return null;
+        }
+    }
+
+    private String extractEmail(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        Pattern pattern = Pattern.compile(EMAIL_REGEX);
+        Matcher matcher = pattern.matcher(text);
+        return matcher.find() ? matcher.group() : null;
     }
 
     public void closePopup(WebDriver driver) {

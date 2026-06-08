@@ -320,7 +320,12 @@ public class AiRagLegacyController {
     @PostMapping(value = "/llm/reply-save", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> saveReply(@RequestBody final LlmReplySaveRequest request) throws IOException {
         String stdin = objectMapper.writeValueAsString(request);
-        return json(aiRagCliClient.execute(List.of("llm-reply-save"), stdin));
+        String response = aiRagCliClient.execute(List.of("llm-reply-save"), stdin);
+        JsonNode root = objectMapper.readTree(response);
+        if (root.path("saved").asBoolean(false)) {
+            notificationService.sendLlmComplete(request.thread_id());
+        }
+        return json(response);
     }
 
     @Operation(summary = "RAG 기반 LLM 채팅 진행 상태 조회")

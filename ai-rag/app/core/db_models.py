@@ -1,7 +1,8 @@
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime
 from urllib.parse import quote_plus
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,8 +18,11 @@ from app.core.config import (
 )
 
 
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+KST = ZoneInfo("Asia/Seoul")
+
+
+def kst_now() -> datetime:
+    return datetime.now(KST).replace(tzinfo=None)
 
 
 def _server_database_url() -> str:
@@ -52,8 +56,8 @@ class LLMThread(Base):
     user_id = Column(Integer, nullable=True, index=True)
     announcement_id = Column(Integer, nullable=True)
     status = Column(String(16), nullable=False, default="active", index=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=_utc_now)
-    last_activity = Column(DateTime(timezone=True), nullable=False, default=_utc_now)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=kst_now)
+    last_activity = Column(DateTime(timezone=True), nullable=False, default=kst_now)
     summary_text = Column(Text, nullable=True)
     summary_updated_at = Column(DateTime(timezone=True), nullable=True)
     archived_at = Column(DateTime(timezone=True), nullable=True)
@@ -76,7 +80,7 @@ class LLMMessage(Base):
     content = Column(Text, nullable=False)
     compute_type = Column(String(32), nullable=True)
     model_name = Column(String(128), nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=_utc_now)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=kst_now)
 
     thread = relationship("LLMThread", back_populates="messages")
 
@@ -93,7 +97,7 @@ class AnnouncementIndexJob(Base):
     attempts = Column(Integer, nullable=False, default=0)
     worker_id = Column(String(64), nullable=True)
     last_error = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=_utc_now)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=kst_now)
     started_at = Column(DateTime(timezone=True), nullable=True)
     finished_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -102,7 +106,11 @@ class AnnouncementIndexJob(Base):
     )
 
 
-engine = create_engine(_app_database_url(), pool_pre_ping=True)
+engine = create_engine(
+    _app_database_url(),
+    pool_pre_ping=True,
+    connect_args={"init_command": "SET time_zone = '+09:00'"},
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 

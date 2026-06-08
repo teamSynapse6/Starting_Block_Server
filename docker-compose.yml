@@ -16,6 +16,7 @@ x-spring-environment: &spring-environment
   QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-announcement_chunks}
   QDRANT_API_KEY: ${QDRANT_API_KEY:-}
   MINIO_ENDPOINT: ${MINIO_ENDPOINT:-host.docker.internal:9000}
+  MODEL_DOWNLOAD_CHUNK_SIZE_BYTES: ${MODEL_DOWNLOAD_CHUNK_SIZE_BYTES:-104857600}
   KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:-local-disabled}
   KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-local-disabled}
   KAKAO_REDIRECT_URI: ${KAKAO_REDIRECT_URI:-http://localhost:18200/login/oauth2/code/kakao}
@@ -45,7 +46,8 @@ x-spring-environment: &spring-environment
   AI_RAG_WORKING_DIRECTORY: /app/ai-rag
   AI_RAG_WORKER_ENABLED: ${AI_RAG_WORKER_ENABLED:-true}
   AI_RAG_WORKER_IDLE_TIMEOUT_SECONDS: ${AI_RAG_WORKER_IDLE_TIMEOUT_SECONDS:-60}
-  SPRING_MVC_ASYNC_REQUEST_TIMEOUT: ${SPRING_MVC_ASYNC_REQUEST_TIMEOUT:-600000}
+  SPRING_MVC_ASYNC_REQUEST_TIMEOUT: ${SPRING_MVC_ASYNC_REQUEST_TIMEOUT:-300000}
+  SERVER_TOMCAT_CONNECTION_TIMEOUT: ${SERVER_TOMCAT_CONNECTION_TIMEOUT:-300s}
   TZ: Asia/Seoul
 
 x-spring-common: &spring-common
@@ -80,6 +82,8 @@ services:
     image: startingbloakc:nginx
     container_name: startingblock-proxy
     restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
     ports:
       - "${SERVER_PORT:-18200}:18200"
     expose:

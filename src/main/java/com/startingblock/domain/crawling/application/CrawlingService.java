@@ -28,6 +28,7 @@ import java.util.ArrayList;
 public class CrawlingService {
 
     private final AnnouncementRepository announcementRepository;
+    private final OpenData openData;
 
     // TODO: 교내 초기 크롤링
     @Transactional
@@ -64,7 +65,6 @@ public class CrawlingService {
     // TODO: k-startup 공고 이메일 크롤링
     @Transactional
     public void offCampusEmailCrawling() {
-        OpenData openData = new OpenData();
         openData.offCampusEmailCrawling(announcementRepository.findByAnnouncementType(AnnouncementType.OPEN_DATA));
     }
 
@@ -73,7 +73,6 @@ public class CrawlingService {
     @Scheduled(cron = "0 30 3 * * ?") // 매일 새벽 3시 30분에 실행
     public void offCampusEmailAutoCrawling() {
         log.info("k-startup 공고 이메일 크롤링 자동화 시작");
-        OpenData openData = new OpenData();
         openData.offCampusEmailCrawling(announcementRepository.findByAnnouncementTypeAndContactIsNull(AnnouncementType.OPEN_DATA));
     }
 }

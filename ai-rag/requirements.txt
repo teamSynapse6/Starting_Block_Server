@@ -9,6 +9,7 @@ langchain-qdrant==0.2.0
 langchain-text-splitters==0.3.5
 minio==7.2.12
 olefile==0.47
+ollama==0.4.7
 pydantic==2.9.1
 PyMuPDF==1.24.10
 PyMySQL==1.1.1

@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
-from app.core.db_models import LLMThread, get_db_session
+from app.core.db_models import LLMThread, get_db_session, kst_now
 
 
 class MySQLArchiveStore:
@@ -17,9 +17,9 @@ class MySQLArchiveStore:
 
         last_activity_raw = session.get("last_activity")
         try:
-            last_activity = datetime.fromisoformat(last_activity_raw) if last_activity_raw else datetime.now(timezone.utc)
+            last_activity = datetime.fromisoformat(last_activity_raw) if last_activity_raw else kst_now()
         except Exception:
-            last_activity = datetime.now(timezone.utc)
+            last_activity = kst_now()
 
         with get_db_session() as db:
             thread = db.query(LLMThread).filter(LLMThread.thread_id == thread_id).first()
@@ -28,5 +28,5 @@ class MySQLArchiveStore:
 
             thread.status = "archived"
             thread.last_activity = last_activity
-            thread.archived_at = datetime.now(timezone.utc)
+            thread.archived_at = kst_now()
             db.commit()

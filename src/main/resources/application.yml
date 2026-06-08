@@ -7,13 +7,15 @@ spring:
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
+    async:
+      request-timeout: ${SPRING_MVC_ASYNC_REQUEST_TIMEOUT:300000}
   servlet:
     multipart:
       max-file-size: ${MODEL_UPLOAD_MAX_FILE_SIZE:100MB}
       max-request-size: ${MODEL_UPLOAD_MAX_REQUEST_SIZE:100MB}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:startingblock}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:startingblock}?serverTimezone=Asia/Seoul&connectionTimeZone=%2B09:00&forceConnectionTimeZoneToSession=true&characterEncoding=UTF-8
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:}
   jpa:
@@ -22,6 +24,8 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          time_zone: GMT+09:00
         show_sql: ${HIBERNATE_SHOW_SQL:false}
         format_sql: ${HIBERNATE_FORMAT_SQL:false}
     open-in-view: false
@@ -60,6 +64,8 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  tomcat:
+    connection-timeout: ${SERVER_TOMCAT_CONNECTION_TIMEOUT:300s}
   error:
     include-exception: ${SERVER_ERROR_INCLUDE_EXCEPTION:true}
     include-stacktrace: ${SERVER_ERROR_INCLUDE_STACKTRACE:always}
@@ -111,6 +117,9 @@ minio:
   secure: ${MINIO_SECURE:false}
   bucket: ${MINIO_BUCKET:startingblock-pdfgpt}
 
+model:
+  download-chunk-size-bytes: ${MODEL_DOWNLOAD_CHUNK_SIZE_BYTES:104857600}
+
 notification:
   firebase:
     enabled: ${FIREBASE_ENABLED:false}
@@ -132,6 +141,9 @@ springdoc:
 
 logging:
   level:
+    root: ${LOGGING_LEVEL_ROOT:info}
+    com:
+      startingblock: ${LOGGING_LEVEL_STARTINGBLOCK:info}
     org:
       hibernate:
         type:
@@ -141,8 +153,4 @@ logging:
         orm:
           jdbc:
             bind: ${LOGGING_LEVEL_HIBERNATE_BIND:warn}
-    com:
-      startingblock:
-        global:
-          infrastructure:
-            feign: ${LOGGING_LEVEL_FEIGN:debug}
+    com.startingblock.global.infrastructure.feign: ${LOGGING_LEVEL_FEIGN:debug}
