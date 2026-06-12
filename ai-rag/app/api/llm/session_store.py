@@ -147,16 +147,18 @@ class MySQLSessionStore:
             db.query(LLMThread).filter(LLMThread.thread_id == thread_id).delete(synchronize_session=False)
             db.commit()
 
-    def cancel_session(self, thread_id: str):
+    def touch_session_activity(self, thread_id: str):
         with get_db_session() as db:
             thread = db.query(LLMThread).filter(LLMThread.thread_id == thread_id).first()
             if thread is None:
                 return False
 
-            thread.status = "cancelled"
             thread.last_activity = kst_now()
             db.commit()
             return True
+
+    def cancel_session(self, thread_id: str):
+        return self.touch_session_activity(thread_id)
 
     def save_summary(self, thread_id: str, summary_text: str):
         with get_db_session() as db:

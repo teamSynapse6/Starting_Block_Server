@@ -53,7 +53,7 @@ echo "Active color: ${ACTIVE:-none}"
 echo "Deploy target: ${TARGET}"
 
 build_spring_image
-docker compose "${COMPOSE_PROFILE_ARGS[@]}" up -d --no-build "spring-${TARGET}"
+docker compose "${COMPOSE_PROFILE_ARGS[@]}" up -d --no-build --force-recreate "spring-${TARGET}"
 
 echo "Waiting for spring-${TARGET} health..."
 for _ in $(seq 1 90); do

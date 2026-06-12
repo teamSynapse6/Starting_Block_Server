@@ -14,8 +14,10 @@ import io.minio.StatObjectArgs;
 import io.minio.StatObjectResponse;
 import io.minio.errors.ErrorResponseException;
 import io.minio.messages.Item;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,6 +46,7 @@ public class ModelStorageService {
 
     private final MinioClient minioClient;
     private final ModelDownloadHistoryRepository modelDownloadHistoryRepository;
+    private final LlmModelConfigRepository llmModelConfigRepository;
 
     @Value("${minio.bucket:startingblock-pdfgpt}")
     private String bucket;
@@ -121,6 +125,7 @@ public class ModelStorageService {
                 );
             }
 
+            ensureModelConfig(modelName);
             return new ModelUploadCompleteRes(modelName, totalSize, downloadChunkSummary.count());
         } catch (ErrorResponseException exception) {
             if ("NoSuchKey".equals(exception.errorResponse().code())) {
@@ -279,6 +284,87 @@ public class ModelStorageService {
         }
     }
 
+    public List<ModelConfigRes> listModelConfigs() {
+        return llmModelConfigRepository.findAll(Sort.by(Sort.Direction.ASC, "modelName"))
+                .stream()
+                .map(config -> new ModelConfigRes(
+                        config.getModelName(),
+                        config.getUpdatedAt(),
+                        config.getTemperature(),
+                        config.getTopP(),
+                        config.getTopK(),
+                        config.getMaxOutputTokens(),
+                        config.getSystemInstruction()
+                ))
+                .toList();
+    }
+
+    @Transactional
+    public ModelConfigRes updateModelConfig(final ModelConfigUpdateReq request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "모델 설정 요청 body가 필요합니다.");
+        }
+        String modelName = normalizeModelName(request.model_name());
+        LlmModelConfig config = llmModelConfigRepository.findByModelName(modelName)
+                .orElseGet(() -> {
+                    String resolvedModelName = resolveExistingModelName(modelName);
+                    return llmModelConfigRepository.findByModelName(resolvedModelName)
+                            .orElseGet(() -> new LlmModelConfig(resolvedModelName));
+                });
+
+        config.update(
+                request.temperature(),
+                request.top_p(),
+                request.top_k(),
+                request.max_output_tokens(),
+                request.systemInstruction()
+        );
+        LlmModelConfig saved = llmModelConfigRepository.saveAndFlush(config);
+        return new ModelConfigRes(
+                saved.getModelName(),
+                saved.getUpdatedAt(),
+                saved.getTemperature(),
+                saved.getTopP(),
+                saved.getTopK(),
+                saved.getMaxOutputTokens(),
+                saved.getSystemInstruction()
+        );
+    }
+
+    @Transactional
+    public void deleteModel(final String rawModelName) {
+        String modelName = normalizeModelName(rawModelName);
+        String storageModelName = modelName;
+
+        try {
+            ensureBucket();
+            if (!storedModelExists(modelName)) {
+                List<String> matches = findStoredModelNames(modelName);
+                if (matches.size() > 1) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "동일한 model_name의 여러 format이 존재합니다.");
+                }
+                if (matches.size() == 1) {
+                    storageModelName = matches.get(0);
+                }
+            }
+
+            removeObjectIfExists(modelKey(storageModelName));
+            removeObjectIfExists(legacyModelKey(storageModelName));
+            removeObjectsByPrefix(modelChunkPrefix(storageModelName));
+            removeObjectsByPrefix(legacyModelChunkPrefix(storageModelName));
+            removeObjectsByPrefix(UPLOAD_PREFIX + storageModelName + "/");
+
+            llmModelConfigRepository.deleteByModelName(storageModelName);
+            if (!storageModelName.equals(modelName)) {
+                llmModelConfigRepository.deleteByModelName(modelName);
+            }
+        } catch (ResponseStatusException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "모델 삭제 중 오류가 발생했습니다.", exception);
+        }
+    }
+
     private void ensureBucket() throws Exception {
         boolean exists = minioClient.bucketExists(
                 BucketExistsArgs.builder()
@@ -372,6 +458,21 @@ public class ModelStorageService {
                         .build()
         );
         return new ModelObjectInfo(legacyModelKey(modelName), stat.size());
+    }
+
+    private LlmModelConfig ensureModelConfig(final String modelName) {
+        return llmModelConfigRepository.findByModelName(modelName)
+                .orElseGet(() -> llmModelConfigRepository.save(new LlmModelConfig(modelName)));
+    }
+
+    private String resolveExistingModelName(final String modelName) {
+        try {
+            return resolveStoredModelName(modelName);
+        } catch (ResponseStatusException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "모델 설정 대상 조회 중 오류가 발생했습니다.", exception);
+        }
     }
 
     private ModelObjectInfo modelChunkObjectInfo(final String modelName, final int chunkNum) throws Exception {
@@ -671,6 +772,27 @@ public class ModelStorageService {
     }
 
     public record ModelDownloadInfo(String modelName, long size) {
+    }
+
+    public record ModelConfigUpdateReq(
+            String model_name,
+            Float temperature,
+            Float top_p,
+            Integer top_k,
+            Integer max_output_tokens,
+            String systemInstruction
+    ) {
+    }
+
+    public record ModelConfigRes(
+            String model_name,
+            LocalDateTime config_date,
+            Float temperature,
+            Float top_p,
+            Integer top_k,
+            Integer max_output_tokens,
+            String systemInstruction
+    ) {
     }
 
     private record ModelObjectInfo(String objectName, long size) {

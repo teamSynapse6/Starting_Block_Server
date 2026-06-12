@@ -431,12 +431,14 @@ def llm_cancel(args: argparse.Namespace) -> int:
     reason = args.reason or "user_cancelled"
     try:
         generation = RedisGenerationStore().mark_cancelled(thread_id, reason)
-        db_cancelled = MySQLSessionStore().cancel_session(thread_id)
+        db_touched = MySQLSessionStore().touch_session_activity(thread_id)
         return _json_stdout(
             {
                 "thread_id": thread_id,
                 "cancelled": True,
-                "db_cancelled": db_cancelled,
+                "db_cancelled": False,
+                "db_touched": db_touched,
+                "thread_status_preserved": True,
                 "generation": generation,
             }
         )
@@ -825,7 +827,7 @@ async def _llm_chat_async() -> int:
     async def cancel_if_requested(stage: str) -> bool:
         if await asyncio.to_thread(generation_store.is_cancel_requested, thread_id):
             await asyncio.to_thread(generation_store.mark_cancelled, thread_id)
-            await asyncio.to_thread(store.cancel_session, thread_id)
+            await asyncio.to_thread(store.touch_session_activity, thread_id)
             emit("status", {"stage": "cancelled", "from_stage": stage})
             return True
         return False

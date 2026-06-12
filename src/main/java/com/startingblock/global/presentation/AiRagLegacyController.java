@@ -103,6 +103,7 @@ public class AiRagLegacyController {
     @PostMapping(value = "/llm/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<StreamingResponseBody> chat(@RequestBody final LlmChatRequest request) throws IOException {
         String stdin = objectMapper.writeValueAsString(request);
+        cancelRequestedThreads.remove(request.thread_id());
         try {
             aiRagCliClient.executeProcessOnly(List.of("llm-mark-queued"), stdin);
         } catch (Exception exception) {
@@ -119,6 +120,7 @@ public class AiRagLegacyController {
                 while (lease == null) {
                     if (isCancelRequested(request.thread_id())) {
                         markCancelled(request.thread_id(), "user_cancelled");
+                        cancelRequestedThreads.remove(request.thread_id());
                         if (clientConnected) {
                             writeSse(outputStream, "status", new CancelStatus("cancelled", "user_cancelled"));
                         }
@@ -160,6 +162,7 @@ public class AiRagLegacyController {
             try {
                 if (isCancelRequested(request.thread_id())) {
                     markCancelled(request.thread_id(), "user_cancelled");
+                    cancelRequestedThreads.remove(request.thread_id());
                     if (clientConnected) {
                         writeSse(outputStream, "status", new CancelStatus("cancelled", "user_cancelled"));
                     }

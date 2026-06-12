@@ -5,6 +5,8 @@ import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.error.DefaultAuthenticationException;
 import com.startingblock.global.infrastructure.model.ModelStorageService;
 import com.startingblock.global.infrastructure.model.ModelStorageService.ModelChunkUploadRes;
+import com.startingblock.global.infrastructure.model.ModelStorageService.ModelConfigRes;
+import com.startingblock.global.infrastructure.model.ModelStorageService.ModelConfigUpdateReq;
 import com.startingblock.global.infrastructure.model.ModelStorageService.ModelDownload;
 import com.startingblock.global.infrastructure.model.ModelStorageService.ModelDownloadInfo;
 import com.startingblock.global.infrastructure.model.ModelStorageService.ModelInfoRes;
@@ -18,9 +20,11 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -75,6 +79,36 @@ public class ModelController {
         return ResponseEntity.ok(modelStorageService.listModels());
     }
 
+    @Operation(summary = "온디바이스 모델 설정 목록")
+    @GetMapping(value = "/model/config", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<ModelConfigRes>> listModelConfigs(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal
+    ) {
+        requireUser(userPrincipal);
+        return ResponseEntity.ok(modelStorageService.listModelConfigs());
+    }
+
+    @Operation(summary = "온디바이스 모델 설정 수정")
+    @PutMapping(value = "/model/config", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ModelConfigRes> updateModelConfig(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @RequestBody final ModelConfigUpdateReq request
+    ) {
+        requireUser(userPrincipal);
+        return ResponseEntity.ok(modelStorageService.updateModelConfig(request));
+    }
+
+    @Operation(summary = "온디바이스 모델 삭제")
+    @DeleteMapping(value = "/model/delete", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Void> deleteModel(
+            @Parameter(name = "Authorization Token") @CurrentUser final UserPrincipal userPrincipal,
+            @RequestBody final ModelDeleteReq request
+    ) {
+        requireUser(userPrincipal);
+        modelStorageService.deleteModel(request == null ? null : request.model_name());
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "온디바이스 모델 chunk 다운로드")
     @GetMapping(value = "/model/download/{model_name}/{chunk_num}")
     public ResponseEntity<StreamingResponseBody> downloadChunk(
@@ -114,6 +148,9 @@ public class ModelController {
     }
 
     public record ModelUploadCompleteReq(String model_name, String upload_id, int total_chunks) {
+    }
+
+    public record ModelDeleteReq(String model_name) {
     }
 
     private ResponseEntity.BodyBuilder downloadHeaders(final ModelDownloadInfo download) {

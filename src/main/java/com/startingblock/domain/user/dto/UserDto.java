@@ -1,5 +1,6 @@
 package com.startingblock.domain.user.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.startingblock.domain.user.domain.Provider;
 import com.startingblock.domain.user.domain.Role;
 import com.startingblock.domain.user.domain.User;
@@ -14,6 +15,8 @@ import java.time.LocalDate;
 @Builder
 public class UserDto {
 
+    @JsonProperty("user_id")
+    private Long userId;
     private String nickname;
     private LocalDate birth;
     private Boolean isCompletedBusinessRegistration;
@@ -27,6 +30,7 @@ public class UserDto {
 
     public static UserDto toDto(User user) {
         return UserDto.builder()
+                .userId(user.getId())
                 .nickname(user.getNickname())
                 .birth(user.getBirth())
                 .isCompletedBusinessRegistration(user.getIsCompletedBusinessRegistration())
