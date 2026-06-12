@@ -31,7 +31,7 @@ public class AuthController {
 
     private final AuthService authService;
 
-    @Operation(summary = "카카오 로그인", description = "카카오 로그인을 수행합니다.")
+    @Operation(summary = "카카오 로그인", description = "카카오 로그인을 수행합니다.", security = {})
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "카카오 로그인 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = SignInRes.class))}),
             @ApiResponse(responseCode = "400", description = "카카오 로그인 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))}),
@@ -43,7 +43,19 @@ public class AuthController {
         return ResponseEntity.ok(authService.kakaoSignIn(signInReq));
     }
 
-    @Operation(summary = "토큰 갱신", description = "신규 토큰 갱신을 수행합니다.")
+    @Operation(summary = "애플 로그인", description = "애플 로그인을 수행합니다.", security = {})
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "애플 로그인 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = SignInRes.class))}),
+            @ApiResponse(responseCode = "400", description = "애플 로그인 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))}),
+    })
+    @PostMapping(value = "/sign-in/apple")
+    public ResponseEntity<SignInRes> appleSignIn(
+            @Parameter(description = "AppleSignInReq Schema를 확인해주세요.", required = true) @RequestBody AppleSignInReq appleSignInReq
+    ) {
+        return ResponseEntity.ok(authService.appleSignIn(appleSignInReq));
+    }
+
+    @Operation(summary = "토큰 갱신", description = "신규 토큰 갱신을 수행합니다.", security = {})
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "토큰 갱신 성공", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = AuthRes.class))}),
             @ApiResponse(responseCode = "400", description = "토큰 갱신 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))}),

@@ -48,6 +48,16 @@ public class LlmModelConfigSchemaConfig {
                         UNIQUE KEY uk_llm_model_config_model_name (model_name)
                     )
                     """);
+
+            jdbcTemplate.execute("""
+                    ALTER TABLE `user`
+                    MODIFY COLUMN email VARCHAR(255) NULL
+                    """);
+
+            jdbcTemplate.execute("""
+                    ALTER TABLE `user`
+                    MODIFY COLUMN provider ENUM('KAKAO', 'APPLE') NULL
+                    """);
         };
     }
 

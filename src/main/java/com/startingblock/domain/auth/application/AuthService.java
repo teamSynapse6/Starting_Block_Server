@@ -33,6 +33,7 @@ public class AuthService {
     private final CustomTokenProviderService customTokenProviderService;
     private final TokenRepository tokenRepository;
     private final UserRepository userRepository;
+    private final AppleAuthService appleAuthService;
 
     @Transactional
     public SignInRes kakaoSignIn(final SignInReq signInReq) {
@@ -48,6 +49,29 @@ public class AuthService {
 
             userRepository.save(newUser);
             optionalUser = Optional.of(newUser);
+        }
+
+        User user = optionalUser.get();
+        return getUserSignInRes(user);
+    }
+
+    @Transactional
+    public SignInRes appleSignIn(final AppleSignInReq appleSignInReq) {
+        AppleAuthService.AppleAccount appleAccount = appleAuthService.resolve(appleSignInReq);
+        Optional<User> optionalUser = userRepository.findByProviderIdAndStatus(appleAccount.providerId(), Status.ACTIVE);
+
+        if (optionalUser.isEmpty()) {
+            User newUser = User.builder()
+                    .provider(Provider.APPLE)
+                    .providerId(appleAccount.providerId())
+                    .email(appleAccount.email())
+                    .role(Role.USER)
+                    .build();
+
+            userRepository.save(newUser);
+            optionalUser = Optional.of(newUser);
+        } else if (optionalUser.get().getEmail() == null && appleAccount.email() != null) {
+            optionalUser.get().updateEmail(appleAccount.email());
         }
 
         User user = optionalUser.get();

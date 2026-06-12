@@ -18,6 +18,15 @@ public class AuthConfig {
         private long accessTokenExpirationMsec;
         private long refreshTokenExpirationMsec;
         private String kakaoAdminKey;
+        private Apple apple = new Apple();
+    }
+
+    @Data
+    public static class Apple {
+        private String clientId;
+        private String teamId;
+        private String keyId;
+        private String privateKeyPath;
     }
 
     public Auth getAuth() {

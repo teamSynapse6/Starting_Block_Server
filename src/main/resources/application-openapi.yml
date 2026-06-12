@@ -39,3 +39,11 @@ logging:
   level:
     root: WARN
     com.startingblock: INFO
+
+app:
+  auth:
+    apple:
+      client-id: openapi-dummy
+      team-id: openapi-dummy
+      key-id: openapi-dummy
+      private-key-path: /tmp/openapi-apple-auth-key.p8

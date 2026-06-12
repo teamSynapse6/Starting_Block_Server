@@ -37,7 +37,7 @@ public class User extends BaseEntity {
     private String university;
 
     @Email
-    @Column(name = "email", nullable = false, unique = true)
+    @Column(name = "email", unique = true)
     private String email;
 
     @Enumerated(EnumType.STRING)
@@ -86,6 +86,10 @@ public class User extends BaseEntity {
 
     public void updateUniversity(String university) {
         this.university = university;
+    }
+
+    public void updateEmail(String email) {
+        this.email = email;
     }
 
     public void updateProfileNumber(Integer profileNumber) {
