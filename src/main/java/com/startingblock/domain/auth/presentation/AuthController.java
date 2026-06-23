@@ -4,13 +4,19 @@ package com.startingblock.domain.auth.presentation;
 import jakarta.validation.Valid;
 
 import com.startingblock.domain.auth.dto.*;
+import com.startingblock.global.config.security.token.CurrentUser;
+import com.startingblock.global.config.security.token.UserPrincipal;
 import com.startingblock.global.payload.ErrorResponse;
 import com.startingblock.domain.auth.application.AuthService;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,8 +28,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Tag(name = "Authorization", description = "Authorization API")
+@Slf4j
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/auth")
@@ -78,6 +86,48 @@ public class AuthController {
     ) {
         authService.signOut(tokenRefreshRequest);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "유저 탈퇴", description = "현재 유저를 provider별로 연결 해제 후 탈퇴 처리합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "유저 탈퇴 성공"),
+            @ApiResponse(responseCode = "400", description = "유저 탈퇴 실패", content = {@Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class))}),
+    })
+    @DeleteMapping(value = "/inactive")
+    public ResponseEntity<Void> withdraw(
+            @Parameter(description = "AccessToken 을 입력해주세요.", required = true) @CurrentUser UserPrincipal userPrincipal
+    ) {
+        authService.withdraw(userPrincipal);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "카카오 연결 해제 웹훅", description = "카카오 외부 연결 해제 콜백을 처리합니다.", security = {})
+    @RequestMapping(value = "/webhook/kakao/unlink", method = {RequestMethod.GET, RequestMethod.POST})
+    public ResponseEntity<Void> kakaoUnlinkWebhook(
+            @RequestHeader(value = "Authorization", required = false) String authorization,
+            @RequestParam(value = "app_id", required = false) String appId,
+            @RequestParam(value = "user_id", required = false) String userId,
+            @RequestParam(value = "referrer_type", required = false) String referrerType
+    ) {
+        log.info(
+                "Kakao unlink webhook received app_id={} user_id={} referrer_type={} auth_present={}",
+                appId,
+                userId,
+                referrerType,
+                authorization != null
+        );
+        authService.handleKakaoUnlinkWebhook(authorization, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "애플 서버 알림 웹훅", description = "Sign in with Apple 서버 알림을 처리합니다.", security = {})
+    @PostMapping(value = "/webhook/apple")
+    public ResponseEntity<Void> appleServerNotification(
+            @RequestBody(required = false) AppleServerNotificationReq request
+    ) {
+        log.info("Apple server notification received payload_present={}", request != null && request.getPayload() != null);
+        authService.handleAppleServerNotification(request);
+        return ResponseEntity.ok().build();
     }
 
 }

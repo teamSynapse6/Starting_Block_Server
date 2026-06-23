@@ -1,9 +1,12 @@
 package com.startingblock.domain.auth.application;
 
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import com.startingblock.domain.auth.dto.*;
 import com.startingblock.domain.common.Status;
+import com.startingblock.domain.user.exception.InvalidUserException;
 import com.startingblock.domain.user.domain.repository.UserRepository;
 import com.startingblock.global.DefaultAssert;
 
@@ -14,18 +17,22 @@ import com.startingblock.domain.user.domain.User;
 import com.startingblock.domain.auth.domain.repository.TokenRepository;
 
 import com.startingblock.global.config.security.token.UserPrincipal;
+import com.startingblock.global.config.security.AuthConfig;
 import com.startingblock.global.error.DefaultAuthenticationException;
+import com.startingblock.global.infrastructure.feign.KakaoClient;
 import com.startingblock.global.payload.ErrorCode;
 import jakarta.transaction.Transactional;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 
 
+@Slf4j
 @RequiredArgsConstructor
 @Service
 public class AuthService {
@@ -34,6 +41,8 @@ public class AuthService {
     private final TokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final AppleAuthService appleAuthService;
+    private final KakaoClient kakaoClient;
+    private final AuthConfig authConfig;
 
     @Transactional
     public SignInRes kakaoSignIn(final SignInReq signInReq) {
@@ -72,6 +81,10 @@ public class AuthService {
             optionalUser = Optional.of(newUser);
         } else if (optionalUser.get().getEmail() == null && appleAccount.email() != null) {
             optionalUser.get().updateEmail(appleAccount.email());
+        }
+
+        if (appleAccount.refreshToken() != null) {
+            optionalUser.get().updateProviderRefreshToken(appleAccount.refreshToken());
         }
 
         User user = optionalUser.get();
@@ -116,6 +129,104 @@ public class AuthService {
         tokenRepository.delete(refreshToken);
     }
 
+    @Transactional
+    public void withdraw(final UserPrincipal userPrincipal) {
+        DefaultAssert.isTrue(userPrincipal != null, "사용자 인증에 실패하였습니다.");
+        User user = userRepository.findById(userPrincipal.getId())
+                .orElseThrow(InvalidUserException::new);
+        DefaultAssert.isTrue(user.getStatus() == Status.ACTIVE, "탈퇴 처리된 회원입니다.");
+
+        unlinkProvider(user);
+
+        String providerId = user.getProviderId();
+        tokenRepository.deleteByProviderId(providerId);
+        user.withdraw();
+    }
+
+    @Transactional
+    public void handleKakaoUnlinkWebhook(final String authorization, final String userId) {
+        String expectedAuthorization = "KakaoAK " + authConfig.getAuth().getKakaoAdminKey();
+        if (!StringUtils.hasText(userId)) {
+            log.warn("Kakao unlink webhook ignored because user_id is empty");
+            return;
+        }
+        if (!expectedAuthorization.equals(authorization)) {
+            log.warn("Kakao unlink webhook ignored because admin key authorization is invalid user_id={}", userId);
+            return;
+        }
+
+        withdrawActiveUsersByProvider(Provider.KAKAO, userId);
+    }
+
+    @Transactional
+    public void handleAppleServerNotification(final AppleServerNotificationReq request) {
+        if (request == null || !StringUtils.hasText(request.getPayload())) {
+            log.warn("Apple server notification ignored because payload is empty");
+            return;
+        }
+
+        List<AppleAuthService.AppleServerNotificationEvent> events;
+        try {
+            events = appleAuthService.resolveServerNotification(request.getPayload());
+        } catch (Exception exception) {
+            log.warn("Apple server notification ignored because payload verification failed");
+            return;
+        }
+
+        for (AppleAuthService.AppleServerNotificationEvent event : events) {
+            if (isAppleWithdrawalEvent(event.type())) {
+                withdrawActiveUsersByProvider(Provider.APPLE, event.providerId());
+            }
+        }
+    }
+
+    private void unlinkProvider(final User user) {
+        if (user.getProvider() == Provider.KAKAO) {
+            kakaoClient.unlinkUser(
+                    "KakaoAK " + authConfig.getAuth().getKakaoAdminKey(),
+                    "user_id",
+                    user.getProviderId()
+            );
+            return;
+        }
+
+        if (user.getProvider() == Provider.APPLE) {
+            DefaultAssert.isTrue(user.getProviderRefreshToken() != null, "애플 탈퇴 토큰이 없습니다.");
+            appleAuthService.revokeRefreshToken(user.getProviderRefreshToken());
+        }
+    }
+
+    private void withdrawActiveUsersByProvider(final Provider provider, final String providerId) {
+        if (!StringUtils.hasText(providerId)) {
+            return;
+        }
+
+        List<User> users = userRepository.findAllByProviderAndProviderIdAndStatus(
+                provider,
+                providerId,
+                Status.ACTIVE
+        );
+        if (users.isEmpty()) {
+            log.info("External provider unlink found no active user provider={} provider_id={}", provider, providerId);
+            return;
+        }
+
+        users.forEach(User::withdraw);
+        tokenRepository.deleteByProviderId(providerId);
+        log.info("External provider unlink withdrew users provider={} provider_id={} count={}", provider, providerId, users.size());
+    }
+
+    private boolean isAppleWithdrawalEvent(final String type) {
+        if (!StringUtils.hasText(type)) {
+            return false;
+        }
+
+        String normalizedType = type.toLowerCase(Locale.ROOT);
+        return "consent-revoked".equals(normalizedType)
+                || "account-delete".equals(normalizedType)
+                || "account-deleted".equals(normalizedType);
+    }
+
     private boolean valid(String refreshToken){
 
         //1. 토큰 형식 물리적 검증
@@ -152,9 +263,7 @@ public class AuthService {
 
         boolean isSignUpComplete = user.getNickname() != null
                 && user.getEmail() != null
-                && user.getBirth() != null
                 && user.getIsCompletedBusinessRegistration() != null
-                && user.getResidence() != null
                 && user.getUniversity() != null;
 
         AuthRes userAuthRes = AuthRes.builder()

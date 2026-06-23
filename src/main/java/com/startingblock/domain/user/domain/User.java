@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 
 import com.startingblock.domain.common.BaseEntity;
+import com.startingblock.domain.common.Status;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -24,28 +25,31 @@ public class User extends BaseEntity {
     @Column(name = "nickname")
     private String nickname;
 
-    @Column(name = "birth")
+    @Column(name = "birth", nullable = true)
     private LocalDate birth;
 
     @Column(name = "is_completed_business_registration", nullable = false)
     private Boolean isCompletedBusinessRegistration;
 
-    @Column(name = "residence")
+    @Column(name = "residence", nullable = true)
     private String residence;
 
     @Column(name = "university")
     private String university;
 
     @Email
-    @Column(name = "email", unique = true)
+    @Column(name = "email")
     private String email;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "provider", nullable = false)
     private Provider provider;
 
-    @Column(name = "provider_id", nullable = false, unique = true)
+    @Column(name = "provider_id", nullable = false)
     private String providerId;
+
+    @Column(name = "provider_refresh_token", columnDefinition = "TEXT")
+    private String providerRefreshToken;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
@@ -92,8 +96,16 @@ public class User extends BaseEntity {
         this.email = email;
     }
 
+    public void updateProviderRefreshToken(String providerRefreshToken) {
+        this.providerRefreshToken = providerRefreshToken;
+    }
+
     public void updateProfileNumber(Integer profileNumber) {
         this.profileNumber = profileNumber;
+    }
+
+    public void withdraw() {
+        updateStatus(Status.DELETED);
     }
 
 }

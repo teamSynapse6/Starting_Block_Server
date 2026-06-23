@@ -29,9 +29,12 @@ import java.security.PublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -41,6 +44,7 @@ public class AppleAuthService {
     private static final String APPLE_ISSUER = "https://appleid.apple.com";
     private static final String APPLE_KEYS_URL = "https://appleid.apple.com/auth/keys";
     private static final String APPLE_TOKEN_URL = "https://appleid.apple.com/auth/token";
+    private static final String APPLE_REVOKE_URL = "https://appleid.apple.com/auth/revoke";
 
     private final AuthConfig authConfig;
     private final RestTemplate restTemplate;
@@ -52,8 +56,13 @@ public class AppleAuthService {
         }
 
         String identityToken = trimToNull(request.getIdentityToken());
-        if (identityToken == null && trimToNull(request.getAuthorizationCode()) != null) {
-            identityToken = exchangeAuthorizationCode(request.getAuthorizationCode());
+        String authorizationCode = trimToNull(request.getAuthorizationCode());
+        AppleTokenResponse tokenResponse = null;
+        if (authorizationCode != null) {
+            tokenResponse = exchangeAuthorizationCode(authorizationCode, identityToken == null);
+            if (identityToken == null && tokenResponse != null) {
+                identityToken = tokenResponse.identityToken();
+            }
         }
         if (identityToken == null) {
             throw invalidAppleLogin();
@@ -67,10 +76,49 @@ public class AppleAuthService {
         }
 
         String email = firstNonBlank(claims.get("email", String.class), request.getEmail());
-        return new AppleAccount(subject, email);
+        return new AppleAccount(subject, email, tokenResponse == null ? null : tokenResponse.refreshToken());
     }
 
-    private String exchangeAuthorizationCode(final String authorizationCode) {
+    public void revokeRefreshToken(final String refreshToken) {
+        String token = requiredConfig(refreshToken);
+        String clientId = appleClientId();
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("client_id", clientId);
+        form.add("client_secret", createClientSecret(clientId));
+        form.add("token", token);
+        form.add("token_type_hint", "refresh_token");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        try {
+            restTemplate.postForEntity(
+                    APPLE_REVOKE_URL,
+                    new HttpEntity<>(form, headers),
+                    String.class
+            );
+        } catch (Exception exception) {
+            throw invalidAppleLogin();
+        }
+    }
+
+    public List<AppleServerNotificationEvent> resolveServerNotification(final String payload) {
+        Claims claims = verifyAppleJwt(payload);
+        List<AppleServerNotificationEvent> events = new ArrayList<>();
+        appendAppleEvents(events, objectMapper.valueToTree(claims.get("events")), claims.getSubject(), null);
+
+        if (events.isEmpty()) {
+            String type = trimToNull(claims.get("type", String.class));
+            String providerId = trimToNull(claims.getSubject());
+            if (type != null && providerId != null) {
+                events.add(new AppleServerNotificationEvent(type, providerId));
+            }
+        }
+
+        return events;
+    }
+
+    private AppleTokenResponse exchangeAuthorizationCode(final String authorizationCode, final boolean required) {
         String clientId = appleClientId();
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("client_id", clientId);
@@ -88,13 +136,20 @@ public class AppleAuthService {
                     JsonNode.class
             );
             String identityToken = response == null ? null : trimToNull(response.path("id_token").asText(null));
+            String refreshToken = response == null ? null : trimToNull(response.path("refresh_token").asText(null));
             if (identityToken == null) {
                 throw invalidAppleLogin();
             }
-            return identityToken;
+            return new AppleTokenResponse(identityToken, refreshToken);
         } catch (DefaultAuthenticationException exception) {
+            if (!required) {
+                return null;
+            }
             throw exception;
         } catch (Exception exception) {
+            if (!required) {
+                return null;
+            }
             throw invalidAppleLogin();
         }
     }
@@ -114,20 +169,43 @@ public class AppleAuthService {
         }
 
         PublicKey publicKey = applePublicKey(header.path("kid").asText(), header.path("alg").asText());
-        Claims claims;
+        Claims claims = parseAppleJwt(identityToken, publicKey);
+
+        validateAudience(claims);
+        return claims;
+    }
+
+    private Claims verifyAppleJwt(final String token) {
+        JsonNode header;
         try {
-            claims = Jwts.parserBuilder()
-                    .setSigningKey(publicKey)
-                    .requireIssuer(APPLE_ISSUER)
-                    .build()
-                    .parseClaimsJws(identityToken)
-                    .getBody();
+            String[] parts = token.split("\\.");
+            if (parts.length != 3) {
+                throw invalidAppleLogin();
+            }
+            header = objectMapper.readTree(Base64.getUrlDecoder().decode(parts[0]));
+        } catch (DefaultAuthenticationException exception) {
+            throw exception;
         } catch (Exception exception) {
             throw invalidAppleLogin();
         }
 
+        PublicKey publicKey = applePublicKey(header.path("kid").asText(), header.path("alg").asText());
+        Claims claims = parseAppleJwt(token, publicKey);
         validateAudience(claims);
         return claims;
+    }
+
+    private Claims parseAppleJwt(final String token, final PublicKey publicKey) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(publicKey)
+                    .requireIssuer(APPLE_ISSUER)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (Exception exception) {
+            throw invalidAppleLogin();
+        }
     }
 
     private PublicKey applePublicKey(final String keyId, final String algorithm) {
@@ -212,6 +290,52 @@ public class AppleAuthService {
         return trimmedFirst != null ? trimmedFirst : trimToNull(second);
     }
 
+    private void appendAppleEvents(
+            final List<AppleServerNotificationEvent> events,
+            final JsonNode node,
+            final String defaultProviderId,
+            final String defaultType
+    ) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return;
+        }
+
+        if (node.isArray()) {
+            for (JsonNode eventNode : node) {
+                appendAppleEvents(events, eventNode, defaultProviderId, defaultType);
+            }
+            return;
+        }
+
+        if (!node.isObject()) {
+            return;
+        }
+
+        if (node.has("type") || node.has("sub")) {
+            addAppleEvent(events, node, defaultProviderId, defaultType);
+            return;
+        }
+
+        Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+        while (fields.hasNext()) {
+            Map.Entry<String, JsonNode> field = fields.next();
+            appendAppleEvents(events, field.getValue(), defaultProviderId, field.getKey());
+        }
+    }
+
+    private void addAppleEvent(
+            final List<AppleServerNotificationEvent> events,
+            final JsonNode node,
+            final String defaultProviderId,
+            final String defaultType
+    ) {
+        String type = firstNonBlank(node.path("type").asText(null), defaultType);
+        String providerId = firstNonBlank(node.path("sub").asText(null), defaultProviderId);
+        if (type != null && providerId != null) {
+            events.add(new AppleServerNotificationEvent(type, providerId));
+        }
+    }
+
     private String trimToNull(final String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
     }
@@ -220,6 +344,12 @@ public class AppleAuthService {
         return new DefaultAuthenticationException(ErrorCode.INVALID_AUTHENTICATION);
     }
 
-    public record AppleAccount(String providerId, String email) {
+    public record AppleAccount(String providerId, String email, String refreshToken) {
+    }
+
+    public record AppleServerNotificationEvent(String type, String providerId) {
+    }
+
+    private record AppleTokenResponse(String identityToken, String refreshToken) {
     }
 }

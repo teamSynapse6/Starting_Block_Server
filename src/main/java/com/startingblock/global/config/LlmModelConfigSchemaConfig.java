@@ -56,9 +56,68 @@ public class LlmModelConfigSchemaConfig {
 
             jdbcTemplate.execute("""
                     ALTER TABLE `user`
+                    MODIFY COLUMN birth DATE NULL
+                    """);
+
+            jdbcTemplate.execute("""
+                    ALTER TABLE `user`
+                    MODIFY COLUMN residence VARCHAR(255) NULL
+                    """);
+
+            jdbcTemplate.execute("""
+                    ALTER TABLE `user`
                     MODIFY COLUMN provider ENUM('KAKAO', 'APPLE') NULL
                     """);
+
+            if (!columnExists(jdbcTemplate, "user", "provider_refresh_token")) {
+                jdbcTemplate.execute("""
+                        ALTER TABLE `user`
+                        ADD COLUMN provider_refresh_token TEXT NULL
+                        """);
+            }
+
+            dropUniqueIndexesOnColumn(jdbcTemplate, "user", "email");
+            dropUniqueIndexesOnColumn(jdbcTemplate, "user", "provider_id");
         };
+    }
+
+    private static boolean columnExists(final JdbcTemplate jdbcTemplate, final String tableName, final String columnName) {
+        Integer count = jdbcTemplate.queryForObject(
+                """
+                        SELECT COUNT(*)
+                        FROM INFORMATION_SCHEMA.COLUMNS
+                        WHERE TABLE_SCHEMA = DATABASE()
+                          AND TABLE_NAME = ?
+                          AND COLUMN_NAME = ?
+                        """,
+                Integer.class,
+                tableName,
+                columnName
+        );
+        return count != null && count > 0;
+    }
+
+    private static void dropUniqueIndexesOnColumn(
+            final JdbcTemplate jdbcTemplate,
+            final String tableName,
+            final String columnName
+    ) {
+        jdbcTemplate.queryForList(
+                """
+                        SELECT DISTINCT INDEX_NAME
+                        FROM INFORMATION_SCHEMA.STATISTICS
+                        WHERE TABLE_SCHEMA = DATABASE()
+                          AND TABLE_NAME = ?
+                          AND COLUMN_NAME = ?
+                          AND NON_UNIQUE = 0
+                          AND INDEX_NAME <> 'PRIMARY'
+                        """,
+                String.class,
+                tableName,
+                columnName
+        ).forEach(indexName -> jdbcTemplate.execute(
+                "ALTER TABLE `" + tableName + "` DROP INDEX `" + indexName + "`"
+        ));
     }
 
     private static void addDependsOn(

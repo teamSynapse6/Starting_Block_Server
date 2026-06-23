@@ -6,6 +6,7 @@ import com.startingblock.domain.auth.application.CustomUserDetailsService;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -69,6 +70,8 @@ public class SecurityConfig {
                         .permitAll()
                         .requestMatchers("/swagger", "/swagger/", "/swagger-ui.html", "/swagger-ui/**", "/api-docs", "/api-docs/**", "/v3/api-docs/**")
                         .permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/auth/inactive")
+                        .authenticated()
                         .requestMatchers("/login/**","/auth/**", "/oauth2/**", "/api/v1/web/**")
                         .permitAll()
                         .requestMatchers("/validation", "/announcement", "/announcement/**", "/llm/**")

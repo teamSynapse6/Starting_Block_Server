@@ -8,11 +8,11 @@ import java.time.LocalDate;
 @Data
 public class SignUpUserReq {
 
-    @Schema(type = "string", example = "1996-01-01", description = "생년월일")
+    @Schema(type = "string", example = "1996-01-01", description = "생년월일", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private LocalDate birth;
     @Schema(type = "boolean", example = "true", description = "사업자등록여부")
     private Boolean isCompletedBusinessRegistration;
-    @Schema(type = "string", example = "서울", description = "거주지")
+    @Schema(type = "string", example = "서울", description = "거주지", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private String residence;
     @Schema(type = "string", example = "서울대학교", description = "대학교")
     private String university;

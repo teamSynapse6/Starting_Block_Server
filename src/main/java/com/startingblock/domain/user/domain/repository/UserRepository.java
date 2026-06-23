@@ -1,8 +1,10 @@
 package com.startingblock.domain.user.domain.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.startingblock.domain.common.Status;
+import com.startingblock.domain.user.domain.Provider;
 import com.startingblock.domain.user.domain.User;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,6 +16,8 @@ public interface UserRepository extends JpaRepository<User,Long>{
     Optional<User> findByEmailAndStatus(String email, Status status);
 
     Optional<User> findByProviderIdAndStatus(String providerId, Status status);
+
+    List<User> findAllByProviderAndProviderIdAndStatus(Provider provider, String providerId, Status status);
 
     Boolean existsByNickname(String username);
 

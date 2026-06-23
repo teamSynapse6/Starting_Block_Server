@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.startingblock.domain.user.domain.Provider;
 import com.startingblock.domain.user.domain.Role;
 import com.startingblock.domain.user.domain.User;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,8 +19,10 @@ public class UserDto {
     @JsonProperty("user_id")
     private Long userId;
     private String nickname;
+    @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private LocalDate birth;
     private Boolean isCompletedBusinessRegistration;
+    @Schema(nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
     private String residence;
     private String university;
     private String email;

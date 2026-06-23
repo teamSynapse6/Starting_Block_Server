@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -295,10 +296,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .selectFrom(announcement)
                 .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
                 .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO)
-                        .and(
-                                isUserAreaAndSupportTypeMatch(user)
-                                        .or(announcementSupportTypeMatchesRoadmapTitle(user))
-                        )
+                        .and(customRecommendationExpression(user))
                         .and(
                                 announcement.endDate.isNull()
                                         .or(announcement.endDate.after(LocalDateTime.now()))
@@ -336,10 +334,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                 .selectFrom(announcement)
                 .leftJoin(roadmapAnnouncement).on(roadmapAnnouncement.announcement.eq(announcement))
                 .where(announcement.announcementType.in(AnnouncementType.OPEN_DATA, AnnouncementType.BIZ_INFO)
-                        .and(
-                                isUserAreaAndSupportTypeMatch(user)
-                                        .or(announcementSupportTypeMatchesRoadmapTitle(user))
-                        )
+                        .and(customRecommendationExpression(user))
                         .and(
                                 announcement.endDate.isNull()
                                         .or(announcement.endDate.after(LocalDateTime.now()))
@@ -517,7 +512,16 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
         };
     }
 
-    private BooleanExpression isUserAreaAndSupportTypeMatch(User user) {
+    private BooleanExpression customRecommendationExpression(final User user) {
+        BooleanExpression roadmapExpression = announcementSupportTypeMatchesRoadmapTitle(user);
+        BooleanExpression areaExpression = isUserAreaAndSupportTypeMatch(user);
+        return areaExpression == null ? roadmapExpression : areaExpression.or(roadmapExpression);
+    }
+
+    private BooleanExpression isUserAreaAndSupportTypeMatch(final User user) {
+        if (user == null || !StringUtils.hasText(user.getResidence())) {
+            return null;
+        }
         return announcement.areaName.eq(user.getResidence());
     }
 
