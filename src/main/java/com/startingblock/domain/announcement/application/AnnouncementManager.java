@@ -32,6 +32,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class AnnouncementManager {
 
+    private static final String BIZ_INFO_BASE_URL = "https://www.bizinfo.go.kr";
+
     private final OpenDataClient openDataClient;
     private final BizInfoClient bizInfoClient;
     private final AnnouncementRepository announcementRepository;
@@ -246,12 +248,30 @@ public class AnnouncementManager {
                 .endDate(endDateTime)
                 .nonDate(nonDate)
                 .insertDate(LocalDateTime.parse(item.getCreatPnttm(), dateTimeFormatter))
-                .detailUrl("https://www.bizinfo.go.kr" + item.getPblancUrl())
+                .detailUrl(resolveBizInfoDetailUrl(item.getPblancUrl()))
                 .prchCnAdrNo(item.getRefrncNm())
                 .sprvInstClssCdNm(item.getJrsdInsttNm())
                 .bizPrchDprtNm(item.getExcInsttNm())
                 .blngGvDpCdNm(item.getJrsdInsttNm())
                 .announcementType(AnnouncementType.BIZ_INFO)
                 .build();
+    }
+
+    private String resolveBizInfoDetailUrl(String pblancUrl) {
+        if (pblancUrl == null || pblancUrl.isBlank()) {
+            return null;
+        }
+
+        String normalized = pblancUrl.trim();
+        if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+            return normalized;
+        }
+        if (normalized.startsWith("//")) {
+            return "https:" + normalized;
+        }
+        if (normalized.startsWith("/")) {
+            return BIZ_INFO_BASE_URL + normalized;
+        }
+        return BIZ_INFO_BASE_URL + "/" + normalized;
     }
 }

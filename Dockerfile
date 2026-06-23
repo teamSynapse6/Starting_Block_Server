@@ -13,8 +13,6 @@ RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
     && cp build/openapi/openapi.json src/main/resources/static/openapi.json \
     && ./gradlew bootJar -x test
 
-FROM qdrant/qdrant:latest AS qdrant
-
 # Debian 기반의 JRE 런타임 준비
 FROM eclipse-temurin:17-jre-jammy AS runtime-base
 
@@ -57,16 +55,11 @@ RUN --mount=type=cache,target=/root/.cache/uv,sharing=locked \
 FROM ai-rag-deps AS runtime
 
 COPY ai-rag /app/ai-rag
-COPY --from=qdrant /qdrant/qdrant /usr/local/bin/qdrant
-COPY --from=qdrant /qdrant/config /qdrant/config
-COPY --from=qdrant /qdrant/static /qdrant/static
 
 COPY --from=builder /workspace/build/libs/*.jar /app/app.jar
 COPY deploy/docker/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 8080
-EXPOSE 6333
-EXPOSE 6334
 
 ENTRYPOINT ["/app/entrypoint.sh"]

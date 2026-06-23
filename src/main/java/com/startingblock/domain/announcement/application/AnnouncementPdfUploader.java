@@ -42,10 +42,6 @@ public class AnnouncementPdfUploader {
                     log.warn("공고 파일 확장자 확인 실패 announcementId={}, fileUrl={}", announcement.getId(), announcement.getFileUrl());
                     return;
                 }
-                if (isIgnoredExtension(extension)) {
-                    log.info("이미지 파일 업로드 제외 announcementId={}, extension={}", announcement.getId(), extension);
-                    return;
-                }
                 if (!isSupportedExtension(extension)) {
                     log.warn("지원하지 않는 공고 파일 형식 announcementId={}, extension={}, fileUrl={}",
                             announcement.getId(), extension, announcement.getFileUrl());
@@ -120,12 +116,11 @@ public class AnnouncementPdfUploader {
         return normalized.substring(index + 1).toLowerCase(Locale.ROOT);
     }
 
-    private boolean isIgnoredExtension(String extension) {
-        return Set.of("png", "jpg", "jpeg", "gif", "webp", "bmp").contains(extension);
-    }
-
     private boolean isSupportedExtension(String extension) {
-        return Set.of("pdf", "hwp", "hwpx", "txt").contains(extension);
+        return Set.of(
+                "pdf", "hwp", "hwpx", "txt",
+                "png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "heic", "heif"
+        ).contains(extension);
     }
 
 }

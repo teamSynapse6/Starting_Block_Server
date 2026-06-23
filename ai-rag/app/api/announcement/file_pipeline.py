@@ -1,11 +1,29 @@
 import fitz
 import olefile
+import os
 import zlib
 import struct
 import re
+import subprocess
+import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
 from io import BytesIO
+
+from app.core.config import OCR_MODEL, OCR_PROMPT, OCR_TIMEOUT_SECONDS, OLLAMA_BASE_URL
+
+
+IMAGE_FORMAT_SIGNATURES: tuple[tuple[str, bytes], ...] = (
+    ("png", b"\x89PNG\r\n\x1a\n"),
+    ("jpg", b"\xff\xd8\xff"),
+    ("gif", b"GIF87a"),
+    ("gif", b"GIF89a"),
+    ("webp", b"RIFF"),
+    ("bmp", b"BM"),
+    ("tiff", b"II*\x00"),
+    ("tiff", b"MM\x00*"),
+    ("heic", b"\x00\x00\x00"),
+)
 
 
 def detect_file_format(file_bytes: bytes) -> str:
@@ -15,9 +33,51 @@ def detect_file_format(file_bytes: bytes) -> str:
         return "hwp"
     if _is_hwpx_file(file_bytes):
         return "hwpx"
+    image_format = detect_image_format(file_bytes)
+    if image_format:
+        return image_format
     if _is_text_file(file_bytes):
         return "txt"
     return "unknown"
+
+
+def detect_image_format(file_bytes: bytes) -> str | None:
+    for image_format, signature in IMAGE_FORMAT_SIGNATURES:
+        if file_bytes.startswith(signature):
+            if image_format == "webp" and file_bytes[8:12] != b"WEBP":
+                continue
+            if image_format == "heic":
+                header = file_bytes[:32]
+                if b"ftyp" not in header or not any(brand in header for brand in (b"heic", b"heix", b"hevc", b"hevx", b"mif1", b"msf1")):
+                    continue
+            return image_format
+    return None
+
+
+def is_image_format(file_format: str) -> bool:
+    return file_format.lower() in {
+        "png",
+        "jpg",
+        "jpeg",
+        "gif",
+        "webp",
+        "bmp",
+        "tif",
+        "tiff",
+        "heic",
+        "heif",
+    }
+
+
+def normalize_file_format(file_format: str) -> str:
+    normalized = file_format.strip().lower()
+    if normalized == "jpeg":
+        return "jpg"
+    if normalized == "tif":
+        return "tiff"
+    if normalized == "heif":
+        return "heic"
+    return normalized
 
 
 def _is_hwpx_file(file_bytes: bytes) -> bool:
@@ -124,3 +184,51 @@ def convert_hwpx_bytes_to_text(file_bytes: bytes) -> str:
 
     extracted_text = "\n".join(text_parts)
     return re.sub(r"[^\w\s,.!?;:()가-힣]", "", extracted_text)
+
+
+def convert_image_bytes_to_text(file_bytes: bytes, image_format: str) -> str:
+    suffix = f".{normalize_file_format(image_format)}"
+    temp_file_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            temp_file.write(file_bytes)
+            temp_file_path = temp_file.name
+
+        prompt = f"{temp_file_path}\n{OCR_PROMPT}"
+        result = subprocess.run(
+            ["ollama", "run", OCR_MODEL, prompt],
+            text=True,
+            capture_output=True,
+            timeout=OCR_TIMEOUT_SECONDS,
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()
+            raise RuntimeError(f"OCR failed exit={result.returncode}: {detail}")
+        return (result.stdout or "").strip()
+    except FileNotFoundError:
+        from ollama import Client
+
+        client = Client(host=OLLAMA_BASE_URL)
+        response = client.chat(
+            model=OCR_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": OCR_PROMPT,
+                    "images": [temp_file_path],
+                }
+            ],
+        )
+        message = getattr(response, "message", None)
+        if message is not None:
+            if hasattr(message, "content"):
+                return getattr(message, "content", "") or ""
+            if isinstance(message, dict):
+                return message.get("content", "")
+        if isinstance(response, dict):
+            return response.get("message", {}).get("content", "")
+        return ""
+    finally:
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)

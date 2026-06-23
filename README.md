@@ -1,23 +1,20 @@
 # Starting Block Server
 
-Spring Boot 서버 안에서 Python AI/RAG CLI와 Qdrant를 함께 실행하는 서버 프로젝트입니다.
+Spring Boot 서버와 Python AI/RAG CLI를 실행하고, proxy 컨테이너 안의 FalkorDB를 RAG 저장소로 사용하는 서버 프로젝트입니다.
 외부로 공개되는 포트는 nginx 프록시의 `18200` 하나입니다.
 
 ## 실행 구조
 
 - `startingblock-proxy`: 외부 요청을 받는 nginx 프록시 (`localhost:18200`)
-- `startingblock-proxy` 내부 Redis: LLM 응답 진행 상태 저장소
-- `startingblock-spring-blue`: Spring Boot + Python AI/RAG CLI + Qdrant
+- `startingblock-proxy` 내부 FalkorDB/Redis: RAG 그래프 저장소 + LLM 응답 진행 상태 저장소
+- `startingblock-spring-blue`: Spring Boot + Python AI/RAG CLI
 - `startingblock-spring-green`: 다음 배포를 위한 대기 컨테이너
 
 MySQL, MinIO, Ollama는 서버에 설치된 인스턴스를 사용합니다. Redis는
-`startingbloakc:nginx` 프록시 이미지 안에서 함께 실행합니다. Docker Compose에서
-별도 MySQL, MinIO, Qdrant, Redis 컨테이너를 만들지 않습니다.
+`startingbloakc:nginx` 프록시 이미지 안의 FalkorDB Redis 프로토콜을 함께 사용합니다.
+Docker Compose에서 별도 MySQL, MinIO, Qdrant, Redis, FalkorDB 컨테이너를 만들지 않습니다.
 
-Qdrant는 Spring 컨테이너 내부에서 실행되며 색상별로 저장 경로를 분리합니다.
-
-- blue: `/data/qdrant-blue`
-- green: `/data/qdrant-green`
+FalkorDB는 proxy 컨테이너 내부에서 실행되며 호스트 `/data/falkordb`에 영속 저장합니다.
 
 ## 환경 변수
 
@@ -30,7 +27,7 @@ cp .env.example .env
 - MySQL: `DB_HOST_FOR_CONTAINER`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`
 - MinIO: `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`
 - Ollama: `OLLAMA_BASE_URL`, `OLLAMA_MODEL`
-- Redis: `REDIS_URL`
+- Redis/FalkorDB: `REDIS_URL`, `FALKORDB_HOST`, `FALKORDB_PORT`, `FALKORDB_GRAPH_NAME`
 - 외부 포트: `SERVER_PORT=18200`
 
 컨테이너에서 서버에 설치된 MySQL, MinIO, Ollama로 접근할 때는
@@ -39,7 +36,7 @@ cp .env.example .env
 ## 최초 실행
 
 ```bash
-docker compose up -d --build proxy
+docker compose up -d --build proxy spring-blue
 ```
 
 상태 확인:
@@ -47,14 +44,11 @@ docker compose up -d --build proxy
 ```bash
 curl http://localhost:18200/health
 docker compose exec proxy redis-cli ping
+docker compose exec proxy redis-cli GRAPH.LIST
 ```
 
-컨테이너 내부 Qdrant 확인:
-
-```bash
-docker compose exec spring-blue curl http://127.0.0.1:6333/healthz
-docker compose exec spring-blue curl http://127.0.0.1:6333/collections
-```
+`proxy`만 단독 실행하면 FalkorDB/Redis 상태 확인은 가능하지만, Spring 컨테이너가 없으므로
+`/health`는 502로 응답할 수 있습니다.
 
 ## AI/RAG 초기화
 
@@ -119,11 +113,44 @@ LLM_GPU_WAIT_TIMEOUT_SECONDS=600
 docker compose run --rm --entrypoint /opt/ai-rag-venv/bin/python spring-blue -m app.scripts.download_embedding_model
 ```
 
-기존 `processed_file/{announcement_id}.txt` 파일을 MinIO와 Qdrant에 백필:
+기존 `processed_file/{announcement_id}.txt` 파일을 MinIO와 FalkorDB에 백필:
 
 ```bash
 docker compose exec spring-blue /opt/ai-rag-venv/bin/python -m app.scripts.migrate_processed_to_minio
-docker compose exec spring-blue /opt/ai-rag-venv/bin/python -m app.scripts.backfill_embeddings
+docker compose exec spring-blue /opt/ai-rag-venv/bin/python -m app.scripts.backfill_embeddings --num-gpus 2 --announcement-batch-size 16 --prefetch-batches 1 --cuda-empty-cache-every 1
+```
+
+FalkorDB에 저장된 RAG graph 데이터를 모두 삭제하려면 먼저 dry-run으로 대상 graph를 확인합니다.
+이 명령은 같은 Redis 인스턴스에 저장된 LLM 진행 상태 키는 지우지 않고 FalkorDB graph만 삭제합니다.
+
+```bash
+docker compose exec spring-blue /opt/ai-rag-venv/bin/python -m app.scripts.clear_falkordb_graph
+```
+
+확인 후 실제 삭제:
+
+```bash
+docker compose exec spring-blue /opt/ai-rag-venv/bin/python -m app.scripts.clear_falkordb_graph --yes
+```
+
+전체 재백필을 처음부터 다시 수행하려면 백필 checkpoint도 함께 삭제합니다.
+
+```bash
+docker compose exec spring-blue rm -f /app/ai-rag/app/data/backfill_falkordb.done
+docker compose exec spring-blue /opt/ai-rag-venv/bin/python -m app.scripts.backfill_embeddings --num-gpus 2 --announcement-batch-size 16 --prefetch-batches 1 --cuda-empty-cache-every 1
+```
+
+FalkorDB 전환 전 Qdrant와 검색 결과를 비교하려면 새 코드가 올라간 타겟 컨테이너에서, 아직 떠 있는 이전 Spring 컨테이너의 Qdrant URL을 지정해 아래 스크립트를 실행합니다.
+
+```bash
+docker compose exec spring-green env QDRANT_URL=http://startingblock-spring-blue:6333 \
+  /opt/ai-rag-venv/bin/python -m app.scripts.compare_falkordb_qdrant --limit 5 --backfill-falkor
+```
+
+FalkorDB 검색 결과가 더 낫다고 판단되어 전환이 완료되면 기존 Qdrant 데이터는 호스트에서 삭제합니다.
+
+```bash
+sudo rm -rf /data/qdrant-blue /data/qdrant-green
 ```
 
 ## 무중단 배포
@@ -143,7 +170,7 @@ docker compose exec spring-blue /opt/ai-rag-venv/bin/python -m app.scripts.backf
 새 컨테이너의 `/health`가 정상 응답해야 트래픽을 전환합니다. 전환 후 기존
 컨테이너는 빠른 롤백을 위해 기본적으로 유지합니다.
 
-타겟 컨테이너에서 MinIO 마이그레이션과 Qdrant 백필까지 실행한 뒤 전환하려면:
+타겟 컨테이너에서 MinIO 마이그레이션과 FalkorDB 백필까지 실행한 뒤 전환하려면:
 
 ```bash
 RUN_BACKFILL=true ./deploy/blue-green-deploy.sh
@@ -166,4 +193,4 @@ http://localhost:18200
 외부로 노출하지 않아야 하는 포트:
 
 - 서버 MySQL `3306`
-- 컨테이너 내부 Qdrant `6333`
+- proxy 내부 FalkorDB/Redis `6379`

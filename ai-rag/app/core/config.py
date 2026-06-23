@@ -71,6 +71,18 @@ QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "announcement_chunk
 QDRANT_SERVICE_NAME = os.getenv("QDRANT_SERVICE_NAME", "startingblock-qdrant")
 QDRANT_STORAGE_ROOT = os.getenv("QDRANT_STORAGE_ROOT", "/data/qdrant")
 
+FALKORDB_HOST = os.getenv("FALKORDB_HOST", "127.0.0.1")
+FALKORDB_PORT = int(os.getenv("FALKORDB_PORT", "6379"))
+FALKORDB_PASSWORD = os.getenv("FALKORDB_PASSWORD", "")
+FALKORDB_GRAPH_NAME = os.getenv("FALKORDB_GRAPH_NAME", "announcement_chunks")
+FALKORDB_QUERY_TIMEOUT_MS = int(os.getenv("FALKORDB_QUERY_TIMEOUT_MS", "60000"))
+FALKORDB_VECTOR_CANDIDATE_MULTIPLIER = int(os.getenv("FALKORDB_VECTOR_CANDIDATE_MULTIPLIER", "20"))
+FALKORDB_KEYWORD_CANDIDATE_LIMIT = int(os.getenv("FALKORDB_KEYWORD_CANDIDATE_LIMIT", "200"))
+
+OCR_MODEL = os.getenv("OCR_MODEL", "deepseek-ocr:latest")
+OCR_PROMPT = os.getenv("OCR_PROMPT", "Extract the text in the image.")
+OCR_TIMEOUT_SECONDS = int(os.getenv("OCR_TIMEOUT_SECONDS", "180"))
+
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "intfloat/multilingual-e5-large-instruct")
 EMBEDDING_MODEL_REPO_ID = os.getenv("EMBEDDING_MODEL_REPO_ID", EMBEDDING_MODEL_NAME)
 EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "cpu")
@@ -79,9 +91,10 @@ EMBEDDING_MODEL_LOCAL_PATH = os.getenv(
 	str(BASE_DIR / "app" / "data" / "models" / "intfloat__multilingual-e5-large-instruct"),
 )
 RAG_CONTEXT_MAX_CHARS = int(os.getenv("RAG_CONTEXT_MAX_CHARS", "4000"))
-RAG_TOP_K = int(os.getenv("RAG_TOP_K", "5"))
-RAG_CHUNK_SIZE = int(os.getenv("RAG_CHUNK_SIZE", "1000"))
-RAG_CHUNK_OVERLAP = int(os.getenv("RAG_CHUNK_OVERLAP", "200"))
+RAG_TOP_K = int(os.getenv("RAG_TOP_K", "3"))
+RAG_CHUNK_SIZE = int(os.getenv("RAG_CHUNK_SIZE", "200"))
+RAG_CHUNK_OVERLAP = int(os.getenv("RAG_CHUNK_OVERLAP", "50"))
+RAG_RAW_DATA_RETRIEVE = _env_bool("RAG_RAW_DATA_RETRIEVE", False)
 
 INDEXING_POLL_INTERVAL_SECONDS = int(os.getenv("INDEXING_POLL_INTERVAL_SECONDS", "2"))
 INDEXING_BATCH_SIZE = int(os.getenv("INDEXING_BATCH_SIZE", "16"))

@@ -47,7 +47,7 @@ def get_announcement(args: argparse.Namespace) -> int:
 
 
 def delete_announcement(_args: argparse.Namespace) -> int:
-    from app.api.announcement.vector_indexer import AnnouncementVectorIndexer
+    from app.api.announcement.falkor_indexer import AnnouncementFalkorIndexer
     from app.core.config import EMBEDDING_DEVICE
     from app.core.storage import MinioStorage
 
@@ -62,7 +62,7 @@ def delete_announcement(_args: argparse.Namespace) -> int:
 
     storage = MinioStorage()
     storage.ensure_bucket()
-    indexer = AnnouncementVectorIndexer(EMBEDDING_DEVICE)
+    indexer = AnnouncementFalkorIndexer(EMBEDDING_DEVICE)
     indexer.ensure_ready()
 
     deleted_items: list[int] = []
@@ -142,12 +142,15 @@ def upload(_args: argparse.Namespace) -> int:
     import httpx
 
     from app.api.announcement.file_pipeline import (
+        convert_image_bytes_to_text,
         convert_hwp_path_to_text,
         convert_hwpx_bytes_to_text,
         convert_pdf_bytes_to_text,
         detect_file_format,
+        is_image_format,
+        normalize_file_format,
     )
-    from app.api.announcement.vector_indexer import AnnouncementVectorIndexer
+    from app.api.announcement.falkor_indexer import AnnouncementFalkorIndexer
     from app.core.config import EMBEDDING_DEVICE
     from app.core.db_models import ensure_database_and_tables
     from app.core.storage import MinioStorage
@@ -160,7 +163,7 @@ def upload(_args: argparse.Namespace) -> int:
     ensure_database_and_tables()
     storage = MinioStorage()
     storage.ensure_bucket()
-    indexer = AnnouncementVectorIndexer(EMBEDDING_DEVICE)
+    indexer = AnnouncementFalkorIndexer(EMBEDDING_DEVICE)
     indexer.ensure_ready()
 
     success_items: list[int] = []
@@ -170,8 +173,8 @@ def upload(_args: argparse.Namespace) -> int:
     with httpx.Client(timeout=30.0) as client:
         for item in items:
             file_id = int(item["id"])
-            file_format = str(item["format"]).lower()
-            if file_format not in {"hwp", "hwpx", "pdf", "txt"}:
+            file_format = normalize_file_format(str(item["format"]))
+            if file_format not in {"hwp", "hwpx", "pdf", "txt"} and not is_image_format(file_format):
                 failed_items.append(file_id)
                 continue
 
@@ -181,7 +184,7 @@ def upload(_args: argparse.Namespace) -> int:
                 response.raise_for_status()
                 file_bytes = response.content
 
-                actual_format = detect_file_format(file_bytes)
+                actual_format = normalize_file_format(detect_file_format(file_bytes))
                 if actual_format != file_format:
                     raise ValueError(f"expected {file_format}, got {actual_format}")
 
@@ -196,6 +199,8 @@ def upload(_args: argparse.Namespace) -> int:
                     text = convert_hwp_path_to_text(temp_file_path)
                 elif actual_format == "hwpx":
                     text = convert_hwpx_bytes_to_text(file_bytes)
+                elif is_image_format(actual_format):
+                    text = convert_image_bytes_to_text(file_bytes, actual_format)
                 else:
                     text = file_bytes.decode("utf-8", errors="replace")
 
@@ -529,10 +534,10 @@ def llm_history(args: argparse.Namespace) -> int:
 
 
 def llm_retrieval(_args: argparse.Namespace) -> int:
-    from app.api.announcement.vector_indexer import AnnouncementVectorIndexer
+    from app.api.announcement.falkor_indexer import AnnouncementFalkorIndexer
     from app.api.llm.generation_store import RedisGenerationStore
     from app.api.llm.session_store import MySQLSessionStore
-    from app.core.config import EMBEDDING_DEVICE, RAG_CONTEXT_MAX_CHARS, RAG_TOP_K
+    from app.core.config import EMBEDDING_DEVICE, RAG_CONTEXT_MAX_CHARS, RAG_RAW_DATA_RETRIEVE, RAG_TOP_K
     from app.core.db_models import ensure_database_and_tables
     from app.core.storage import MinioStorage
 
@@ -576,7 +581,7 @@ def llm_retrieval(_args: argparse.Namespace) -> int:
         storage.ensure_bucket()
 
         emit("status", {"stage": "vector_index_preparing"})
-        indexer = AnnouncementVectorIndexer(EMBEDDING_DEVICE)
+        indexer = AnnouncementFalkorIndexer(EMBEDDING_DEVICE)
         indexer.ensure_ready()
 
         session = store.get_session(thread_id)
@@ -655,7 +660,7 @@ def llm_retrieval(_args: argparse.Namespace) -> int:
         result = {
             "retrevial_result_num": len(retrieval_data),
             "retrevial_data": retrieval_data,
-            "raw_data": [announcement_text],
+            "raw_data": [announcement_text] if RAG_RAW_DATA_RETRIEVE else [""],
         }
         generation_store.update(thread_id, status="completed", stage="retrieval_completed", finished=True)
         emit("status", {"stage": "retrieval_completed", "chunk_count": len(retrieval_data)})
@@ -763,7 +768,7 @@ def llm_events(args: argparse.Namespace) -> int:
 async def _llm_chat_async() -> int:
     from ollama import RequestError, ResponseError
 
-    from app.api.announcement.vector_indexer import AnnouncementVectorIndexer
+    from app.api.announcement.falkor_indexer import AnnouncementFalkorIndexer
     from app.api.llm.client import create_llm_client
     from app.api.llm.generation_store import RedisGenerationStore
     from app.api.llm.session_store import MySQLSessionStore
@@ -803,7 +808,7 @@ async def _llm_chat_async() -> int:
     generation_store = RedisGenerationStore()
     storage = MinioStorage()
     storage.ensure_bucket()
-    indexer = AnnouncementVectorIndexer(EMBEDDING_DEVICE)
+    indexer = AnnouncementFalkorIndexer(EMBEDDING_DEVICE)
     indexer.ensure_ready()
     llm_client = create_llm_client()
 

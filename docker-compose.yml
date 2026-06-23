@@ -10,11 +10,10 @@ x-spring-environment: &spring-environment
   MYSQL_USER: ${DB_USERNAME:-root}
   MYSQL_PASSWORD: ${DB_PASSWORD:-startingblock}
   MYSQL_DB_NAME: ${DB_NAME:-startingblock}
-  QDRANT_URL: http://127.0.0.1:6333
-  QDRANT_HTTP_PORT: 6333
-  QDRANT_GRPC_PORT: 6334
-  QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-announcement_chunks}
-  QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+  FALKORDB_HOST: ${FALKORDB_HOST:-proxy}
+  FALKORDB_PORT: ${FALKORDB_PORT:-6379}
+  FALKORDB_PASSWORD: ${FALKORDB_PASSWORD:-}
+  FALKORDB_GRAPH_NAME: ${FALKORDB_GRAPH_NAME:-announcement_chunks}
   MINIO_ENDPOINT: ${MINIO_ENDPOINT:-host.docker.internal:9000}
   MODEL_DOWNLOAD_CHUNK_SIZE_BYTES: ${MODEL_DOWNLOAD_CHUNK_SIZE_BYTES:-104857600}
   KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:-local-disabled}
@@ -24,6 +23,9 @@ x-spring-environment: &spring-environment
   EMBEDDING_MODEL_LOCAL_PATH: /data/embedding-models/intfloat__multilingual-e5-large-instruct
   OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
   OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma4:e4b}
+  OCR_MODEL: ${OCR_MODEL:-deepseek-ocr:latest}
+  OCR_PROMPT: ${OCR_PROMPT:-Extract the text in the image.}
+  OCR_TIMEOUT_SECONDS: ${OCR_TIMEOUT_SECONDS:-180}
   OLLAMA_AUTO_START: ${OLLAMA_AUTO_START:-false}
   OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-60s}
   OLLAMA_THINK: ${OLLAMA_THINK:-true}
@@ -60,7 +62,6 @@ x-spring-common: &spring-common
       required: false
   expose:
     - "8080"
-    - "6333"
   extra_hosts:
     - "host.docker.internal:host-gateway"
   depends_on:
@@ -90,7 +91,7 @@ services:
       - "6379"
     volumes:
       - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /data/redis:/data/redis
+      - /data/falkordb:/var/lib/falkordb/data
 
   spring-blue:
     <<: *spring-common
@@ -98,10 +99,8 @@ services:
     environment:
       <<: *spring-environment
       SERVICE_COLOR: blue
-      QDRANT_STORAGE_PATH: /data/qdrant
     volumes:
       - /data/embedding-models:/data/embedding-models
-      - /data/qdrant-blue:/data/qdrant
       - ./secrets:/app/secrets:ro
 
   spring-green:
@@ -112,8 +111,6 @@ services:
     environment:
       <<: *spring-environment
       SERVICE_COLOR: green
-      QDRANT_STORAGE_PATH: /data/qdrant
     volumes:
       - /data/embedding-models:/data/embedding-models
-      - /data/qdrant-green:/data/qdrant
       - ./secrets:/app/secrets:ro
