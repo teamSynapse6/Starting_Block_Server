@@ -1,7 +1,10 @@
 package com.startingblock.domain.crawling.offcampus;
 
 import com.startingblock.domain.announcement.domain.Announcement;
+import com.startingblock.domain.mail.application.ContactEmailExtractor;
+import com.startingblock.domain.mail.domain.repository.ContactBlocklistRepository;
 import com.startingblock.domain.crawling.WebDriverManager;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -13,17 +16,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static com.startingblock.domain.crawling.offcampus.constant.OpenDataConstant.EMAIL_XPATH;
-import static com.startingblock.domain.crawling.offcampus.constant.OpenDataConstant.EMAIL_REGEX;
 import static com.startingblock.domain.crawling.offcampus.constant.OpenDataConstant.ONCE_POPUP;
 import static com.startingblock.domain.crawling.offcampus.constant.OpenDataConstant.CLOSE_POPUP;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class OpenData implements OffCampusCrawling {
+
+    private final ContactBlocklistRepository contactBlocklistRepository;
 
     @Override
     @Transactional
@@ -45,6 +48,9 @@ public class OpenData implements OffCampusCrawling {
                     if (email != null) { // 이메일이 존재하는 경우
                         log.info("email: {}", email);
                         announcement.updateContact(email);
+                        if (contactBlocklistRepository.existsByContactIgnoreCase(email.trim())) {
+                            announcement.blockContact();
+                        }
                     } else{
                         log.info("이메일이 존재하지 않음.");
                     }
@@ -60,30 +66,47 @@ public class OpenData implements OffCampusCrawling {
     }
 
     private String findEmail(WebDriver driver, WebDriverWait wait) {
+        String mailtoEmail = findMailtoEmail(driver);
+        if (mailtoEmail != null) {
+            log.info("이메일 mailto 링크에서 추출");
+            return mailtoEmail;
+        }
+
         try {
             WebElement emailElement = wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(EMAIL_XPATH)));
-            log.info("emailElement: {}", emailElement.getText());
-            return extractEmail(emailElement.getText());
+            String email = ContactEmailExtractor.extract(emailElement.getText()).orElse(null);
+            if (email != null) {
+                log.info("이메일 XPath 영역에서 추출");
+                return email;
+            }
+            log.info("이메일 XPath 영역에 이메일 없음, body fallback 시도");
         } catch (Exception exception) {
             log.warn("이메일 XPath 탐색 실패, body fallback 시도: {}", exception.getMessage());
         }
 
         try {
             WebElement body = driver.findElement(By.tagName("body"));
-            return extractEmail(body.getText());
+            return ContactEmailExtractor.extract(body.getText()).orElse(null);
         } catch (Exception exception) {
             log.warn("이메일 body fallback 실패: {}", exception.getMessage());
             return null;
         }
     }
 
-    private String extractEmail(String text) {
-        if (text == null || text.isBlank()) {
-            return null;
+    private String findMailtoEmail(WebDriver driver) {
+        try {
+            List<WebElement> links = driver.findElements(By.cssSelector("a[href^='mailto:']"));
+            for (WebElement link : links) {
+                String href = link.getAttribute("href");
+                String email = ContactEmailExtractor.extract(href).orElse(null);
+                if (email != null) {
+                    return email;
+                }
+            }
+        } catch (Exception exception) {
+            log.warn("mailto 이메일 탐색 실패: {}", exception.getMessage());
         }
-        Pattern pattern = Pattern.compile(EMAIL_REGEX);
-        Matcher matcher = pattern.matcher(text);
-        return matcher.find() ? matcher.group() : null;
+        return null;
     }
 
     public void closePopup(WebDriver driver) {

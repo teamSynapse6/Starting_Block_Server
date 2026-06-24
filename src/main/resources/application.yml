@@ -1,6 +1,10 @@
 spring:
   config:
     import: optional:file:.env[.properties]
+  cloud:
+    openfeign:
+      client:
+        decode-slash: false
   output:
     ansi:
       enabled: always
@@ -91,16 +95,20 @@ feign:
   client:
     service-key:
       open-data: ${OPEN_DATA_SERVICE_KEY:}
+      open-data-encoding: ${OPEN_DATA_ENCODING_KEY:${OPEN_DATA_SERVICE_KEY:}}
+      open-data-decoding: ${OPEN_DATA_DECODING_KEY:}
       biz-info: ${BIZ_INFO_SERVICE_KEY:}
 
 gpt:
   api-key: ${GPT_API_KEY:}
 
 ai-rag:
+  upload:
+    batch-size: ${AI_RAG_UPLOAD_BATCH_SIZE:20}
   cli:
     python-executable: ${AI_RAG_PYTHON_EXECUTABLE:python3}
     working-directory: ${AI_RAG_WORKING_DIRECTORY:ai-rag}
-    timeout-seconds: ${AI_RAG_CLI_TIMEOUT_SECONDS:600}
+    timeout-seconds: ${AI_RAG_CLI_TIMEOUT_SECONDS:3600}
   worker:
     enabled: ${AI_RAG_WORKER_ENABLED:true}
     idle-timeout-seconds: ${AI_RAG_WORKER_IDLE_TIMEOUT_SECONDS:60}
@@ -143,6 +151,12 @@ springdoc:
     filter: ${SWAGGER_FILTER:true}
     operations-sorter: method
     display-request-duration: ${SWAGGER_DISPLAY_REQUEST_DURATION:true}
+
+mail:
+  unsubscribe:
+    secret: ${MAIL_UNSUBSCRIBE_SECRET:${APP_AUTH_TOKEN_SECRET:change-me-local-token-secret-change-me}}
+    token-ttl-days: ${MAIL_UNSUBSCRIBE_TOKEN_TTL_DAYS:3650}
+    base-url: ${MAIL_UNSUBSCRIBE_BASE_URL:https://www.startingblock.co.kr/api/v1/web/mail/unsubscribe}
 
 logging:
   level:

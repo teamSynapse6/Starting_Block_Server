@@ -3,6 +3,7 @@ package com.startingblock.domain.web.presentation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.startingblock.domain.answer.application.AnswerService;
 import com.startingblock.domain.answer.dto.AnswerRequestDto;
+import com.startingblock.domain.mail.application.MailUnsubscribeService;
 import com.startingblock.domain.question.application.QuestionFindService;
 import com.startingblock.domain.question.dto.QuestionResponseDto;
 import com.startingblock.global.payload.ErrorResponse;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Web", description = "Web API")
@@ -32,6 +34,7 @@ public class WebController {
 
     private final AnswerService answerService;
     private final QuestionFindService questionFindService;
+    private final MailUnsubscribeService mailUnsubscribeService;
 
     // TODO: 웹 공고별 질문 조회 /api/v1/web/question
     @Operation(summary = "웹 공고별 질문 조회", description = "웹 공고별 질문 리스트 조회하기 API입니다.")
@@ -73,5 +76,23 @@ public class WebController {
     ) {
         answerService.sendContactAnswerAll(dto);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "문의처 메일 수신 거부", description = "문의처 담당자가 메일 수신을 거부하는 공개 API입니다.")
+    @GetMapping(value = "/mail/unsubscribe", produces = "text/html; charset=UTF-8")
+    public ResponseEntity<String> unsubscribeContactMail(
+            @Parameter(description = "수신 거부 토큰입니다.", required = true) @RequestParam final String token
+    ) {
+        mailUnsubscribeService.unsubscribe(token);
+        return ResponseEntity.ok("""
+                <!doctype html>
+                <html lang="ko">
+                <head><meta charset="UTF-8"><title>수신 거부 완료</title></head>
+                <body style="font-family: sans-serif; padding: 40px; line-height: 1.6;">
+                  <h1>수신 거부가 완료되었습니다.</h1>
+                  <p>해당 공고에 대한 스타팅블록 문의 메일은 더 이상 발송되지 않습니다.</p>
+                </body>
+                </html>
+                """);
     }
 }

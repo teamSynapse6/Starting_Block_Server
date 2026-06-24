@@ -3,10 +3,12 @@ package com.startingblock.domain.announcement.application;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.AnnouncementType;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
+import com.startingblock.domain.mail.application.ContactEmailExtractor;
 import com.startingblock.global.config.FeignConfig;
 import com.startingblock.global.infrastructure.feign.BizInfoClient;
 import com.startingblock.global.infrastructure.feign.OpenDataClient;
 import com.startingblock.global.infrastructure.feign.dto.BizInfoAnnouncementRes;
+import com.startingblock.global.infrastructure.feign.dto.KStartUpAnnouncementRes;
 import com.startingblock.global.infrastructure.feign.dto.NewKStartUpAnnouncementRes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -88,33 +90,39 @@ public class AnnouncementManager {
 
     public List<Announcement> getOpenDataAnnouncementsSync(DateTimeFormatter dateFormatter, LocalDate now, List<String> postIds, List<String> openDataPostIds) {
         List<Announcement> openDataAnnouncements = new ArrayList<>();
+        String openDataServiceKey = feignConfig.getServiceKey().resolveOpenDataRequestKey();
         for (int page = 1; page <= 2; page++) {
-            NewKStartUpAnnouncementRes response = openDataClient.getNewAnnouncementList(
-                    feignConfig.getServiceKey().getOpenData(),
-                    String.valueOf(page),
-                    String.valueOf(2000),
-                    "json"
-            );
+            try {
+                NewKStartUpAnnouncementRes response = openDataClient.getNewAnnouncementList(
+                        openDataServiceKey,
+                        String.valueOf(page),
+                        String.valueOf(200),
+                        "json"
+                );
 
-            List<NewKStartUpAnnouncementRes.Item> data = Optional.ofNullable(response.getData()).orElseGet(List::of);
-            log.info("K-Startup 공고 조회 page={}, currentCount={}, totalCount={}, dataSize={}",
-                    page, response.getCurrentCount(), response.getTotalCount(), data.size());
+                List<NewKStartUpAnnouncementRes.Item> data = Optional.ofNullable(response.getData()).orElseGet(List::of);
+                log.info("K-Startup 공고 조회 page={}, currentCount={}, totalCount={}, dataSize={}",
+                        page, response.getCurrentCount(), response.getTotalCount(), data.size());
 
-            List<Announcement> announcements = data.stream()
-                    .map(item -> {
-                        try {
-                            return toOpenDataAnnouncement(item, dateFormatter, now, postIds, openDataPostIds);
-                        } catch (Exception exception) {
-                            log.warn("K-Startup 공고 변환 실패 id={}, detailUrl={}, title={}",
-                                    item.getId(), item.getDetlPgUrl(), item.getBizPbancNm(), exception);
-                            return null;
-                        }
-                    })
-                    .filter(Objects::nonNull)
-                    .distinct()
-                    .toList();
-            openDataAnnouncements.addAll(announcements);
-            log.info("K-Startup 신규 공고 후보 page={}, count={}", page, announcements.size());
+                List<Announcement> announcements = data.stream()
+                        .map(item -> {
+                            try {
+                                return toOpenDataAnnouncement(item, dateFormatter, now, postIds, openDataPostIds);
+                            } catch (Exception exception) {
+                                log.warn("K-Startup 공고 변환 실패 id={}, detailUrl={}, title={}",
+                                        item.getId(), item.getDetlPgUrl(), item.getBizPbancNm(), exception);
+                                return null;
+                            }
+                        })
+                        .filter(Objects::nonNull)
+                        .distinct()
+                        .toList();
+                openDataAnnouncements.addAll(announcements);
+                log.info("K-Startup 신규 공고 후보 page={}, count={}", page, announcements.size());
+            } catch (Exception exception) {
+                log.warn("K-Startup 신규 API 조회 실패 page={}, legacy fallback 실행", page, exception);
+                return getLegacyOpenDataAnnouncementsSync(dateFormatter, now, postIds, openDataPostIds);
+            }
         }
         return openDataAnnouncements;
     }
@@ -125,8 +133,8 @@ public class AnnouncementManager {
             return null;
         }
 
-        LocalDate startDate = LocalDate.parse(item.getPbancRcptBgngDt(), dateFormatter);
-        LocalDate endDate = LocalDate.parse(item.getPbancRcptEndDt(), dateFormatter);
+        LocalDate startDate = parseOpenDataDate(item.getPbancRcptBgngDt(), dateFormatter);
+        LocalDate endDate = parseOpenDataDate(item.getPbancRcptEndDt(), dateFormatter);
         if (endDate.isBefore(now)) {
             return null;
         }
@@ -161,6 +169,127 @@ public class AnnouncementManager {
                 .bizPrchDprtNm(item.getBizPrchDprtNm())
                 .announcementType(AnnouncementType.OPEN_DATA)
                 .build();
+    }
+
+    private List<Announcement> getLegacyOpenDataAnnouncementsSync(DateTimeFormatter dateFormatter, LocalDate now,
+                                                                  List<String> postIds, List<String> openDataPostIds) {
+        List<Announcement> openDataAnnouncements = new ArrayList<>();
+        String openDataServiceKey = feignConfig.getServiceKey().resolveOpenDataRequestKey();
+        for (int page = 1; page <= 5; page++) {
+            KStartUpAnnouncementRes response = openDataClient.getAnnouncementList(
+                    openDataServiceKey,
+                    String.valueOf(page),
+                    String.valueOf(100),
+                    now.minusYears(1).format(dateFormatter),
+                    now.plusYears(1).format(dateFormatter),
+                    "Y",
+                    "json"
+            );
+
+            List<KStartUpAnnouncementRes.Response.Body.ItemWrapper> data = Optional.ofNullable(response)
+                    .map(KStartUpAnnouncementRes::getResponse)
+                    .map(KStartUpAnnouncementRes.Response::getBody)
+                    .map(KStartUpAnnouncementRes.Response.Body::getItems)
+                    .orElseGet(List::of);
+            log.info("K-Startup legacy 공고 조회 page={}, dataSize={}", page, data.size());
+
+            List<Announcement> announcements = data.stream()
+                    .map(KStartUpAnnouncementRes.Response.Body.ItemWrapper::getItem)
+                    .filter(Objects::nonNull)
+                    .map(item -> {
+                        try {
+                            return toLegacyOpenDataAnnouncement(item, dateFormatter, now, postIds, openDataPostIds);
+                        } catch (Exception exception) {
+                            log.warn("K-Startup legacy 공고 변환 실패 postSn={}, detailUrl={}, title={}",
+                                    item.getPostsn(), item.getDetailurl(), item.getTitle(), exception);
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+            openDataAnnouncements.addAll(announcements);
+            if (data.size() < 100) {
+                break;
+            }
+        }
+        return openDataAnnouncements;
+    }
+
+    private Announcement toLegacyOpenDataAnnouncement(KStartUpAnnouncementRes.Response.Body.Item item,
+                                                      DateTimeFormatter dateFormatter, LocalDate now,
+                                                      List<String> postIds, List<String> openDataPostIds) {
+        if (item.getStartdate() == null || item.getEnddate() == null) {
+            return null;
+        }
+
+        LocalDate startDate = parseOpenDataDate(item.getStartdate(), dateFormatter);
+        LocalDate endDate = parseOpenDataDate(item.getEnddate(), dateFormatter);
+        if (endDate.isBefore(now)) {
+            return null;
+        }
+
+        String postSn = item.getPostsn();
+        if (postSn == null || postSn.isBlank() || postIds.contains(postSn) || openDataPostIds.contains(postSn)) {
+            return null;
+        }
+        openDataPostIds.add(postSn);
+
+        return Announcement.builder()
+                .postSN(postSn)
+                .bizTitle(item.getBiztitle())
+                .supportType(item.getSupporttype())
+                .title(item.getTitle())
+                .content(item.getTitle())
+                .areaName(item.getAreaname())
+                .organizationName(item.getOrganizationname())
+                .postTarget(item.getPosttarget())
+                .postTargetAge(item.getPosttargetage())
+                .postTargetComAge(item.getPosttargetcomage())
+                .startDate(startDate.atStartOfDay())
+                .endDate(endDate.atStartOfDay())
+                .insertDate(parseOpenDataDateTime(item.getInsertdate(), dateFormatter))
+                .detailUrl(item.getDetailurl())
+                .prchCnAdrNo(item.getPrchCnadrNo())
+                .sprvInstClssCdNm(item.getSprvInstClssCdNm())
+                .bizPrchDprtNm(item.getBizPrchDprtNm())
+                .blngGvDpCdNm(item.getBlngGvdpCdNm())
+                .announcementType(AnnouncementType.OPEN_DATA)
+                .build();
+    }
+
+    private LocalDate parseOpenDataDate(String value, DateTimeFormatter dateFormatter) {
+        if (value == null || value.isBlank()) {
+            throw new DateTimeParseException("empty date", "", 0);
+        }
+        String normalized = value.trim();
+        try {
+            return LocalDate.parse(normalized, dateFormatter);
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return LocalDate.parse(normalized, DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return LocalDateTime.parse(normalized, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).toLocalDate();
+        } catch (DateTimeParseException ignored) {
+        }
+        if (normalized.length() >= 10) {
+            return LocalDate.parse(normalized.substring(0, 10), DateTimeFormatter.ISO_LOCAL_DATE);
+        }
+        throw new DateTimeParseException("unsupported date", normalized, 0);
+    }
+
+    private LocalDateTime parseOpenDataDateTime(String value, DateTimeFormatter dateFormatter) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(value.trim(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        } catch (DateTimeParseException ignored) {
+            return parseOpenDataDate(value, dateFormatter).atStartOfDay();
+        }
     }
 
     private String resolveOpenDataPostSn(NewKStartUpAnnouncementRes.Item item) {
@@ -250,6 +379,7 @@ public class AnnouncementManager {
                 .insertDate(LocalDateTime.parse(item.getCreatPnttm(), dateTimeFormatter))
                 .detailUrl(resolveBizInfoDetailUrl(item.getPblancUrl()))
                 .prchCnAdrNo(item.getRefrncNm())
+                .contact(ContactEmailExtractor.extract(item.getRefrncNm()).orElse(null))
                 .sprvInstClssCdNm(item.getJrsdInsttNm())
                 .bizPrchDprtNm(item.getExcInsttNm())
                 .blngGvDpCdNm(item.getJrsdInsttNm())

@@ -82,6 +82,7 @@ FALKORDB_KEYWORD_CANDIDATE_LIMIT = int(os.getenv("FALKORDB_KEYWORD_CANDIDATE_LIM
 OCR_MODEL = os.getenv("OCR_MODEL", "deepseek-ocr:latest")
 OCR_PROMPT = os.getenv("OCR_PROMPT", "Extract the text in the image.")
 OCR_TIMEOUT_SECONDS = int(os.getenv("OCR_TIMEOUT_SECONDS", "180"))
+OCR_PDF_MAX_PAGES = int(os.getenv("OCR_PDF_MAX_PAGES", "10"))
 
 EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "intfloat/multilingual-e5-large-instruct")
 EMBEDDING_MODEL_REPO_ID = os.getenv("EMBEDDING_MODEL_REPO_ID", EMBEDDING_MODEL_NAME)

@@ -71,6 +71,9 @@ public class Announcement extends BaseEntity {
     @Column(name = "contact")
     private String contact; // 이메일
 
+    @Column(name = "contact_block")
+    private Boolean contactBlock;
+
     @Column(name = "sprv_inst_clss_cd_nm")
     private String sprvInstClssCdNm; // 기관구분
 
@@ -114,6 +117,10 @@ public class Announcement extends BaseEntity {
         this.contact = contact;
     }
 
+    public void blockContact() {
+        this.contactBlock = true;
+    }
+
     @Builder
     public Announcement(String postSN, String fileUrl, String bizTitle, String supportType, String title, String content, String areaName, String organizationName, String postTarget, String postTargetAge, String postTargetComAge, LocalDateTime startDate, LocalDateTime endDate, LocalDateTime insertDate, String nonDate, String detailUrl, String prchCnAdrNo, String contact, String sprvInstClssCdNm, String bizPrchDprtNm, String blngGvDpCdNm, AnnouncementType announcementType, University university, Keyword keyword) {
         this.postSN = postSN;
@@ -134,6 +141,7 @@ public class Announcement extends BaseEntity {
         this.detailUrl = detailUrl;
         this.prchCnAdrNo = prchCnAdrNo;
         this.contact = contact;
+        this.contactBlock = false;
         this.sprvInstClssCdNm = sprvInstClssCdNm;
         this.bizPrchDprtNm = bizPrchDprtNm;
         this.blngGvDpCdNm = blngGvDpCdNm;

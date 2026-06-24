@@ -7,17 +7,16 @@ import com.startingblock.global.infrastructure.feign.PdfClient;
 import com.startingblock.global.infrastructure.feign.dto.PdfUploadRes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpMethod;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -27,7 +26,9 @@ public class AnnouncementPdfUploader {
     private final PdfClient pdfClient;
     private final AnnouncementRepository announcementRepository;
 
-    @Transactional
+    @Value("${ai-rag.upload.batch-size:20}")
+    private int uploadBatchSize;
+
     @Scheduled(cron = "0 5 3 * * *")
     public void uploadPdf() {
         List<Announcement> announcements = announcementRepository.findFileUploadTargets();
@@ -39,8 +40,7 @@ public class AnnouncementPdfUploader {
             try {
                 String extension = resolveExtension(restClient, announcement.getFileUrl());
                 if (extension == null) {
-                    log.warn("공고 파일 확장자 확인 실패 announcementId={}, fileUrl={}", announcement.getId(), announcement.getFileUrl());
-                    return;
+                    extension = "unknown";
                 }
                 if (!isSupportedExtension(extension)) {
                     log.warn("지원하지 않는 공고 파일 형식 announcementId={}, extension={}, fileUrl={}",
@@ -64,25 +64,32 @@ public class AnnouncementPdfUploader {
             return;
         }
 
-        PdfUploadRes uploadRes = pdfClient.uploadPdf(req);
-        Set<Long> indexingFailedItems = uploadRes.getIndexing_failed_items() == null
-                ? Collections.emptySet()
-                : uploadRes.getIndexing_failed_items().stream().collect(Collectors.toSet());
-        Set<Long> successItems = uploadRes.getSuccess_items() == null
-                ? Collections.emptySet()
-                : uploadRes.getSuccess_items().stream()
-                .filter(id -> !indexingFailedItems.contains(id))
-                .collect(Collectors.toSet());
+        int successCount = 0;
+        int failedCount = 0;
+        int indexingFailedCount = 0;
+        int indexingQueuedCount = 0;
 
-        announcements.stream()
-                .filter(announcement -> successItems.contains(announcement.getId()))
-                .forEach(announcement -> announcement.updateIsFileUploaded(true));
+        int batchSize = Math.max(uploadBatchSize, 1);
+        for (int start = 0; start < req.size(); start += batchSize) {
+            List<PdfUploadReq> batch = req.subList(start, Math.min(start + batchSize, req.size()));
+            try {
+                PdfUploadRes uploadRes = pdfClient.uploadPdf(batch);
+                successCount += uploadRes.getSuccess_items() == null ? 0 : uploadRes.getSuccess_items().size();
+                failedCount += uploadRes.getFailed_items() == null ? 0 : uploadRes.getFailed_items().size();
+                indexingFailedCount += uploadRes.getIndexing_failed_items() == null ? 0 : uploadRes.getIndexing_failed_items().size();
+                indexingQueuedCount += uploadRes.getIndexing_queued_items() == null ? 0 : uploadRes.getIndexing_queued_items().size();
+            } catch (Exception exception) {
+                failedCount += batch.size();
+                log.warn("AI/RAG 업로드 batch 실패 start={}, size={}", start, batch.size(), exception);
+            }
+        }
 
-        log.info("AI/RAG 업로드 완료 requested={}, success={}, failed={}, indexingFailed={}",
+        log.info("AI/RAG 업로드 완료 requested={}, success={}, failed={}, indexingQueued={}, indexingFailed={}",
                 req.size(),
-                uploadRes.getSuccess_items() == null ? 0 : uploadRes.getSuccess_items().size(),
-                uploadRes.getFailed_items() == null ? 0 : uploadRes.getFailed_items().size(),
-                uploadRes.getIndexing_failed_items() == null ? 0 : uploadRes.getIndexing_failed_items().size());
+                successCount,
+                failedCount,
+                indexingQueuedCount,
+                indexingFailedCount);
     }
 
     private String resolveExtension(RestClient restClient, String fileUrl) {
@@ -91,14 +98,14 @@ public class AnnouncementPdfUploader {
         }
 
         try {
-            String filename = restClient.get().uri(fileUrl).retrieve().toBodilessEntity()
+            String filename = restClient.method(HttpMethod.HEAD).uri(fileUrl).retrieve().toBodilessEntity()
                     .getHeaders().getContentDisposition().getFilename();
             String extension = extractExtension(filename);
             if (extension != null) {
                 return extension;
             }
         } catch (Exception exception) {
-            log.warn("공고 파일 HEAD 요청 실패 fileUrl={}", fileUrl, exception);
+            log.debug("공고 파일 HEAD 요청 실패 fileUrl={}", fileUrl, exception);
         }
 
         return extractExtension(fileUrl);
@@ -119,7 +126,8 @@ public class AnnouncementPdfUploader {
     private boolean isSupportedExtension(String extension) {
         return Set.of(
                 "pdf", "hwp", "hwpx", "txt",
-                "png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "heic", "heif"
+                "png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "heic", "heif",
+                "do", "unknown"
         ).contains(extension);
     }
 

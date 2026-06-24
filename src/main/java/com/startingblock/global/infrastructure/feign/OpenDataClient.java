@@ -21,8 +21,8 @@ public interface OpenDataClient {
                                                 final @RequestParam("openYn") String openYn,
                                                 final @RequestParam("dataType") String dataType);
 
-    @GetMapping("/B552735/kisedKstartupService/getAnnouncementInformation")
-    NewKStartUpAnnouncementRes getNewAnnouncementList(final @RequestParam("serviceKey") String serviceKey,
+    @GetMapping("/B552735/kisedKstartupService01/getAnnouncementInformation01")
+    NewKStartUpAnnouncementRes getNewAnnouncementList(final @RequestParam("ServiceKey") String serviceKey,
                                                      final @RequestParam("page") String page,
                                                      final @RequestParam("perPage") String perPage,
                                                      final @RequestParam("returnType") String returnType);

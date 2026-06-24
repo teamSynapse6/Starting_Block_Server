@@ -30,15 +30,16 @@ public class MailService {
         message.addRecipients(MimeMessage.RecipientType.TO, dto.getEmail());
         message.setFrom(new InternetAddress("startingblock.synapse@gmail.com", "스타팅블록"));
         message.setSubject("공고에 대한 새로운 문의가 있습니다.");
-        message.setText(setMailContext(dto.getAnnouncement(), dto.getLink()), "utf-8", "html");  // 내용설정
+        message.setText(setMailContext(dto.getAnnouncement(), dto.getLink(), dto.getUnsubscribeLink()), "utf-8", "html");  // 내용설정
         log.info(dto.getEmail() + "에 메일 전송");
         mailSender.send(message);
     }
 
-    private String setMailContext(final String announcement, final String link) { // 타임리프 설정하는 코드
+    private String setMailContext(final String announcement, final String link, final String unsubscribeLink) { // 타임리프 설정하는 코드
         Context context = new Context();
         context.setVariable("announcement", announcement); // Template에 전달할 데이터 설정
         context.setVariable("link", link);
+        context.setVariable("unsubscribeLink", unsubscribeLink);
         return templateEngine.process("mail", context); // mail.html
     }
 }

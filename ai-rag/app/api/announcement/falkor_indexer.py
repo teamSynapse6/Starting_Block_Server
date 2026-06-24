@@ -61,6 +61,7 @@ class AnnouncementFalkorIndexer:
         )
         self.batch_size = max(INDEXING_BATCH_SIZE, 1)
         self._vector_dimension: int | None = None
+        self._ready = False
 
     def _resolve_embedding_device(self, embedding_device: str) -> str:
         normalized = (embedding_device or "auto").strip().lower()
@@ -113,6 +114,9 @@ class AnnouncementFalkorIndexer:
         return self.graph.query(cypher, params=params, timeout=FALKORDB_QUERY_TIMEOUT_MS)
 
     def ensure_ready(self):
+        if self._ready:
+            return
+
         self._ensure_graph_exists()
         if self._vector_dimension is None:
             self._vector_dimension = len(self.embeddings.embed_query("벡터 차원 초기화"))
@@ -125,6 +129,7 @@ class AnnouncementFalkorIndexer:
             f"CREATE VECTOR INDEX FOR (c:Chunk) ON (c.embedding) "
             f"OPTIONS {{dimension:{self._vector_dimension}, similarityFunction:'cosine', M:32, efConstruction:300}}"
         )
+        self._ready = True
 
     def _create_index(self, cypher: str, params: dict | None = None):
         try:

@@ -21,12 +21,82 @@ def _json_error(message: str) -> int:
     return 1
 
 
-def validation(_args: argparse.Namespace) -> int:
-    from app.core.storage import MinioStorage
+def _start_index_worker_if_needed() -> bool:
+    if os.getenv("AI_RAG_INDEX_WORKER_ENABLED", "true").strip().lower() not in {"1", "true", "yes", "y", "on"}:
+        return False
 
-    storage = MinioStorage()
-    storage.ensure_bucket()
-    return _json_stdout({"file_ids": storage.list_processed_ids()})
+    pid_path = "/tmp/startingblock-index-worker.pid"
+    try:
+        if os.path.exists(pid_path):
+            with open(pid_path, "r", encoding="utf-8") as handle:
+                pid_text = handle.read().strip()
+            if pid_text:
+                try:
+                    os.kill(int(pid_text), 0)
+                    return False
+                except OSError:
+                    pass
+
+        command = [
+            sys.executable,
+            "-m",
+            "app.scripts.index_worker",
+            "--idle-sleep-seconds",
+            os.getenv("AI_RAG_INDEX_WORKER_IDLE_SLEEP_SECONDS", "2"),
+            "--idle-exit-seconds",
+            os.getenv("AI_RAG_INDEX_WORKER_IDLE_EXIT_SECONDS", "60"),
+            "--stale-processing-seconds",
+            os.getenv("AI_RAG_INDEX_WORKER_STALE_PROCESSING_SECONDS", "3600"),
+            "--cuda-empty-cache-every",
+            os.getenv("AI_RAG_INDEX_WORKER_CUDA_EMPTY_CACHE_EVERY", "1"),
+            "--job-batch-size",
+            os.getenv("AI_RAG_INDEX_WORKER_JOB_BATCH_SIZE", "20"),
+            "--num-gpus",
+            os.getenv("AI_RAG_INDEX_WORKER_NUM_GPUS", "2"),
+        ]
+        with open(os.devnull, "wb") as devnull:
+            process = subprocess.Popen(
+                command,
+                cwd=os.getcwd(),
+                stdin=subprocess.DEVNULL,
+                stdout=devnull,
+                stderr=devnull,
+                start_new_session=True,
+            )
+        with open(pid_path, "w", encoding="utf-8") as handle:
+            handle.write(str(process.pid))
+        return True
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
+        return False
+
+
+def validation(_args: argparse.Namespace) -> int:
+    from falkordb import FalkorDB
+    from redis.exceptions import ResponseError
+
+    from app.core.config import FALKORDB_GRAPH_NAME, FALKORDB_HOST, FALKORDB_PASSWORD, FALKORDB_PORT, FALKORDB_QUERY_TIMEOUT_MS
+
+    db = FalkorDB(
+        host=FALKORDB_HOST,
+        port=FALKORDB_PORT,
+        password=FALKORDB_PASSWORD or None,
+        socket_timeout=max(FALKORDB_QUERY_TIMEOUT_MS / 1000, 1),
+        socket_connect_timeout=10,
+    )
+    graph = db.select_graph(FALKORDB_GRAPH_NAME)
+    try:
+        result = graph.ro_query(
+            "MATCH (a:Announcement) RETURN a.announcement_id",
+            timeout=FALKORDB_QUERY_TIMEOUT_MS,
+        )
+    except ResponseError as error:
+        if "empty key" not in str(error).lower():
+            raise
+        return _json_stdout({"file_ids": []})
+
+    file_ids = [str(row[0]) for row in result.result_set]
+    return _json_stdout({"file_ids": file_ids})
 
 
 def get_announcement(args: argparse.Namespace) -> int:
@@ -142,16 +212,20 @@ def upload(_args: argparse.Namespace) -> int:
     import httpx
 
     from app.api.announcement.file_pipeline import (
+        convert_image_paths_to_texts,
         convert_image_bytes_to_text,
         convert_hwp_path_to_text,
         convert_hwpx_bytes_to_text,
         convert_pdf_bytes_to_text,
         detect_file_format,
+        extract_pdf_text,
         is_image_format,
         normalize_file_format,
+        render_office_bytes_to_image_paths,
+        render_pdf_bytes_to_image_paths,
+        write_temp_image_bytes,
     )
-    from app.api.announcement.falkor_indexer import AnnouncementFalkorIndexer
-    from app.core.config import EMBEDDING_DEVICE
+    from app.api.announcement.index_job_store import AnnouncementIndexJobStore
     from app.core.db_models import ensure_database_and_tables
     from app.core.storage import MinioStorage
 
@@ -163,20 +237,20 @@ def upload(_args: argparse.Namespace) -> int:
     ensure_database_and_tables()
     storage = MinioStorage()
     storage.ensure_bucket()
-    indexer = AnnouncementFalkorIndexer(EMBEDDING_DEVICE)
-    indexer.ensure_ready()
+    index_jobs = AnnouncementIndexJobStore()
 
     success_items: list[int] = []
     failed_items: list[int] = []
+    indexing_queued_items: list[int] = []
     indexing_failed_items: list[int] = []
+    index_worker_started = False
+    supported_formats = {"hwp", "hwpx", "pdf", "txt"}
+    ocr_tasks: list[dict[str, Any]] = []
 
-    with httpx.Client(timeout=30.0) as client:
+    with tempfile.TemporaryDirectory(prefix="startingblock_ocr_batch_") as ocr_temp_dir, httpx.Client(timeout=60.0, follow_redirects=True) as client:
         for item in items:
             file_id = int(item["id"])
             file_format = normalize_file_format(str(item["format"]))
-            if file_format not in {"hwp", "hwpx", "pdf", "txt"} and not is_image_format(file_format):
-                failed_items.append(file_id)
-                continue
 
             temp_file_path = None
             try:
@@ -185,30 +259,59 @@ def upload(_args: argparse.Namespace) -> int:
                 file_bytes = response.content
 
                 actual_format = normalize_file_format(detect_file_format(file_bytes))
-                if actual_format != file_format:
+                if actual_format not in supported_formats and not is_image_format(actual_format):
+                    raise ValueError(f"unsupported detected format: {actual_format}")
+                if (file_format in supported_formats or is_image_format(file_format)) and actual_format != file_format:
                     raise ValueError(f"expected {file_format}, got {actual_format}")
 
-                storage.put_raw_bytes(file_id, file_format, file_bytes)
+                storage.put_raw_bytes(file_id, actual_format, file_bytes)
 
                 if actual_format == "pdf":
-                    text = convert_pdf_bytes_to_text(file_bytes)
+                    text = extract_pdf_text(file_bytes)
+                    if not text.strip():
+                        image_paths = render_pdf_bytes_to_image_paths(file_bytes, ocr_temp_dir, f"{file_id}_pdf")
+                        if image_paths:
+                            ocr_tasks.append({"file_id": file_id, "image_paths": image_paths})
+                            continue
                 elif actual_format == "hwp":
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".hwp") as temp_file:
-                        temp_file.write(file_bytes)
-                        temp_file_path = temp_file.name
-                    text = convert_hwp_path_to_text(temp_file_path)
+                    try:
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".hwp") as temp_file:
+                            temp_file.write(file_bytes)
+                            temp_file_path = temp_file.name
+                        text = convert_hwp_path_to_text(temp_file_path)
+                    except Exception:
+                        text = ""
+                    if not text.strip():
+                        image_paths = render_office_bytes_to_image_paths(file_bytes, actual_format, ocr_temp_dir, f"{file_id}_{actual_format}")
+                        if image_paths:
+                            ocr_tasks.append({"file_id": file_id, "image_paths": image_paths})
+                            continue
                 elif actual_format == "hwpx":
-                    text = convert_hwpx_bytes_to_text(file_bytes)
+                    try:
+                        text = convert_hwpx_bytes_to_text(file_bytes)
+                    except Exception:
+                        text = ""
+                    if not text.strip():
+                        image_paths = render_office_bytes_to_image_paths(file_bytes, actual_format, ocr_temp_dir, f"{file_id}_{actual_format}")
+                        if image_paths:
+                            ocr_tasks.append({"file_id": file_id, "image_paths": image_paths})
+                            continue
                 elif is_image_format(actual_format):
-                    text = convert_image_bytes_to_text(file_bytes, actual_format)
+                    image_path = write_temp_image_bytes(file_bytes, actual_format, ocr_temp_dir, str(file_id))
+                    ocr_tasks.append({"file_id": file_id, "image_paths": [image_path]})
+                    continue
                 else:
                     text = file_bytes.decode("utf-8", errors="replace")
 
+                if not text.strip():
+                    raise ValueError("processed text is empty")
                 storage.put_processed_text(file_id, text)
                 success_items.append(file_id)
 
                 try:
-                    indexer.upsert_announcement(file_id, text)
+                    index_jobs.enqueue("upsert", file_id)
+                    indexing_queued_items.append(file_id)
+                    index_worker_started = _start_index_worker_if_needed() or index_worker_started
                 except Exception:
                     indexing_failed_items.append(file_id)
             except Exception:
@@ -217,13 +320,36 @@ def upload(_args: argparse.Namespace) -> int:
                 if temp_file_path and os.path.exists(temp_file_path):
                     os.remove(temp_file_path)
 
+        if ocr_tasks:
+            all_image_paths = [path for task in ocr_tasks for path in task["image_paths"]]
+            ocr_texts = convert_image_paths_to_texts(all_image_paths)
+            cursor = 0
+            for task in ocr_tasks:
+                file_id = int(task["file_id"])
+                image_paths = task["image_paths"]
+                page_texts = ocr_texts[cursor:cursor + len(image_paths)]
+                cursor += len(image_paths)
+                text = "\n\n".join(page_text.strip() for page_text in page_texts if page_text and page_text.strip())
+                if not text.strip():
+                    failed_items.append(file_id)
+                    continue
+                storage.put_processed_text(file_id, text)
+                success_items.append(file_id)
+                try:
+                    index_jobs.enqueue("upsert", file_id)
+                    indexing_queued_items.append(file_id)
+                    index_worker_started = _start_index_worker_if_needed() or index_worker_started
+                except Exception:
+                    indexing_failed_items.append(file_id)
+
     return _json_stdout(
         {
             "status": "finished",
             "success_items": success_items,
             "failed_items": failed_items,
-            "indexing_queued_items": [],
+            "indexing_queued_items": indexing_queued_items,
             "indexing_failed_items": indexing_failed_items,
+            "index_worker_started": index_worker_started,
         }
     )
 

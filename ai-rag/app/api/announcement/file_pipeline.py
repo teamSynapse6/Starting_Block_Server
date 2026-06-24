@@ -1,6 +1,7 @@
 import fitz
 import olefile
 import os
+import shutil
 import zlib
 import struct
 import re
@@ -10,7 +11,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from io import BytesIO
 
-from app.core.config import OCR_MODEL, OCR_PROMPT, OCR_TIMEOUT_SECONDS, OLLAMA_BASE_URL
+from app.core.config import OCR_MODEL, OCR_PDF_MAX_PAGES, OCR_PROMPT, OCR_TIMEOUT_SECONDS, OLLAMA_BASE_URL
 
 
 IMAGE_FORMAT_SIGNATURES: tuple[tuple[str, bytes], ...] = (
@@ -106,7 +107,81 @@ def convert_pdf_bytes_to_text(file_bytes: bytes) -> str:
     with fitz.open(stream=file_bytes, filetype="pdf") as doc:
         for page in doc:
             text += page.get_text()
+        if text.strip():
+            return text
+
+        ocr_text_parts: list[str] = []
+        max_pages = OCR_PDF_MAX_PAGES if OCR_PDF_MAX_PAGES > 0 else len(doc)
+        for page in doc[:max_pages]:
+            pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+            image_bytes = pixmap.tobytes("png")
+            page_text = convert_image_bytes_to_text(image_bytes, "png").strip()
+            if page_text:
+                ocr_text_parts.append(page_text)
+        return "\n\n".join(ocr_text_parts)
     return text
+
+
+def extract_pdf_text(file_bytes: bytes) -> str:
+    text = ""
+    with fitz.open(stream=file_bytes, filetype="pdf") as doc:
+        for page in doc:
+            text += page.get_text()
+    return text
+
+
+def render_pdf_bytes_to_image_paths(file_bytes: bytes, directory: str, prefix: str) -> list[str]:
+    image_paths: list[str] = []
+    with fitz.open(stream=file_bytes, filetype="pdf") as doc:
+        max_pages = OCR_PDF_MAX_PAGES if OCR_PDF_MAX_PAGES > 0 else len(doc)
+        for page_index, page in enumerate(doc[:max_pages]):
+            pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+            path = os.path.join(directory, f"{prefix}_page_{page_index + 1}.png")
+            pixmap.save(path)
+            image_paths.append(path)
+    return image_paths
+
+
+def write_temp_image_bytes(file_bytes: bytes, image_format: str, directory: str, prefix: str) -> str:
+    suffix = f".{normalize_file_format(image_format)}"
+    path = os.path.join(directory, f"{prefix}{suffix}")
+    with open(path, "wb") as handle:
+        handle.write(file_bytes)
+    return path
+
+
+def render_office_bytes_to_image_paths(file_bytes: bytes, file_format: str, directory: str, prefix: str) -> list[str]:
+    soffice = shutil.which("soffice") or shutil.which("libreoffice")
+    if not soffice:
+        return []
+
+    normalized = normalize_file_format(file_format)
+    source_path = os.path.join(directory, f"{prefix}.{normalized}")
+    with open(source_path, "wb") as handle:
+        handle.write(file_bytes)
+
+    output_dir = os.path.join(directory, f"{prefix}_office")
+    os.makedirs(output_dir, exist_ok=True)
+    result = subprocess.run(
+        [soffice, "--headless", "--convert-to", "pdf", "--outdir", output_dir, source_path],
+        text=True,
+        capture_output=True,
+        timeout=120,
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+
+    pdf_paths = [
+        os.path.join(output_dir, name)
+        for name in os.listdir(output_dir)
+        if name.lower().endswith(".pdf")
+    ]
+    if not pdf_paths:
+        return []
+
+    with open(pdf_paths[0], "rb") as handle:
+        return render_pdf_bytes_to_image_paths(handle.read(), directory, f"{prefix}_office")
 
 
 def get_hwp_text_from_path(filename: str) -> str:
@@ -194,7 +269,53 @@ def convert_image_bytes_to_text(file_bytes: bytes, image_format: str) -> str:
             temp_file.write(file_bytes)
             temp_file_path = temp_file.name
 
-        prompt = f"{temp_file_path}\n{OCR_PROMPT}"
+        return convert_image_paths_to_texts([temp_file_path])[0]
+    finally:
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+
+
+def convert_image_paths_to_texts(image_paths: list[str]) -> list[str]:
+    if not image_paths:
+        return []
+
+    try:
+        from ollama import Client
+
+        client = Client(host=OLLAMA_BASE_URL)
+        texts: list[str] = []
+        for image_path in image_paths:
+            response = client.chat(
+                model=OCR_MODEL,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": OCR_PROMPT,
+                        "images": [image_path],
+                    }
+                ],
+                keep_alive="10m",
+            )
+            message = getattr(response, "message", None)
+            if message is not None and hasattr(message, "content"):
+                texts.append(getattr(message, "content", "") or "")
+            elif message is not None and isinstance(message, dict):
+                texts.append(message.get("content", "") or "")
+            elif isinstance(response, dict):
+                texts.append(response.get("message", {}).get("content", "") or "")
+            else:
+                texts.append("")
+        return [text.strip() for text in texts]
+    except Exception:
+        texts: list[str] = []
+        for image_path in image_paths:
+            texts.append(_convert_image_path_to_text_with_cli(image_path))
+        return texts
+
+
+def _convert_image_path_to_text_with_cli(image_path: str) -> str:
+    try:
+        prompt = f"{image_path}\n{OCR_PROMPT}"
         result = subprocess.run(
             ["ollama", "run", OCR_MODEL, prompt],
             text=True,
@@ -216,9 +337,10 @@ def convert_image_bytes_to_text(file_bytes: bytes, image_format: str) -> str:
                 {
                     "role": "user",
                     "content": OCR_PROMPT,
-                    "images": [temp_file_path],
+                    "images": [image_path],
                 }
             ],
+            keep_alive="10m",
         )
         message = getattr(response, "message", None)
         if message is not None:
@@ -229,6 +351,3 @@ def convert_image_bytes_to_text(file_bytes: bytes, image_format: str) -> str:
         if isinstance(response, dict):
             return response.get("message", {}).get("content", "")
         return ""
-    finally:
-        if temp_file_path and os.path.exists(temp_file_path):
-            os.remove(temp_file_path)

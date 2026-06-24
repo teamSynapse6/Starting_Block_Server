@@ -5,6 +5,7 @@ import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.announcement.domain.repository.AnnouncementRepository;
 import com.startingblock.domain.announcement.exception.InvalidAnnouncementException;
 import com.startingblock.domain.mail.application.MailService;
+import com.startingblock.domain.mail.application.MailUnsubscribeService;
 import com.startingblock.domain.mail.dto.MailRequestDto;
 import com.startingblock.domain.question.domain.QAType;
 import com.startingblock.domain.question.domain.Question;
@@ -36,6 +37,7 @@ public class QuestionService {
     private final AnnouncementRepository announcementRepository;
     private final UserRepository userRepository;
     private final MailService mailService;
+    private final MailUnsubscribeService mailUnsubscribeService;
     private final QuestionGPTService questionGPTService;
 
     // TODO: 질문하기
@@ -85,10 +87,15 @@ public class QuestionService {
                 log.info(announcement.getTitle() + "의 이메일이 없습니다.");
                 continue;
             }
+            if (Boolean.TRUE.equals(announcement.getContactBlock())) {
+                log.info("{}의 문의처 메일 수신이 차단되어 있습니다.", announcement.getTitle());
+                continue;
+            }
             MailRequestDto mail = MailRequestDto.builder()
                     .email(announcement.getContact())
                     .announcement(announcement.getTitle())
                     .link("https://www.startingblock.co.kr/api/v1/web/question/" + announcement.getId())
+                    .unsubscribeLink(mailUnsubscribeService.createUnsubscribeLink(announcement.getId(), announcement.getContact()))
                     .build();
             mailService.sendEmailToReceiver(mail);
         }

@@ -2,6 +2,7 @@ package com.startingblock.domain.announcement.domain.repository;
 
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.CaseBuilder;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
@@ -55,7 +56,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                                 Expressions.stringTemplate("COALESCE({0}, {1})", announcement.startDate.stringValue(), announcement.nonDate),
                                 Expressions.stringTemplate("COALESCE({0}, {1})", announcement.endDate.stringValue(), announcement.nonDate),
                                 roadmapAnnouncement.announcement.id.isNotNull(),
-                                announcement.contact.isNotNull(),
+                                contactAvailableExpression(),
                                 announcement.isFileUploaded
                 ))
                 .from(announcement)
@@ -105,8 +106,11 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                                 announcement.areaName,
                                 announcement.roadmapCount,
                                 announcement.announcementType.stringValue(),
-                                announcement.contact,
-                                announcement.contact.isNotNull(),
+                                new CaseBuilder()
+                                        .when(contactAvailableExpression())
+                                        .then(announcement.contact)
+                                        .otherwise((String) null),
+                                contactAvailableExpression(),
                                 announcement.isFileUploaded
                         )
                 )
@@ -135,7 +139,7 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
                                         .where(roadmapAnnouncement.announcement.id.eq(announcement.id)
                                                 .and(roadmap.user.id.eq(userId)))
                                         .exists(),
-                                announcement.contact.isNotNull(),
+                                contactAvailableExpression(),
                                 announcement.isFileUploaded
                         )
                 )
@@ -465,6 +469,11 @@ public class AnnouncementQuerydslRepositoryImpl implements AnnouncementQuerydslR
     private BooleanExpression searchExpression(final String search) {
         if (search == null) return null;
         return announcement.title.contains(search);
+    }
+
+    private BooleanExpression contactAvailableExpression() {
+        return announcement.contact.isNotNull()
+                .and(announcement.contactBlock.isNull().or(announcement.contactBlock.isFalse()));
     }
 
     private OrderSpecifier<?> announcementOrderBy(final String sort) {

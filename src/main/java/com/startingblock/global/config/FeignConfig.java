@@ -16,6 +16,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+
 
 @Configuration
 @ConfigurationProperties(prefix = "feign.client")
@@ -44,7 +47,30 @@ public class FeignConfig {
     @Data
     public static class ServiceKey {
         private String openData;
+        private String openDataEncoding;
+        private String openDataDecoding;
         private String bizInfo;
+
+        public String resolveOpenDataRequestKey() {
+            if (openDataDecoding != null && !openDataDecoding.isBlank()) {
+                return openDataDecoding;
+            }
+            if (openDataEncoding != null && !openDataEncoding.isBlank()) {
+                return decode(openDataEncoding);
+            }
+            if (openData != null && !openData.isBlank()) {
+                return decode(openData);
+            }
+            return "";
+        }
+
+        private String decode(String value) {
+            try {
+                return URLDecoder.decode(value, StandardCharsets.UTF_8);
+            } catch (IllegalArgumentException exception) {
+                return value;
+            }
+        }
     }
 
 }

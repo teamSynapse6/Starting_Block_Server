@@ -9,4 +9,5 @@ public class MailRequestDto {
     private String email;
     private String announcement;
     private String link;
+    private String unsubscribeLink;
 }
