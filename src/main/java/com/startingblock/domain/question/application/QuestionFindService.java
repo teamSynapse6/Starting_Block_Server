@@ -12,9 +12,9 @@ import com.startingblock.domain.announcement.exception.InvalidAnnouncementExcept
 import com.startingblock.domain.answer.domain.Answer;
 import com.startingblock.domain.answer.domain.repository.AnswerRepository;
 import com.startingblock.domain.answer.dto.AnswerResponseDto;
-import com.startingblock.domain.gpt.application.GptService;
-import com.startingblock.domain.gpt.dto.GroupingQuestionReq;
-import com.startingblock.domain.gpt.dto.GroupingQuestionRes;
+import com.startingblock.domain.llm.application.LlmQuestionService;
+import com.startingblock.domain.llm.dto.GroupingQuestionReq;
+import com.startingblock.domain.llm.dto.GroupingQuestionRes;
 import com.startingblock.domain.heart.domain.Heart;
 import com.startingblock.domain.heart.domain.repository.HeartRepository;
 import com.startingblock.domain.question.domain.QAType;
@@ -49,7 +49,7 @@ public class QuestionFindService {
     private final HeartRepository heartRepository;
     private final UserRepository userRepository;
     private final ReplyRepository replyRepository;
-    private final GptService gptService;
+    private final LlmQuestionService llmQuestionService;
     private final ObjectMapper objectMapper;
 
     // TODO: 질문 리스트 조회
@@ -128,10 +128,10 @@ public class QuestionFindService {
                     .content(question.getContent())
                     .build());
         }
-        // gpt로 유사 질문 그룹핑
-        String strOldQuestions = gptService.groupingQuestions(GroupingQuestionReq.builder().questions(oldQuestions).build());
+        // llm로 유사 질문 그룹핑
+        String strOldQuestions = llmQuestionService.groupingQuestions(GroupingQuestionReq.builder().questions(oldQuestions).build());
         List<GroupingQuestionRes> groupingOldQuestions = objectMapper.readValue(strOldQuestions, new TypeReference<List<GroupingQuestionRes>>() {});
-        String strNewQuestions = gptService.groupingQuestions(GroupingQuestionReq.builder().questions(newQuestions).build());
+        String strNewQuestions = llmQuestionService.groupingQuestions(GroupingQuestionReq.builder().questions(newQuestions).build());
         List<GroupingQuestionRes> groupingNewQuestions = objectMapper.readValue(strNewQuestions, new TypeReference<List<GroupingQuestionRes>>() {});
 
         return QuestionResponseDto.QuestionListResponseForWeb.builder()

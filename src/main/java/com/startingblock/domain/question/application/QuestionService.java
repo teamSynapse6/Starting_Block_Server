@@ -38,7 +38,7 @@ public class QuestionService {
     private final UserRepository userRepository;
     private final MailService mailService;
     private final MailUnsubscribeService mailUnsubscribeService;
-    private final QuestionGPTService questionGPTService;
+    private final QuestionLlmService questionLlmService;
 
     // TODO: 질문하기
     @Transactional
@@ -59,7 +59,7 @@ public class QuestionService {
         questionRepository.save(question);
 
         if (question.getQuestionType().equals(QAType.CONTACT)) {
-            questionGPTService.checkDuplicateQuestion(question);
+            questionLlmService.checkDuplicateQuestion(question);
         }
     }
 

@@ -1,11 +1,11 @@
-package com.startingblock.domain.gpt.application;
+package com.startingblock.domain.llm.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.startingblock.domain.gpt.dto.DuplicateReq;
-import com.startingblock.domain.gpt.dto.GroupingQuestionReq;
+import com.startingblock.domain.llm.dto.DuplicateReq;
+import com.startingblock.domain.llm.dto.GroupingQuestionReq;
 import com.startingblock.global.infrastructure.airag.AiRagCliClient;
 import com.startingblock.global.infrastructure.airag.AiRagGpuConcurrencyLimiter;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class GptService {
+public class LlmQuestionService {
 
     private final ObjectMapper objectMapper;
     private final AiRagCliClient aiRagCliClient;

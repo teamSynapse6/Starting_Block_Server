@@ -1,4 +1,4 @@
-package com.startingblock.domain.gpt.dto;
+package com.startingblock.domain.llm.dto;
 
 import lombok.Getter;
 

@@ -38,7 +38,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-@Tag(name = "AI/RAG Legacy API", description = "기존 PDFGPT FastAPI 라우트 호환 API")
+@Tag(name = "AI/RAG Legacy API", description = "기존 PDFLLM FastAPI 라우트 호환 API")
 @RestController
 @RequiredArgsConstructor
 @Slf4j

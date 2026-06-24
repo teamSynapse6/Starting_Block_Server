@@ -48,7 +48,7 @@ public class ModelStorageService {
     private final ModelDownloadHistoryRepository modelDownloadHistoryRepository;
     private final LlmModelConfigRepository llmModelConfigRepository;
 
-    @Value("${minio.bucket:startingblock-pdfgpt}")
+    @Value("${minio.bucket:startingblock-pdfllm}")
     private String bucket;
 
     @Value("${model.download-chunk-size-bytes:104857600}")

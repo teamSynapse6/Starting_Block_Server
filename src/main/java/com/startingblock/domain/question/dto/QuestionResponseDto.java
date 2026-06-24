@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.startingblock.domain.announcement.domain.Announcement;
 import com.startingblock.domain.answer.dto.AnswerResponseDto;
-import com.startingblock.domain.gpt.dto.GroupingQuestionRes;
+import com.startingblock.domain.llm.dto.GroupingQuestionRes;
 import com.startingblock.domain.user.domain.User;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;

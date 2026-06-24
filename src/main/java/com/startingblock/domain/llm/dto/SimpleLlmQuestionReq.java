@@ -1,4 +1,4 @@
-package com.startingblock.domain.gpt.dto;
+package com.startingblock.domain.llm.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
@@ -8,7 +8,7 @@ import java.io.Serializable;
 
 @Getter
 @Builder
-public class SimpleGPTQuestionReq implements Serializable {
+public class SimpleLlmQuestionReq implements Serializable {
 
     @JsonProperty("qid")
     private Long questionId;

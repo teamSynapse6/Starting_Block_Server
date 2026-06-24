@@ -17,7 +17,7 @@ MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "127.0.0.1:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
-MINIO_BUCKET = os.getenv("MINIO_BUCKET", "startingblock-pdfgpt")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET", "startingblock-pdfllm")
 MINIO_PROCESSED_PREFIX = os.getenv("MINIO_PROCESSED_PREFIX", "processed")
 MINIO_RAW_PREFIX = os.getenv("MINIO_RAW_PREFIX", "raw")
 

@@ -1,4 +1,4 @@
-package com.startingblock.domain.gpt.dto;
+package com.startingblock.domain.llm.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -13,7 +13,7 @@ import java.util.List;
 public class DuplicateReq {
 
     @JsonProperty("oldQuestions")
-    private List<SimpleGPTQuestionReq> oldQuestions;
+    private List<SimpleLlmQuestionReq> oldQuestions;
 
     @JsonProperty("newQuestion")
     private String newQuestion;

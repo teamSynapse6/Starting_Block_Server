@@ -99,9 +99,6 @@ feign:
       open-data-decoding: ${OPEN_DATA_DECODING_KEY:}
       biz-info: ${BIZ_INFO_SERVICE_KEY:}
 
-gpt:
-  api-key: ${GPT_API_KEY:}
-
 ai-rag:
   upload:
     batch-size: ${AI_RAG_UPLOAD_BATCH_SIZE:20}
@@ -128,7 +125,7 @@ minio:
   access-key: ${MINIO_ACCESS_KEY:minioadmin}
   secret-key: ${MINIO_SECRET_KEY:minioadmin}
   secure: ${MINIO_SECURE:false}
-  bucket: ${MINIO_BUCKET:startingblock-pdfgpt}
+  bucket: ${MINIO_BUCKET:startingblock-pdfllm}
 
 model:
   download-chunk-size-bytes: ${MODEL_DOWNLOAD_CHUNK_SIZE_BYTES:104857600}

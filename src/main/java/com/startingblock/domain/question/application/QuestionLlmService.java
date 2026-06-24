@@ -4,9 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.startingblock.domain.answer.application.AnswerService;
 import com.startingblock.domain.answer.domain.repository.AnswerRepository;
 import com.startingblock.domain.answer.dto.AnswerRequestDto;
-import com.startingblock.domain.gpt.application.GptService;
-import com.startingblock.domain.gpt.dto.DuplicateReq;
-import com.startingblock.domain.gpt.dto.SimpleGPTQuestionReq;
+import com.startingblock.domain.llm.application.LlmQuestionService;
+import com.startingblock.domain.llm.dto.DuplicateReq;
+import com.startingblock.domain.llm.dto.SimpleLlmQuestionReq;
 import com.startingblock.domain.question.domain.QAType;
 import com.startingblock.domain.question.domain.Question;
 import com.startingblock.domain.question.domain.repository.QuestionRepository;
@@ -23,21 +23,21 @@ import java.util.stream.Collectors;
 @Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class QuestionGPTService {
+public class QuestionLlmService {
 
     private final QuestionRepository questionRepository;
     private final AnswerRepository answerRepository;
-    private final GptService gptService;
+    private final LlmQuestionService llmQuestionService;
     private final AnswerService answerService;
 
-    // GPT 활용, 기존 질문과 유사 비교
+    // LLM 활용, 기존 질문과 유사 비교
     @Async
     @Transactional
     public void checkDuplicateQuestion(final Question checkQuestion) throws JsonProcessingException {
         List<Question> questionList = questionRepository.findByAnnouncementIdAndQuestionTypeAndIsAnswerd(
                 checkQuestion.getAnnouncement().getId(), QAType.CONTACT, true);
-        List<SimpleGPTQuestionReq> oldQuestions = questionList.stream()
-                .map(question -> SimpleGPTQuestionReq.builder()
+        List<SimpleLlmQuestionReq> oldQuestions = questionList.stream()
+                .map(question -> SimpleLlmQuestionReq.builder()
                         .questionId(question.getId())
                         .content(question.getContent())
                         .build())
@@ -48,7 +48,7 @@ public class QuestionGPTService {
                 .newQuestion(checkQuestion.getContent())
                 .build();
 
-        Long response = gptService.checkDuplicateQuestion(duplicateReq);
+        Long response = llmQuestionService.checkDuplicateQuestion(duplicateReq);
         if (!response.equals(0L)) { // 기존 질문과 비슷한 경우
             log.info("기존 질문" + response + " 번과 비슷합니다.");
             AnswerRequestDto.AnswerRequest dto = AnswerRequestDto.AnswerRequest.builder()
