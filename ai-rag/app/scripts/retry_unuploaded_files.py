@@ -9,14 +9,16 @@ from sqlalchemy import text as sql_text
 
 from app.api.announcement.file_pipeline import (
     convert_image_paths_to_texts,
+    convert_doc_path_to_text,
+    convert_docx_bytes_to_text,
     convert_hwp_path_to_text,
     convert_hwpx_bytes_to_text,
-    detect_file_format,
     extract_pdf_text,
     is_image_format,
     normalize_file_format,
     render_office_bytes_to_image_paths,
     render_pdf_bytes_to_image_paths,
+    resolve_downloaded_file_format,
     write_temp_image_bytes,
 )
 from app.api.announcement.index_job_store import AnnouncementIndexJobStore
@@ -24,7 +26,7 @@ from app.core.db_models import ensure_database_and_tables, get_db_session
 from app.core.storage import MinioStorage
 
 
-SUPPORTED_FORMATS = {"hwp", "hwpx", "pdf", "txt"}
+SUPPORTED_FORMATS = {"hwp", "hwpx", "pdf", "txt", "doc", "docx"}
 
 
 def parse_args():
@@ -40,6 +42,7 @@ def extract_extension(value: str | None) -> str | None:
     if not value:
         return None
     normalized = value.split("?", 1)[0].split("#", 1)[0]
+    normalized = normalized.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
     if "." not in normalized:
         return None
     extension = normalized.rsplit(".", 1)[1].strip().lower()
@@ -109,7 +112,7 @@ def process_target(
         response.raise_for_status()
         file_bytes = response.content
 
-        actual_format = normalize_file_format(detect_file_format(file_bytes))
+        actual_format = resolve_downloaded_file_format(file_bytes, response.headers.get("content-disposition"))
         if actual_format not in SUPPORTED_FORMATS and not is_image_format(actual_format):
             return f"skipped unsupported extension={expected_format} actual={actual_format}"
         if is_supported(expected_format) and actual_format != expected_format:
@@ -141,6 +144,36 @@ def process_target(
                 text = convert_hwpx_bytes_to_text(file_bytes)
             except Exception:
                 text = ""
+            if not text.strip():
+                image_paths = render_office_bytes_to_image_paths(file_bytes, actual_format, ocr_temp_dir, f"{announcement_id}_{actual_format}")
+                if image_paths:
+                    ocr_tasks.append({"announcement_id": announcement_id, "image_paths": image_paths})
+                    return "queued-ocr"
+        elif actual_format == "docx":
+            try:
+                text = convert_docx_bytes_to_text(file_bytes)
+            except Exception:
+                text = ""
+            if not text.strip():
+                image_paths = render_office_bytes_to_image_paths(file_bytes, actual_format, ocr_temp_dir, f"{announcement_id}_{actual_format}")
+                if image_paths:
+                    ocr_tasks.append({"announcement_id": announcement_id, "image_paths": image_paths})
+                    return "queued-ocr"
+        elif actual_format == "doc":
+            temp_file_path = None
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".doc") as temp_file:
+                    temp_file.write(file_bytes)
+                    temp_file_path = temp_file.name
+                text = convert_doc_path_to_text(temp_file_path)
+            except Exception:
+                text = ""
+            finally:
+                if temp_file_path:
+                    try:
+                        os.unlink(temp_file_path)
+                    except OSError:
+                        pass
             if not text.strip():
                 image_paths = render_office_bytes_to_image_paths(file_bytes, actual_format, ocr_temp_dir, f"{announcement_id}_{actual_format}")
                 if image_paths:

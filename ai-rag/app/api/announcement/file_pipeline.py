@@ -30,10 +30,12 @@ IMAGE_FORMAT_SIGNATURES: tuple[tuple[str, bytes], ...] = (
 def detect_file_format(file_bytes: bytes) -> str:
     if file_bytes.startswith(b"%PDF"):
         return "pdf"
-    if file_bytes.startswith(b"\xd0\xcf\x11\xe0"):
-        return "hwp"
     if _is_hwpx_file(file_bytes):
         return "hwpx"
+    if _is_docx_file(file_bytes):
+        return "docx"
+    if file_bytes.startswith(b"\xd0\xcf\x11\xe0"):
+        return "hwp"
     image_format = detect_image_format(file_bytes)
     if image_format:
         return image_format
@@ -81,6 +83,29 @@ def normalize_file_format(file_format: str) -> str:
     return normalized
 
 
+def extract_format_from_content_disposition(value: str | None) -> str | None:
+    if not value:
+        return None
+    match = re.search(r"filename\*?=(?:[^']*'')?\"?([^\";]+)\"?", value, flags=re.IGNORECASE)
+    if not match:
+        return None
+    filename = match.group(1).strip()
+    filename = filename.split("?", 1)[0].split("#", 1)[0]
+    filename = filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+    if "." not in filename:
+        return None
+    extension = filename.rsplit(".", 1)[1].strip().lower()
+    return normalize_file_format(extension) if extension else None
+
+
+def resolve_downloaded_file_format(file_bytes: bytes, content_disposition: str | None = None) -> str:
+    detected = normalize_file_format(detect_file_format(file_bytes))
+    header_format = extract_format_from_content_disposition(content_disposition)
+    if header_format in {"doc", "docx"} and detected in {"unknown", "hwp"}:
+        return header_format
+    return detected
+
+
 def _is_hwpx_file(file_bytes: bytes) -> bool:
     if not file_bytes.startswith(b"PK"):
         return False
@@ -88,6 +113,17 @@ def _is_hwpx_file(file_bytes: bytes) -> bool:
         with zipfile.ZipFile(BytesIO(file_bytes)) as archive:
             names = set(archive.namelist())
             return any(name.startswith("Contents/section") and name.endswith(".xml") for name in names)
+    except zipfile.BadZipFile:
+        return False
+
+
+def _is_docx_file(file_bytes: bytes) -> bool:
+    if not file_bytes.startswith(b"PK"):
+        return False
+    try:
+        with zipfile.ZipFile(BytesIO(file_bytes)) as archive:
+            names = set(archive.namelist())
+            return "word/document.xml" in names
     except zipfile.BadZipFile:
         return False
 
@@ -259,6 +295,44 @@ def convert_hwpx_bytes_to_text(file_bytes: bytes) -> str:
 
     extracted_text = "\n".join(text_parts)
     return re.sub(r"[^\w\s,.!?;:()가-힣]", "", extracted_text)
+
+
+def convert_docx_bytes_to_text(file_bytes: bytes) -> str:
+    text_parts: list[str] = []
+    with zipfile.ZipFile(BytesIO(file_bytes)) as archive:
+        xml_names = ["word/document.xml"]
+        xml_names.extend(
+            sorted(
+                name for name in archive.namelist()
+                if name.startswith(("word/header", "word/footer")) and name.endswith(".xml")
+            )
+        )
+        for name in xml_names:
+            if name not in archive.namelist():
+                continue
+            with archive.open(name) as xml_file:
+                try:
+                    root = ET.parse(xml_file).getroot()
+                except ET.ParseError:
+                    continue
+                for element in root.iter():
+                    if element.text and element.text.strip():
+                        text_parts.append(element.text.strip())
+    return "\n".join(text_parts)
+
+
+def convert_doc_path_to_text(doc_path: str) -> str:
+    antiword = shutil.which("antiword")
+    if not antiword:
+        return ""
+    result = subprocess.run(
+        [antiword, doc_path],
+        text=True,
+        capture_output=True,
+        timeout=120,
+        check=False,
+    )
+    return result.stdout if result.returncode == 0 else ""
 
 
 def convert_image_bytes_to_text(file_bytes: bytes, image_format: str) -> str:

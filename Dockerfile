@@ -20,7 +20,7 @@ WORKDIR /app
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends wget unzip curl fonts-liberation \
-    python3 python3-pip python3-venv build-essential \
+    python3 python3-pip python3-venv build-essential antiword \
     libasound2 libatk-bridge2.0-0 libatk1.0-0 libcups2 libdrm2 libgbm1 \
     libgtk-3-0 libnspr4 libnss3 libx11-xcb1 libxcomposite1 libxdamage1 \
     libxrandr2 xdg-utils xvfb \

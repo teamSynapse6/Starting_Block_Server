@@ -41,6 +41,7 @@ public class AnnouncementManager {
     private final AnnouncementRepository announcementRepository;
     private final AnnouncementWriter announcementWriter;
     private final FeignConfig feignConfig;
+    private final KStartupAttachmentExtractor kStartupAttachmentExtractor;
 
     @Scheduled(cron = "0 00 03 * * *")
     public void refreshAnnouncements() {
@@ -150,8 +151,10 @@ public class AnnouncementManager {
 
         openDataPostIds.add(postSn);
 
+        String detailUrl = item.getDetlPgUrl();
         return Announcement.builder()
                 .postSN(postSn)
+                .fileUrl(kStartupAttachmentExtractor.extractFirstDownloadUrl(detailUrl).orElse(null))
                 .bizTitle(item.getBizPbancNm())
                 .supportType(item.getSuptBizClsfc())
                 .title(item.getBizPbancNm())
@@ -163,7 +166,7 @@ public class AnnouncementManager {
                 .postTargetComAge(item.getBizEnyy())
                 .startDate(startDate.atStartOfDay())
                 .endDate(endDate.atStartOfDay())
-                .detailUrl(item.getDetlPgUrl())
+                .detailUrl(detailUrl)
                 .prchCnAdrNo(item.getPrchCnplNo())
                 .sprvInstClssCdNm(item.getSprvInst())
                 .bizPrchDprtNm(item.getBizPrchDprtNm())
@@ -235,8 +238,10 @@ public class AnnouncementManager {
         }
         openDataPostIds.add(postSn);
 
+        String detailUrl = item.getDetailurl();
         return Announcement.builder()
                 .postSN(postSn)
+                .fileUrl(kStartupAttachmentExtractor.extractFirstDownloadUrl(detailUrl).orElse(null))
                 .bizTitle(item.getBiztitle())
                 .supportType(item.getSupporttype())
                 .title(item.getTitle())
@@ -249,7 +254,7 @@ public class AnnouncementManager {
                 .startDate(startDate.atStartOfDay())
                 .endDate(endDate.atStartOfDay())
                 .insertDate(parseOpenDataDateTime(item.getInsertdate(), dateFormatter))
-                .detailUrl(item.getDetailurl())
+                .detailUrl(detailUrl)
                 .prchCnAdrNo(item.getPrchCnadrNo())
                 .sprvInstClssCdNm(item.getSprvInstClssCdNm())
                 .bizPrchDprtNm(item.getBizPrchDprtNm())

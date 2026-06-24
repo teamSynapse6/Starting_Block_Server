@@ -213,16 +213,18 @@ def upload(_args: argparse.Namespace) -> int:
 
     from app.api.announcement.file_pipeline import (
         convert_image_paths_to_texts,
+        convert_doc_path_to_text,
+        convert_docx_bytes_to_text,
         convert_image_bytes_to_text,
         convert_hwp_path_to_text,
         convert_hwpx_bytes_to_text,
         convert_pdf_bytes_to_text,
-        detect_file_format,
         extract_pdf_text,
         is_image_format,
         normalize_file_format,
         render_office_bytes_to_image_paths,
         render_pdf_bytes_to_image_paths,
+        resolve_downloaded_file_format,
         write_temp_image_bytes,
     )
     from app.api.announcement.index_job_store import AnnouncementIndexJobStore
@@ -244,7 +246,7 @@ def upload(_args: argparse.Namespace) -> int:
     indexing_queued_items: list[int] = []
     indexing_failed_items: list[int] = []
     index_worker_started = False
-    supported_formats = {"hwp", "hwpx", "pdf", "txt"}
+    supported_formats = {"hwp", "hwpx", "pdf", "txt", "doc", "docx"}
     ocr_tasks: list[dict[str, Any]] = []
 
     with tempfile.TemporaryDirectory(prefix="startingblock_ocr_batch_") as ocr_temp_dir, httpx.Client(timeout=60.0, follow_redirects=True) as client:
@@ -258,7 +260,7 @@ def upload(_args: argparse.Namespace) -> int:
                 response.raise_for_status()
                 file_bytes = response.content
 
-                actual_format = normalize_file_format(detect_file_format(file_bytes))
+                actual_format = resolve_downloaded_file_format(file_bytes, response.headers.get("content-disposition"))
                 if actual_format not in supported_formats and not is_image_format(actual_format):
                     raise ValueError(f"unsupported detected format: {actual_format}")
                 if (file_format in supported_formats or is_image_format(file_format)) and actual_format != file_format:
@@ -291,6 +293,36 @@ def upload(_args: argparse.Namespace) -> int:
                         text = convert_hwpx_bytes_to_text(file_bytes)
                     except Exception:
                         text = ""
+                    if not text.strip():
+                        image_paths = render_office_bytes_to_image_paths(file_bytes, actual_format, ocr_temp_dir, f"{file_id}_{actual_format}")
+                        if image_paths:
+                            ocr_tasks.append({"file_id": file_id, "image_paths": image_paths})
+                            continue
+                elif actual_format == "docx":
+                    try:
+                        text = convert_docx_bytes_to_text(file_bytes)
+                    except Exception:
+                        text = ""
+                    if not text.strip():
+                        image_paths = render_office_bytes_to_image_paths(file_bytes, actual_format, ocr_temp_dir, f"{file_id}_{actual_format}")
+                        if image_paths:
+                            ocr_tasks.append({"file_id": file_id, "image_paths": image_paths})
+                            continue
+                elif actual_format == "doc":
+                    temp_file_path = None
+                    try:
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".doc") as temp_file:
+                            temp_file.write(file_bytes)
+                            temp_file_path = temp_file.name
+                        text = convert_doc_path_to_text(temp_file_path)
+                    except Exception:
+                        text = ""
+                    finally:
+                        if temp_file_path:
+                            try:
+                                os.unlink(temp_file_path)
+                            except OSError:
+                                pass
                     if not text.strip():
                         image_paths = render_office_bytes_to_image_paths(file_bytes, actual_format, ocr_temp_dir, f"{file_id}_{actual_format}")
                         if image_paths:

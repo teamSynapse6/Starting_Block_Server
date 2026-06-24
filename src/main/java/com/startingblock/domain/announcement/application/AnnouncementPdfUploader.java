@@ -116,6 +116,10 @@ public class AnnouncementPdfUploader {
             return null;
         }
         String normalized = value.split("\\?")[0].split("#")[0];
+        int slashIndex = Math.max(normalized.lastIndexOf("/"), normalized.lastIndexOf("\\"));
+        if (slashIndex >= 0) {
+            normalized = normalized.substring(slashIndex + 1);
+        }
         int index = normalized.lastIndexOf(".");
         if (index < 0 || index == normalized.length() - 1) {
             return null;
@@ -125,7 +129,7 @@ public class AnnouncementPdfUploader {
 
     private boolean isSupportedExtension(String extension) {
         return Set.of(
-                "pdf", "hwp", "hwpx", "txt",
+                "pdf", "hwp", "hwpx", "txt", "doc", "docx",
                 "png", "jpg", "jpeg", "gif", "webp", "bmp", "tif", "tiff", "heic", "heif",
                 "do", "unknown"
         ).contains(extension);

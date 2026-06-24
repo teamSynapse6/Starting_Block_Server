@@ -87,25 +87,6 @@ class LLMMessage(Base):
     __table_args__ = (UniqueConstraint("thread_id", "seq", name="uq_llm_messages_thread_seq"),)
 
 
-class AnnouncementIndexJob(Base):
-    __tablename__ = "announcement_index_jobs"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    action = Column(String(16), nullable=False, index=True)
-    announcement_id = Column(Integer, nullable=False, index=True)
-    status = Column(String(16), nullable=False, default="queued", index=True)
-    attempts = Column(Integer, nullable=False, default=0)
-    worker_id = Column(String(64), nullable=True)
-    last_error = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, default=kst_now)
-    started_at = Column(DateTime(timezone=True), nullable=True)
-    finished_at = Column(DateTime(timezone=True), nullable=True)
-
-    __table_args__ = (
-        Index("ix_index_jobs_status_created_at", "status", "created_at"),
-    )
-
-
 engine = create_engine(
     _app_database_url(),
     pool_pre_ping=True,
