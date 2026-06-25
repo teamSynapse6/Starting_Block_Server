@@ -20,7 +20,6 @@ from app.core.config import (
     FALKORDB_PASSWORD,
     FALKORDB_PORT,
     FALKORDB_QUERY_TIMEOUT_MS,
-    FALKORDB_VECTOR_CANDIDATE_MULTIPLIER,
     INDEXING_BATCH_SIZE,
     RAG_CHUNK_OVERLAP,
     RAG_CHUNK_SIZE,
@@ -329,31 +328,29 @@ class AnnouncementFalkorIndexer:
     def search_chunks(self, announcement_id: int, query: str, top_k: int) -> list[Document]:
         self.ensure_ready()
         top_k = max(int(top_k), 1)
-        candidate_k = max(top_k * max(FALKORDB_VECTOR_CANDIDATE_MULTIPLIER, 1), top_k)
         query_vector = [float(value) for value in self.embeddings.embed_query(query)]
 
         scores: dict[str, float] = defaultdict(float)
         payloads: dict[str, tuple[str, dict]] = {}
 
-        vector_result = self._query(
+        chunk_result = self._query(
             """
-            CALL db.idx.vector.queryNodes('Chunk', 'embedding', $candidate_k, vecf32($query_vector))
-            YIELD node, score
-            WHERE node.announcement_id = $announcement_id
-            RETURN node.chunk_uid, node.chunk_id, node.text, node.content_hash, node.embedding_model, node.created_at, score
+            MATCH (:Announcement {announcement_id:$announcement_id})-[:HAS_CHUNK]->(c:Chunk)
+            RETURN c.chunk_uid, c.chunk_id, c.text, c.content_hash, c.embedding_model, c.created_at
+            ORDER BY c.chunk_id ASC
             """,
-            {
-                "announcement_id": announcement_id,
-                "candidate_k": candidate_k,
-                "query_vector": query_vector,
-            },
+            {"announcement_id": announcement_id},
             read_only=True,
         )
-        for row in vector_result.result_set:
-            chunk_uid = row[0]
-            metadata = self._metadata_from_row(announcement_id, row)
-            payloads[chunk_uid] = (row[2], metadata)
-            scores[chunk_uid] += float(row[6]) * 0.75
+        chunk_rows = list(chunk_result.result_set)
+        if chunk_rows:
+            chunk_texts = [str(row[2] or "") for row in chunk_rows]
+            chunk_embeddings = self.embeddings.embed_documents(chunk_texts)
+            for row, chunk_embedding in zip(chunk_rows, chunk_embeddings):
+                chunk_uid = row[0]
+                metadata = self._metadata_from_row(announcement_id, row)
+                payloads[chunk_uid] = (row[2], metadata)
+                scores[chunk_uid] += self._dot(query_vector, chunk_embedding) * 0.75
 
         keywords = self._keywords(query)
         if keywords:
@@ -384,6 +381,9 @@ class AnnouncementFalkorIndexer:
             for chunk_uid, _score in ranked
             if chunk_uid in payloads
         ]
+
+    def _dot(self, left: list[float], right: list[float]) -> float:
+        return float(sum(float(a) * float(b) for a, b in zip(left, right)))
 
     def _metadata_from_row(self, announcement_id: int, row) -> dict:
         return {

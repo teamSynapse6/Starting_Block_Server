@@ -33,7 +33,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
     private final AnnouncementRepository announcementRepository;
     private final AnnouncementPdfUploader announcementPdfUploader;
-    private final AnnouncementWriter announcementWriter;
     private final AnnouncementManager announcementManager;
     private final LlmConversationQueryRepository llmConversationQueryRepository;
 
@@ -53,7 +52,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             throw new PermissionDeniedException();
 
         announcementPdfUploader.uploadPdf();
-        announcementWriter.uploadPdfResultWrite();
     }
 
     @Override

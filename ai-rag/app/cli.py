@@ -26,16 +26,29 @@ def _start_index_worker_if_needed() -> bool:
         return False
 
     pid_path = "/tmp/startingblock-index-worker.pid"
+    log_path = "/tmp/startingblock-index-worker.log"
     try:
         if os.path.exists(pid_path):
             with open(pid_path, "r", encoding="utf-8") as handle:
                 pid_text = handle.read().strip()
             if pid_text:
                 try:
-                    os.kill(int(pid_text), 0)
-                    return False
+                    pid = int(pid_text)
+                    os.kill(pid, 0)
+                    cmdline_path = f"/proc/{pid}/cmdline"
+                    if os.path.exists(cmdline_path):
+                        with open(cmdline_path, "rb") as handle:
+                            cmdline = handle.read().replace(b"\0", b" ").decode("utf-8", errors="replace")
+                        if "app.scripts.index_worker" in cmdline:
+                            return False
                 except OSError:
                     pass
+                except ValueError:
+                    pass
+            try:
+                os.remove(pid_path)
+            except OSError:
+                pass
 
         command = [
             sys.executable,
@@ -54,13 +67,14 @@ def _start_index_worker_if_needed() -> bool:
             "--num-gpus",
             os.getenv("AI_RAG_INDEX_WORKER_NUM_GPUS", "2"),
         ]
-        with open(os.devnull, "wb") as devnull:
+        with open(log_path, "ab") as log_file:
+            log_file.write(f"\n[INDEX_WORKER_STARTER] starting command={' '.join(command)}\n".encode("utf-8"))
             process = subprocess.Popen(
                 command,
                 cwd=os.getcwd(),
                 stdin=subprocess.DEVNULL,
-                stdout=devnull,
-                stderr=devnull,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
                 start_new_session=True,
             )
         with open(pid_path, "w", encoding="utf-8") as handle:
@@ -259,6 +273,8 @@ def upload(_args: argparse.Namespace) -> int:
                 response = client.get(item["url"])
                 response.raise_for_status()
                 file_bytes = response.content
+                if not file_bytes:
+                    raise ValueError("empty file download")
 
                 actual_format = resolve_downloaded_file_format(file_bytes, response.headers.get("content-disposition"))
                 if actual_format not in supported_formats and not is_image_format(actual_format):
